@@ -1,25 +1,29 @@
 import React from 'react';
-import logo from './logo.svg';
-import './App.css';
+import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
+import NavBar from './components/navbar';
+import Footer from './components/footer';
+import Overview from './pages/overview';
+import All from './pages/all';
+import Group from './pages/group';
+import Pair from './pages/pair';
+import DataLayout from './components/datalayout';
 
 function App() {
   return (
-    <div className="App">
-      <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Edit <code>src/App.tsx</code> and save to reload.
-        </p>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn React
-        </a>
-      </header>
-    </div>
+    <Router>
+      <div className="App bg-[#030304] min-h-screen text-white flex flex-col">
+        <NavBar />
+        <div className="flex-grow">
+          <Routes>
+            <Route path="/" element={<Overview />} />
+            <Route path="/all" element={<DataLayout><All /></DataLayout>} />
+            <Route path="/group" element={<DataLayout><Group /></DataLayout>} />
+            <Route path="/pair" element={<DataLayout><Pair /></DataLayout>} />
+          </Routes>
+        </div>
+        <Footer />
+      </div>
+    </Router>
   );
 }
 

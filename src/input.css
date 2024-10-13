@@ -1,0 +1,14 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html, body {
+    @apply h-full overflow-hidden;
+  }
+
+  body {
+    @apply bg-[#030304] text-white;
+    overscroll-behavior: none;
+  }
+}
