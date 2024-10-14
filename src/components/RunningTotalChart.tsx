@@ -17,7 +17,7 @@ const RunningTotalChart: React.FC = () => {
         setIsLoading(true);
         setError(null);
         console.log('Fetching running total data...');
-        const response = await fetch('http://127.0.0.1:5001/lvr_running_total');
+        const response = await fetch('https://lvr-wtf-568975696472.us-central1.run.app/lvr_running_total');
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
         }

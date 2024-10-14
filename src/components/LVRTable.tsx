@@ -45,7 +45,7 @@ const LVRTable: React.FC = () => {
       setIsLoading(true);
       setError(null);
       console.log(`Attempting to fetch LVR table data for page ${page}...`);
-      const response = await fetch(`http://127.0.0.1:5001/lvr_table?page=${page}`);
+      const response = await fetch(`https://lvr-wtf-568975696472.us-central1.run.app/lvr_table?page=${page}`);
       if (!response.ok) {
         if (response.status === 404) {
           throw new Error('Page not found');
