@@ -11,8 +11,8 @@ from flask_caching import Cache
 import os
 
 app = Flask(__name__)
+CORS(app, resources={r"/*": {"origins": ["http://localhost:3000", "https://lvr-wtf.vercel.app"]}})
 cache = Cache(app, config={'CACHE_TYPE': 'simple'})
-CORS(app, resources={r"/*": {"origins": "*"}})
 
 logging.basicConfig(level=logging.DEBUG)
 
