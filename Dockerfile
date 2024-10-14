@@ -21,4 +21,4 @@ ENV CLICKHOUSE_USER='john_beecher'
 ENV CLICKHOUSE_PASSWORD='dummy-password'
 
 # Run the Flask application
-CMD ["python3", "brontesLVR/median.py"]
+CMD ["python3", "brontesLVR/application.py"]

@@ -18,7 +18,7 @@ logging.basicConfig(level=logging.DEBUG)
 
 # Configuration
 CLICKHOUSE_HOST = os.environ.get('CLICKHOUSE_HOST', '34.149.107.219')
-CLICKHOUSE_PORT = os.environ.get('CLICKHOUSE_PORT', 8123)
+CLICKHOUSE_PORT = int(os.environ.get('CLICKHOUSE_PORT', 8123))
 CLICKHOUSE_USER = os.environ.get('CLICKHOUSE_USER', 'john_beecher')
 CLICKHOUSE_PASSWORD = os.environ.get('CLICKHOUSE_PASSWORD', 'dummy-password')
 CACHE_TIMEOUT = 300  # Cache timeout in seconds (5 minutes)
@@ -54,14 +54,6 @@ pool_addresses = [
     "0x840deeef2f115cf50da625f7368c24af6fe74410"
 ]
 
-# Global variables
-cached_data = defaultdict(float)
-cached_median_lvr = {}
-last_update_time = 0
-last_queried_block = MERGE_BLOCK
-update_lock = threading.Lock()
-cache_initialized = threading.Event()
-
 def init_client():
     return clickhouse_connect.get_client(host=CLICKHOUSE_HOST, 
                                          port=CLICKHOUSE_PORT, 
@@ -70,96 +62,111 @@ def init_client():
                                          connect_timeout=1200,  # 20 minutes
                                          send_receive_timeout=1200)  # 20 minutes
 
-def fetch_data(start_block):
-    client = init_client()
-    query = f"""
-        SELECT 
-            block_number,
-            sum(p.profit_amt + p.revenue_amt) AS total_lvr
-        FROM brontes.block_analysis
-        ARRAY JOIN cex_dex_arbed_pool_all AS p
-        WHERE p.profit != '0x0000000000000000000000000000000000000000' AND 
-            p.profit != '' AND 
-            p.revenue != '0x0000000000000000000000000000000000000000' AND 
-            p.revenue != '' AND
-            p.profit IN {tuple(pool_addresses)} AND
-            block_number > {start_block}
-        GROUP BY block_number
-        ORDER BY block_number
-    """
-    
-    logging.info(f"Executing query to fetch data from block {start_block}")
-    
-    try:
-        results = client.query(query).result_rows
-        logging.info(f"Query returned {len(results)} rows")
-        return {block_number: total_lvr for block_number, total_lvr in results}
-    except (ProtocolError, ClickHouseError) as e:
-        logging.error(f"Error executing query: {str(e)}")
-        return {}
+class DataFetcher:
+    def __init__(self):
+        self.cache_lock = threading.Lock()
+        self.cached_data = defaultdict(float)
+        self.last_queried_block = MERGE_BLOCK
 
-def fetch_median_lvr():
-    global last_queried_block
-    client = init_client()
-    
-    query = f"""
-        WITH max_block AS (
-            SELECT MAX(block_number) AS max_block_num
+    def fetch_data(self):
+        client = init_client()
+        query = f"""
+            SELECT 
+                block_number,
+                sum(p.profit_amt + p.revenue_amt) AS total_lvr
             FROM brontes.block_analysis
-            WHERE block_number >= {last_queried_block}
-        )
-        SELECT 
-            p.profit AS pool_address,
-            quantileExact(0.5)(p.profit_amt + p.revenue_amt) AS median_lvr,
-            max_block_num
-        FROM brontes.block_analysis
-        ARRAY JOIN cex_dex_arbed_pool_all AS p
-        CROSS JOIN max_block
-        WHERE p.profit != '0x0000000000000000000000000000000000000000' AND 
-            p.revenue != '0x0000000000000000000000000000000000000000' AND
-            p.profit IN {tuple(pool_addresses)} AND
-            block_number >= {last_queried_block}
-        GROUP BY p.profit, max_block_num
-    """
-    
-    for attempt in range(MAX_RETRIES):
+            ARRAY JOIN cex_dex_arbed_pool_all AS p
+            WHERE p.profit != '0x0000000000000000000000000000000000000000' AND 
+                p.profit != '' AND 
+                p.revenue != '0x0000000000000000000000000000000000000000' AND 
+                p.revenue != '' AND
+                p.profit IN {tuple(pool_addresses)} AND
+                block_number > {self.last_queried_block}
+            GROUP BY block_number
+            ORDER BY block_number
+        """
+        
+        logging.info(f"Executing query to fetch data from block {self.last_queried_block}")
+        
+        try:
+            results = client.query(query).result_rows
+            logging.info(f"Query returned {len(results)} rows")
+            new_data = {block_number: total_lvr for block_number, total_lvr in results}
+            
+            with self.cache_lock:
+                self.cached_data.update(new_data)
+                if new_data:
+                    self.last_queried_block = max(new_data.keys())
+            
+            logging.info(f"Updated last_queried_block to {self.last_queried_block}")
+            return new_data
+        except (ProtocolError, ClickHouseError) as e:
+            logging.error(f"Error executing query: {str(e)}")
+            return {}
+
+class MedianLVRFetcher:
+    def __init__(self):
+        self.cache_lock = threading.Lock()
+        self.cached_median_lvr = {}
+        self.last_queried_block = MERGE_BLOCK
+        self.last_update_time = 0
+
+    def update_cache(self):
+        current_time = time.time()
+        if current_time - self.last_update_time > CACHE_TIMEOUT:
+            self.fetch_median_lvr()
+            self.last_update_time = current_time
+
+    def fetch_median_lvr(self):
+        client = init_client()
+        
+        query = f"""
+            WITH pool_data AS (
+                SELECT 
+                    p.profit AS pool_address,
+                    p.profit_amt + p.revenue_amt AS lvr,
+                    block_number,
+                    ROW_NUMBER() OVER (PARTITION BY p.profit ORDER BY block_number DESC) AS rn
+                FROM brontes.block_analysis
+                ARRAY JOIN cex_dex_arbed_pool_all AS p
+                WHERE p.profit != '0x0000000000000000000000000000000000000000' AND 
+                    p.revenue != '0x0000000000000000000000000000000000000000' AND
+                    p.profit IN {tuple(pool_addresses)} AND
+                    block_number >= {self.last_queried_block}
+            )
+            SELECT 
+                pool_address,
+                quantileExact(0.5)(lvr) AS median_lvr,
+                MAX(block_number) AS max_block_num
+            FROM pool_data
+            WHERE rn <= 1000  -- Consider the latest 1000 blocks for each pool
+            GROUP BY pool_address
+        """
+        
         try:
             results = client.query(query).result_rows
             if results:
                 logging.info(f"Query returned {len(results)} results")
                 new_data = {pool_address.lower(): median_lvr for pool_address, median_lvr, _ in results}
-                last_queried_block = max(result[2] for result in results)  # Update last queried block
-                logging.info(f"Updated last_queried_block to {last_queried_block}")
-                return new_data
+                max_block = max(result[2] for result in results)
+                
+                with self.cache_lock:
+                    self.cached_median_lvr.update(new_data)
+                    self.last_queried_block = max_block
+                
+                logging.info(f"Updated last_queried_block to {self.last_queried_block}")
+                logging.info(f"Cached data for {len(new_data)} pools")
             else:
                 logging.warning("Query returned no results")
-            return None
-        except (ProtocolError, ClickHouseError) as e:
-            logging.error(f"Attempt {attempt + 1} failed: {str(e)}")
-            if attempt < MAX_RETRIES - 1:
-                time.sleep(RETRY_DELAY)
-            else:
-                raise
+        except Exception as e:
+            logging.error(f"Error fetching median LVR: {str(e)}")
 
-def update_cache():
-    global cached_data, cached_median_lvr, last_update_time, last_queried_block
-    with update_lock:
-        current_time = time.time()
-        if current_time - last_update_time > UPDATE_INTERVAL:
-            try:
-                new_data = fetch_data(last_queried_block)
-                cached_data.update(new_data)
-                if new_data:
-                    last_queried_block = max(new_data.keys())
-                
-                new_median_data = fetch_median_lvr()
-                if new_median_data:
-                    cached_median_lvr.update(new_median_data)
-                
-                last_update_time = current_time
-                logging.info(f"Cache updated. Last queried block: {last_queried_block}")
-            except Exception as e:
-                logging.error(f"Failed to update cache: {str(e)}")
+    def get_cached_data(self):
+        with self.cache_lock:
+            return self.cached_median_lvr.copy()
+
+data_fetcher = DataFetcher()
+median_lvr_fetcher = MedianLVRFetcher()
 
 def calculate_running_total(data):
     sorted_blocks = sorted(data.keys())
@@ -185,8 +192,8 @@ def calculate_running_total(data):
 def get_lvr_running_total():
     if request.method == "OPTIONS":
         return app.make_default_options_response()
-    update_cache()
-    result = calculate_running_total(cached_data)
+    data_fetcher.fetch_data()
+    result = calculate_running_total(data_fetcher.cached_data)
     return jsonify(result)
 
 @app.route('/lvr_table', methods=['GET', 'OPTIONS'])
@@ -194,12 +201,12 @@ def get_lvr_table():
     if request.method == "OPTIONS":
         return app.make_default_options_response()
     
-    update_cache()
+    data_fetcher.fetch_data()
     
     page = int(request.args.get('page', 1))
     
-    with update_lock:
-        sorted_data = sorted(cached_data.items(), reverse=True)  # Sort in descending order
+    with data_fetcher.cache_lock:
+        sorted_data = sorted(data_fetcher.cached_data.items(), reverse=True)  # Sort in descending order
     
     total_pages = (len(sorted_data) - 1) // PAGE_SIZE + 1
     
@@ -215,7 +222,7 @@ def get_lvr_table():
         "data": [{"block_number": block, "total_lvr": lvr} for block, lvr in paginated_data],
         "total_pages": total_pages,
         "current_page": page,
-        "last_queried_block": last_queried_block
+        "last_queried_block": data_fetcher.last_queried_block
     }
     
     logging.info(f"Returning data for page {page} ({len(paginated_data)} entries)")
@@ -226,41 +233,32 @@ def get_lvr_table():
 def get_median_lvr_api():
     if request.method == "OPTIONS":
         return app.make_default_options_response()
-    update_cache()
-    result = [{"pool_address": address, "median_lvr": lvr} for address, lvr in cached_median_lvr.items()]
+    median_lvr_fetcher.update_cache()
+    data = median_lvr_fetcher.get_cached_data()
+    if not data:
+        return jsonify({"error": "No median LVR data available"}), 500
+    result = [{"pool_address": address, "median_lvr": lvr} for address, lvr in data.items()]
     return jsonify(result)
 
 def initialize_cache():
-    global cached_data, cached_median_lvr, last_queried_block
     logging.info("Initializing cache...")
-    
     try:
-        cached_data = fetch_data(MERGE_BLOCK)
-        if cached_data:
-            last_queried_block = max(cached_data.keys())
-        
-        initial_median_data = fetch_median_lvr()
-        if initial_median_data:
-            cached_median_lvr = initial_median_data
-        
-        logging.info(f"Cache initialized. Last queried block: {last_queried_block}")
+        data_fetcher.fetch_data()
+        median_lvr_fetcher.fetch_median_lvr()
+        logging.info(f"Cache initialized. Last queried block: {data_fetcher.last_queried_block}")
     except Exception as e:
         logging.error(f"Error during cache initialization: {str(e)}")
-    
-    cache_initialized.set()  # Signal that cache initialization attempt is complete
 
 def start_update_thread():
     while True:
-        update_cache()
+        data_fetcher.fetch_data()
+        median_lvr_fetcher.update_cache()
         time.sleep(UPDATE_INTERVAL)
 
-application = app
 if __name__ == '__main__':
     init_thread = threading.Thread(target=initialize_cache)
     init_thread.start()
-    
-    # Wait for cache to be initialized before starting Flask
-    cache_initialized.wait()
+    init_thread.join()  # Wait for cache initialization to complete
     
     # Start the update thread
     update_thread = threading.Thread(target=start_update_thread)
@@ -268,4 +266,4 @@ if __name__ == '__main__':
     update_thread.start()
     
     # Start Flask in the main thread
-    app.run(debug=True, use_reloader=False, host='0.0.0.0', port=5000)
+    app.run(debug=True, use_reloader=False, host='0.0.0.0', port=50001)
