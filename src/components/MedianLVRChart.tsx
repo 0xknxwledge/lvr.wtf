@@ -22,7 +22,7 @@ const MedianLVRChart: React.FC = () => {
     const fetchMedianLVR = async () => {
       try {
         console.log('Attempting to fetch data...');
-        const response = await fetch('http://127.0.0.1:5000/median_lvr');
+        const response = await fetch('http://127.0.0.1:50001/median_lvr');
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
         }
@@ -48,7 +48,7 @@ const MedianLVRChart: React.FC = () => {
 
   const poolAddresses = sortedData.map(item => item.pool_address);
   const medianLVRs = sortedData.map(item => item.median_lvr);
-  const poolNames = poolAddresses.map(address => 
+  const poolNames = poolAddresses.map(address =>
     typedNames[address] || `Unknown (${address.slice(0, 6)}...${address.slice(-4)})`
   );
 
@@ -62,7 +62,7 @@ const MedianLVRChart: React.FC = () => {
           x: poolNames,
           y: medianLVRs,
           type: 'bar',
-          marker: { 
+          marker: {
             color: '#b4d838',
           },
           text: medianLVRs.map(value => `$${value.toFixed(2)}`),
@@ -77,7 +77,7 @@ const MedianLVRChart: React.FC = () => {
         },
       ]}
       layout={{
-        xaxis: { 
+        xaxis: {
           title: {
             text: 'Token Pair (Fee Tier)',
             font: {
@@ -94,7 +94,7 @@ const MedianLVRChart: React.FC = () => {
           automargin: true,
           fixedrange: true,
         },
-        yaxis: { 
+        yaxis: {
           title: {
             text: 'Per-Block Median',
             font: {
@@ -122,7 +122,7 @@ const MedianLVRChart: React.FC = () => {
         bargap: 0.05,
         bargroupgap: 0,
       }}
-      config={{ 
+      config={{
         responsive: true,
         scrollZoom: false,
         displayModeBar: false,

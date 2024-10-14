@@ -182,7 +182,7 @@ def initialize_cache():
 
 
 def start_flask():
-    app.run(debug=True, use_reloader=False, host='127.0.0.1', port=5000)
+    app.run(debug=True, use_reloader=False, host='0.0.0.0', port=50001)
 
 if __name__ == '__main__':
     init_thread = threading.Thread(target=initialize_cache)
