@@ -3,12 +3,12 @@ from flask import Flask, jsonify, request
 from collections import defaultdict
 import time
 import logging
-import os
 from urllib3.exceptions import ProtocolError
 from clickhouse_connect.driver.exceptions import ClickHouseError
 import threading
 from flask_cors import CORS
 from flask_caching import Cache
+import os
 
 app = Flask(__name__)
 cache = Cache(app, config={'CACHE_TYPE': 'simple'})
@@ -17,10 +17,10 @@ CORS(app, resources={r"/*": {"origins": "*"}})
 logging.basicConfig(level=logging.DEBUG)
 
 # Configuration
-CLICKHOUSE_HOST = os.environ.get('CLICKHOUSE_HOST')
-CLICKHOUSE_PORT = os.environ.get('CLICKHOUSE_PORT')
-CLICKHOUSE_USER = os.environ.get('CLICKHOUSE_USER')
-CLICKHOUSE_PASSWORD = os.environ.get('CLICKHOUSE_PASSWORD')
+CLICKHOUSE_HOST = os.environ.get('CLICKHOUSE_HOST', '34.149.107.219')
+CLICKHOUSE_PORT = os.environ.get('CLICKHOUSE_PORT', 8123)
+CLICKHOUSE_USER = os.environ.get('CLICKHOUSE_USER', 'john_beecher')
+CLICKHOUSE_PASSWORD = os.environ.get('CLICKHOUSE_PASSWORD', 'dummy-password')
 CACHE_TIMEOUT = 300  # Cache timeout in seconds (5 minutes)
 UPDATE_INTERVAL = 60  # Update interval in seconds
 PAGE_SIZE = 100  # Number of rows per page
@@ -63,8 +63,12 @@ update_lock = threading.Lock()
 cache_initialized = threading.Event()
 
 def init_client():
-    return clickhouse_connect.get_client(host=CLICKHOUSE_HOST, port=CLICKHOUSE_PORT, 
-                                         user=CLICKHOUSE_USER, password=CLICKHOUSE_PASSWORD)
+    return clickhouse_connect.get_client(host=CLICKHOUSE_HOST, 
+                                         port=CLICKHOUSE_PORT, 
+                                         user=CLICKHOUSE_USER, 
+                                         password=CLICKHOUSE_PASSWORD,
+                                         connect_timeout=1200,  # 20 minutes
+                                         send_receive_timeout=1200)  # 20 minutes
 
 def fetch_data(start_block):
     client = init_client()
@@ -264,4 +268,4 @@ if __name__ == '__main__':
     update_thread.start()
     
     # Start Flask in the main thread
-    app.run()
+    app.run(debug=True, use_reloader=False, host='0.0.0.0', port=5000)
