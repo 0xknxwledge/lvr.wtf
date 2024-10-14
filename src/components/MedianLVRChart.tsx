@@ -71,7 +71,7 @@ const MedianLVRChart: React.FC = () => {
             size: 12,
             color: 'white',
           },
-          hoverinfo: 'x+text',
+          hoverinfo: 'x+y',
           hovertemplate: '%{x}<br>$%{y:.2f}<extra></extra>',
           width: 0.8,
         },
@@ -114,19 +114,19 @@ const MedianLVRChart: React.FC = () => {
         },
         autosize: true,
         height: 600,
-        width: 1200,
         margin: { l: 100, r: 50, b: 150, t: 80, pad: 4 },
         paper_bgcolor: '#000000',
         plot_bgcolor: '#000000',
         font: { color: '#ffffff' },
         bargap: 0.05,
         bargroupgap: 0,
+        hovermode: 'closest',
       }}
       config={{
         responsive: true,
         scrollZoom: false,
         displayModeBar: false,
-        staticPlot: true,
+        staticPlot: false,
       }}
       style={{ width: '100%', height: '100%' }}
     />
