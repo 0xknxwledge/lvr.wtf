@@ -28,14 +28,22 @@ function NavBar() {
               Data
             </Link>
           </div>
-          <div className="ml-10">
+          <div className="ml-10 flex items-center gap-6">
+            <a
+              href="https://fenbushi.vc"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="h-14"
+            >
+              <img src="/fenbushi_white.png" alt="Fenbushi Capital" className="h-full" />
+            </a>
             <a
               href="https://sorellalabs.com"
               target="_blank"
               rel="noopener noreferrer"
-              className="px-6 py-4 bg-[#b4d838] rounded-[156px] border text-black text-lg font-medium font-['General Sans'] leading-tight flex items-center"
+              className="h-10"
             >
-              <span className="mr-2">⟳</span> Visit Sorella Labs
+              <img src="/sorella.png" alt="Sorella Labs" className="h-full" />
             </a>
           </div>
         </div>
