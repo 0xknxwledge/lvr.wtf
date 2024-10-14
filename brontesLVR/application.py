@@ -11,8 +11,15 @@ from flask_caching import Cache
 import os
 
 app = Flask(__name__)
-CORS(app, resources={r"/*": {"origins": ["http://localhost:3000", "https://lvr-wtf.vercel.app"]}})
+CORS(app, resources={r"/*": {"origins": "*"}})  # This allows all origins
 cache = Cache(app, config={'CACHE_TYPE': 'simple'})
+
+@app.after_request
+def after_request(response):
+    response.headers.add('Access-Control-Allow-Origin', '*')
+    response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+    response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
+    return response
 
 logging.basicConfig(level=logging.DEBUG)
 
