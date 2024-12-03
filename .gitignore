@@ -1,0 +1,33 @@
+# Build artifacts
+/backend/target/
+!/backend/target/release/backend
+
+# OS files
+.DS_Store
+**/.DS_Store
+
+# Environment files
+.env
+**/.env
+
+# Dependencies
+/node_modules
+/build
+
+# Debug files
+**/*.rlib
+**/*.rmeta
+**/*.d
+**/*.bin
+**/*.o
+**/*.a
+**/*.so
+**/*.dylib
+**/*.dll
+**/*.exe
+**/*.pdb
+**/*.idb
+**/*.ilk
+**/*.exp
+**/*.lib
+**/*.obj
