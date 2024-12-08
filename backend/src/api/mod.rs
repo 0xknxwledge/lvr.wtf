@@ -31,6 +31,8 @@ pub async fn serve(host: String, port: u16, store: Arc<dyn ObjectStore>) -> Resu
     let app = Router::new()
         .route("/running_total", get(handlers::get_running_total))
         .route("/ratios", get(handlers::get_lvr_ratios))
+        .route("/pool_totals", get(handlers::get_pool_totals))
+        .route("/pool_medians", get(handlers::get_pool_medians))
         .route("/health", get(health_check))
         .layer(cors)
         .with_state(state);

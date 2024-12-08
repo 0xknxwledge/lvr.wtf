@@ -12,13 +12,15 @@ pub struct HealthResponse {
 pub struct TimeRangeQuery {
     pub start_block: Option<u64>,
     pub end_block: Option<u64>,
-    pub pool_address: Option<String>,
+    pub markout_time: Option<String>,
+    pub aggregate: Option<bool>, 
 }
 
 #[derive(Debug, Serialize)]
 pub struct RunningTotal {
     pub block_number: u64,
     pub markout: String,
+    pub pool_name: Option<String>, 
     pub running_total_cents: u64,
 }
 
@@ -54,4 +56,38 @@ pub struct LVRRatioQuery {
 pub struct LVRTotals {
     pub realized: u64,
     pub theoretical: HashMap<String, u64>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct PoolTotalsQuery {
+    pub markout_time: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct PoolTotal {
+    pub pool_name: String,
+    pub pool_address: String,
+    pub total_lvr_cents: u64,
+}
+
+#[derive(Debug, Serialize)]
+pub struct PoolTotalsResponse {
+    pub totals: Vec<PoolTotal>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct MedianLVRQuery {
+    pub markout_time: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct PoolMedianLVR {
+    pub pool_name: String,
+    pub pool_address: String,
+    pub median_lvr_cents: u64,
+}
+
+#[derive(Debug, Serialize)]
+pub struct MedianLVRResponse {
+    pub medians: Vec<PoolMedianLVR>,
 }

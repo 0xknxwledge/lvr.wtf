@@ -1,6 +1,6 @@
 import React from "react"
 
-let names = {
+let names: PoolNames = {
     "0x88e6a0c2ddd26feeb64f039a2c41296fcb3f5640": "USDC/WETH(5bp)",
     "0x3416cf6c708da44db2624d63ea0aaef7113527c6": "USDC/USDT(1bp)",
     "0x11b815efb8f581194ae79006d24e0d814b7697f6": "WETH/USDT(5bp)",
@@ -24,5 +24,9 @@ let names = {
     "0x840deeef2f115cf50da625f7368c24af6fe74410": "cbETH/WETH(5bp)"
 }
 
+export type PoolNames = {
+    [key: string]: string;
+};
+  
 
 export default names;

@@ -1,8 +1,4 @@
-Why no Aurora data for       
-    '0x840deeef2f115cf50da625f7368c24af6fe74410': 'cbETH-WETH-500',
-    '0xa3f558aebaecaf0e11ca4b2199cc5ed341edfd74': 'LDO-WETH-3000'
-
-Why no Brontes data for
+Get Brontes data for:
     "0x435664008F38B0650fBC1C9fc971D0A3Bc2f1e47": "USDe-USDT-100",
     "0xB4e16d0168e52d35CaCD2c6185b44281Ec28C9Dc": "WETH-USDC-v2",
     "0x0d4a11d5EEaaC28EC3F61d100daF4d40471f1852": "USDT-WETH-v2"

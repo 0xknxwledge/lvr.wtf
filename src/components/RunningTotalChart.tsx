@@ -17,7 +17,7 @@ const RunningTotalChart: React.FC = () => {
     const fetchData = async () => {
       try {
         setIsLoading(true);
-        const response = await fetch('http://127.0.0.1:3000/running_total?start_block=15537392&end_block=20000000');
+        const response = await fetch('http://127.0.0.1:3000/running_total?aggregate=true');
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
         }
