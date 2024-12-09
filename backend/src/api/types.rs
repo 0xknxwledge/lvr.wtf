@@ -91,3 +91,37 @@ pub struct PoolMedianLVR {
 pub struct MedianLVRResponse {
     pub medians: Vec<PoolMedianLVR>,
 }
+
+#[derive(Debug, Deserialize)]
+pub struct MaxLVRQuery {
+    pub pool_address: String,
+    pub markout_time: String,
+}
+
+#[derive(Debug, Serialize)]
+pub struct MaxLVRResponse {
+    pub block_number: u64,
+    pub lvr_cents: u64,
+    pub pool_name: String,
+}
+#[derive(Debug, Deserialize)]
+pub struct HistogramQuery {
+    pub pool_address: String,
+    pub markout_time: String,
+}
+
+#[derive(Debug, Serialize)]
+pub struct HistogramBucket {
+    pub range_start: f64,
+    pub range_end: Option<f64>,
+    pub count: u64,
+    pub label: String,
+}
+
+#[derive(Debug, Serialize)]
+pub struct HistogramResponse {
+    pub pool_name: String,
+    pub pool_address: String,
+    pub buckets: Vec<HistogramBucket>,
+    pub total_observations: u64,
+}

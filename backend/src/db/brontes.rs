@@ -132,14 +132,16 @@ impl BrontesConnection {
                 SELECT 
                     p.profit AS pool_address,
                     block_number,
-                    p.profit_amt + p.revenue_amt AS lvr
+                    SUM(p.profit_amt + p.revenue_amt) AS lvr
                 FROM brontes.block_analysis
                 ARRAY JOIN cex_dex_arbed_pool_all AS p
                 WHERE p.profit in (?)
+                    AND run_id = 1000
                     AND p.profit != '0x0000000000000000000000000000000000000000'
                     AND p.revenue != '0x0000000000000000000000000000000000000000'
                     AND block_number > ?
                     AND block_number <= ?
+                GROUP BY block_number, pool_address
                 ORDER BY block_number ASC
                 "#
             )

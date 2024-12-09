@@ -5,12 +5,12 @@ use crate::{
     writer::ParallelParquetWriter,
     models::{Checkpoint, IntervalData, MarkoutTime,UnifiedLVRData, CheckpointStats, DataSource, CheckpointUpdate},
     error::Error,
-    MARKOUT_TIMES, MARKOUT_TIME_MAPPING, POOL_ADDRESSES, POOL_NAMES, PEPE_DEPLOYMENT, USDeUSDT_DEPLOYMENT, WETH_USDT_100_DEPLOYMENT
+    MARKOUT_TIMES, MARKOUT_TIME_MAPPING, POOL_ADDRESSES, POOL_NAMES, PEPE_DEPLOYMENT, USDeUSDT_DEPLOYMENT, WETH_USDT_100_DEPLOYMENT, BRONTES_ADDIES
 };
 use anyhow::Result;
 use dashmap::DashMap;
 use ordered_float::OrderedFloat;
-use std::{collections::HashMap, sync::Arc};
+use std::{collections::{HashSet,HashMap}, sync::Arc};
 use tracing::{info, error, warn, debug};
 use object_store::ObjectStore;
 use std::sync::atomic::Ordering;
@@ -64,6 +64,15 @@ impl ParallelLVRProcessor {
             update_barrier: Arc::new(Barrier::new(1)),
             object_store
         })
+    }
+
+    fn get_deployment_block(&self, pool_address: &str) -> u64 {
+        match pool_address.to_lowercase().as_str() {
+            "0x11950d141ecb863f01007add7d1a342041227b58" => *PEPE_DEPLOYMENT,
+            "0x435664008f38b0650fbc1c9fc971d0a3bc2f1e47" => *USDeUSDT_DEPLOYMENT,
+            "0xc7bbec68d12a0d1830360f8ec58fa599ba1b0e9b" => *WETH_USDT_100_DEPLOYMENT,
+            _ => 0, // Pre-merge pools
+        }
     }
 
     pub async fn process_blocks(
@@ -230,7 +239,7 @@ impl ParallelLVRProcessor {
                     .filter_map(|detail| {
                         self.parse_lvr_details(&detail.details, pool_name)
                             .and_then(|lvr| {
-                                self.to_cents(lvr).ok().map(|cents| UnifiedLVRData {
+                                self.to_cents(lvr, &DataSource::Aurora).ok().map(|cents| UnifiedLVRData {
                                     block_number: detail.block_number,
                                     lvr_cents: cents,
                                     source: DataSource::Aurora,
@@ -246,19 +255,64 @@ impl ParallelLVRProcessor {
         }
     
         // Process Brontes data
-        for result in brontes_results {
-            if let Ok(cents) = self.to_cents(result.lvr) {
-                let data = UnifiedLVRData {
-                    block_number: result.block_number,
-                    lvr_cents: cents,
-                    source: DataSource::Brontes,
-                };
+        let mut brontes_data: HashMap<String, Vec<UnifiedLVRData>> = HashMap::new();
     
-                unified_data
-                    .entry((result.pool_address.clone(), MarkoutTime::Brontes))
-                    .and_modify(|v| v.push(data.clone()))
-                    .or_insert_with(|| vec![data]);
+        // First, collect all actual Brontes events
+        for result in brontes_results {
+            if result.block_number >= chunk_start && result.block_number < chunk_end {
+                if let Ok(cents) = self.to_cents(result.lvr, &DataSource::Brontes) {
+                    brontes_data
+                        .entry(result.pool_address.to_lowercase())
+                        .or_default()
+                        .push(UnifiedLVRData {
+                            block_number: result.block_number,
+                            lvr_cents: cents,
+                            source: DataSource::Brontes,
+                        });
+                }
             }
+        }
+    
+        // Process each Brontes pool
+        for pool_address in BRONTES_ADDIES.iter() {
+            // Get or create vector for this pool
+            let mut pool_data = brontes_data
+                .remove(*pool_address)
+                .unwrap_or_default();
+            
+            // Sort by block number for efficient lookup
+            pool_data.sort_by_key(|data| data.block_number);
+            let event_blocks: HashSet<u64> = pool_data
+                .iter()
+                .map(|data| data.block_number)
+                .collect();
+    
+            // Add zeros for blocks without events
+            let mut complete_data = Vec::with_capacity((chunk_end - chunk_start) as usize);
+            
+            // Add existing events and zeros in sorted order
+            for block in chunk_start..chunk_end {
+                if event_blocks.contains(&block) {
+                    let event = pool_data
+                        .iter()
+                        .find(|data| data.block_number == block)
+                        .unwrap()
+                        .clone();
+                    complete_data.push(event);
+                } else {
+                    complete_data.push(UnifiedLVRData {
+                        block_number: block,
+                        lvr_cents: 0,
+                        source: DataSource::Brontes,
+                    });
+                }
+            }
+    
+            // Insert into unified data (we'll always have at least zeros)
+            unified_data.insert(
+                (pool_address.to_string(), MarkoutTime::Brontes),
+                complete_data
+            );
         }
     
         // Process all data
@@ -354,8 +408,12 @@ impl ParallelLVRProcessor {
     
 
 
-    fn to_cents(&self, value: f64) -> Result<u64> {
-        let cents = (value * 100.0).round();
+    fn to_cents(&self, value: f64, source: &DataSource) -> Result<u64> {
+        let cents = match source {
+            DataSource::Aurora => (value * 100.0).round(), // Convert dollars to cents for Aurora
+            DataSource::Brontes => value.round()           // Brontes already in cents
+        };
+        
         if cents > u64::MAX as f64 || cents < u64::MIN as f64 {
             return Err(Error::Processing(
                 format!("LVR value {} too large for u64 cents representation", value)
@@ -371,36 +429,52 @@ impl ParallelLVRProcessor {
         data: &[UnifiedLVRData],
         chunk_start: u64,
         chunk_end: u64,
-    ) -> Result<()> {
+     ) -> Result<()> {
+        // Get deployment block for this pool
+        let deployment_block = self.get_deployment_block(pool_address);
+        let effective_start = chunk_start.max(deployment_block);
+     
+        // Skip if chunk is entirely before deployment
+        if effective_start >= chunk_end {
+            return Ok(());
+        }
+     
         let checkpoint = self.checkpoints
             .entry((pool_address.to_string(), markout_time))
             .or_insert_with(|| Checkpoint::new(pool_address.to_string(), markout_time));
-    
-        // Filter data for current chunk
-        let chunk_data: Vec<_> = data.iter()
-            .filter(|d| d.block_number >= chunk_start && d.block_number < chunk_end)
+     
+        // Create map of actual data points
+        let mut block_data: HashMap<u64, &UnifiedLVRData> = data.iter()
+            .filter(|d| d.block_number >= effective_start && d.block_number < chunk_end)
+            .map(|d| (d.block_number, d))
             .collect();
-    
-        if chunk_data.is_empty() {
-            return Ok(());
-        }
-    
-        // Calculate stats in a single pass
+     
+        // Calculate stats including explicit zeros for missing blocks
         let mut stats = CheckpointStats::default();
-        for data_point in chunk_data {
-            stats.update(data_point);
+        
+        // Process every block in range, treating missing blocks as zeros
+        for block_number in effective_start..chunk_end {
+            if let Some(data_point) = block_data.remove(&block_number) {
+                stats.update(data_point);
+                stats.updates += 1;
+            } else {
+                // Missing block counts as a zero
+                stats.buckets[0] += 1; // Zero bucket
+                stats.updates += 1;
+            }
         }
-    
-        // Apply updates atomically
+     
+        // Apply updates atomically if we processed any blocks
         if stats.updates > 0 {
             // Update max LVR if needed
             checkpoint.update_max_lvr(stats.max_lvr_block, stats.max_lvr);
-    
-            // Update running total
+     
+            // Update running total - only includes non-zero values
             checkpoint.running_total.fetch_add(stats.running_total.to_i64().unwrap(), Ordering::Release);
-    
-            // Update buckets
+     
+            // Update buckets atomically
             let bucket_refs = [
+                &checkpoint.total_bucket_0,
                 &checkpoint.total_bucket_0_10,
                 &checkpoint.total_bucket_10_100,
                 &checkpoint.total_bucket_100_500,
@@ -409,17 +483,17 @@ impl ParallelLVRProcessor {
                 &checkpoint.total_bucket_10000_30000,
                 &checkpoint.total_bucket_30000_plus,
             ];
-    
+     
             for (count, bucket) in stats.buckets.iter().zip(bucket_refs.iter()) {
                 bucket.fetch_add(*count, Ordering::Release);
             }
-    
+     
             // Update last processed block
             checkpoint.last_updated_block.fetch_max(chunk_end - 1, Ordering::Release);
         }
-    
+     
         Ok(())
-    }
+     }
 
     fn calculate_interval_metrics(
         &self,
@@ -430,60 +504,74 @@ impl ParallelLVRProcessor {
         data: &[UnifiedLVRData],
     ) -> Result<Vec<IntervalData>> {
         let blocks_per_interval = BLOCKS_PER_DAY;
-        let interval_groups: DashMap<u64, Vec<u64>> = DashMap::new();
+        let deployment_block = self.get_deployment_block(pool_address);
+        let effective_chunk_start = chunk_start.max(deployment_block);
     
-        // Determine deployment block for this pool
-        let deployment_block: u64 = match pool_address {
-            "0x11950d141ecb863f01007add7d1a342041227b58" => *PEPE_DEPLOYMENT,
-            "0x435664008f38b0650fbc1c9fc971d0a3bc2f1e47" => *USDeUSDT_DEPLOYMENT,
-            "0xc7bbec68d12a0d1830360f8ec58fa599ba1b0e9b" => *WETH_USDT_100_DEPLOYMENT,
-            _ => 0, // Pre-merge pools
-        };
+        // Early return if chunk is entirely before deployment
+        if effective_chunk_start >= chunk_end {
+            return Ok(Vec::new());
+        }
     
-        // Group data by intervals concurrently
+        // Create map to store data for each block
+        let block_data: DashMap<u64, u64> = DashMap::new();
+        
+        // First, map all available data points
         data.iter()
-            .filter(|d| d.block_number >= chunk_start && d.block_number < chunk_end)
+            .filter(|d| d.block_number >= effective_chunk_start && d.block_number < chunk_end)
             .for_each(|data_point| {
-                let interval_id = (data_point.block_number - chunk_start) / blocks_per_interval;
-                interval_groups
-                    .entry(interval_id)
-                    .and_modify(|v| v.push(data_point.lvr_cents))
-                    .or_insert_with(|| vec![data_point.lvr_cents]);
+                block_data.insert(data_point.block_number, data_point.lvr_cents);
             });
+    
+        // Create interval groups with explicit zero handling
+        let interval_groups: DashMap<u64, Vec<u64>> = DashMap::new();
+        
+        // Process each block in range, including missing blocks as zeros
+        for block_number in effective_chunk_start..chunk_end {
+            let interval_id = (block_number - chunk_start) / blocks_per_interval;
+            let value = block_data.get(&block_number).map(|v| *v).unwrap_or(0);
+            
+            interval_groups
+                .entry(interval_id)
+                .and_modify(|v| v.push(value))
+                .or_insert_with(|| vec![value]);
+        }
     
         // Calculate metrics for each interval
         let result: Vec<_> = interval_groups
             .into_iter()
-            .map(|(interval_id, cents)| {
+            .map(|(interval_id, values)| {
                 // Calculate interval boundaries
                 let interval_start = chunk_start + (interval_id * blocks_per_interval);
                 let interval_end = (interval_start + blocks_per_interval).min(chunk_end);
-    
-                // Adjust total count based on deployment block
-                let effective_start = interval_start.max(deployment_block);
-                let total_count = if effective_start >= interval_end {
+                
+                // Calculate effective range for this interval
+                let effective_interval_start = interval_start.max(deployment_block);
+                let total_count = if effective_interval_start >= interval_end {
                     0
                 } else {
-                    interval_end - effective_start
+                    interval_end - effective_interval_start
                 };
     
-                // Filter out zero values
-                let non_zero_cents: Vec<_> = cents.into_iter().filter(|&v| v != 0).collect();
-                let non_zero_count = non_zero_cents.len() as u64;
+                // Count non-zero values
+                let non_zero_values: Vec<_> = values.iter()
+                    .filter(|&&v| v != 0)
+                    .copied()
+                    .collect();
+                let non_zero_count = non_zero_values.len() as u64;
     
-                // Sort non-zero cents for percentile calculations
-                let mut sorted_non_zero_cents = non_zero_cents.clone();
-                sorted_non_zero_cents.sort_unstable();
+                // Sort for percentile calculations
+                let mut sorted_non_zero_values = non_zero_values.clone();
+                sorted_non_zero_values.sort_unstable();
     
                 IntervalData {
                     interval_id,
                     pair_address: pool_address.to_string(),
                     markout_time: markout_time.clone(),
-                    total_lvr_cents: non_zero_cents.iter().sum(),
-                    median_lvr_cents: Self::calculate_percentile_cents(&sorted_non_zero_cents, 0.5),
-                    percentile_25_cents: Self::calculate_percentile_cents(&sorted_non_zero_cents, 0.25),
-                    percentile_75_cents: Self::calculate_percentile_cents(&sorted_non_zero_cents, 0.75),
-                    max_lvr_cents: *sorted_non_zero_cents.last().unwrap_or(&0),
+                    total_lvr_cents: non_zero_values.iter().sum(),
+                    median_lvr_cents: Self::calculate_percentile_cents(&sorted_non_zero_values, 0.5),
+                    percentile_25_cents: Self::calculate_percentile_cents(&sorted_non_zero_values, 0.25),
+                    percentile_75_cents: Self::calculate_percentile_cents(&sorted_non_zero_values, 0.75),
+                    max_lvr_cents: *sorted_non_zero_values.last().unwrap_or(&0),
                     non_zero_count,
                     total_count,
                 }

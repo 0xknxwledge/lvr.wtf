@@ -1,7 +1,7 @@
 use anyhow::Result;
 use clap::{Parser, Subcommand};
 use object_store::local::LocalFileSystem;
-use std::{path::PathBuf, sync::Arc, pin::Pin};
+use std::{path::PathBuf, sync::Arc};
 use tokio;
 use tracing::{info, error, warn};
 use dotenv::dotenv;
@@ -11,10 +11,12 @@ use backend::{
     init_logging, 
     Validator,
     serve};
-use futures::Future;
+use futures::future::BoxFuture;
 
 const START_BLOCK: u64 = 15537392;
 const END_BLOCK: u64 = 20000000;
+
+type ValidationCallback = for<'a> fn(&'a Arc<dyn ObjectStore>) -> BoxFuture<'a, Result<()>>;
 
 #[derive(Debug, Parser)]
 #[command(name = "lvr")]
@@ -69,48 +71,45 @@ fn ensure_directories() -> Result<PathBuf> {
     Ok(data_dir)
 }
 
-fn run_validation(store: &Arc<dyn ObjectStore>) -> Pin<Box<dyn Future<Output = Result<()>> + Send + '_>> {
-    Box::pin(async move {
-        info!("Running data validation");
-        let validator = Validator::new(store.clone());
-        
-        match validator.validate_all().await {
-            Ok(results) => {
-                let mut has_significant_errors = false;
-                let mut has_minor_discrepancies = false;
-                
-                for (key, stats) in results {
-                    if stats.difference != 0 {
-                        if stats.difference_percent.abs() > 1.0 {
-                            has_significant_errors = true;
-                            error!(
-                                "Significant discrepancy for {}: Difference of {} ({:.2}%)", 
-                                key, stats.difference, stats.difference_percent
-                            );
-                        } else {
-                            has_minor_discrepancies = true;
-                            warn!(
-                                "Minor discrepancy for {}: Difference of {} ({:.2}%)", 
-                                key, stats.difference, stats.difference_percent
-                            );
-                        }
+async fn run_validation(store: &Arc<dyn ObjectStore>) -> Result<()> {
+    info!("Running data validation");
+    let validator = Validator::new(store.clone());
+    
+    match validator.validate_all().await {
+        Ok(results) => {
+            let mut has_significant_errors = false;
+            let mut has_minor_discrepancies = false;
+            
+            for (key, stats) in results {
+                if stats.difference != 0 {
+                    if stats.difference_percent.abs() > 1.0 {
+                        has_significant_errors = true;
+                        error!(
+                            "Significant discrepancy for {}: Difference of {} ({:.2}%)", 
+                            key, stats.difference, stats.difference_percent
+                        );
+                    } else {
+                        has_minor_discrepancies = true;
+                        warn!(
+                            "Minor discrepancy for {}: Difference of {} ({:.2}%)", 
+                            key, stats.difference, stats.difference_percent
+                        );
                     }
                 }
-                
-                if has_significant_errors {
-                    error!("Validation failed with significant discrepancies");
-                    Ok(())
-                } else if has_minor_discrepancies {
-                    warn!("Validation completed with minor discrepancies");
-                    Ok(())
-                } else {
-                    info!("Validation completed successfully with no discrepancies");
-                    Ok(())
-                }
             }
-            Err(e) => Err(anyhow::anyhow!("Validation failed: {}", e))
+            
+            if has_significant_errors {
+                Err(anyhow::anyhow!("Validation failed with significant discrepancies"))
+            } else if has_minor_discrepancies {
+                warn!("Validation completed with minor discrepancies");
+                Ok(())
+            } else {
+                info!("Validation completed successfully with no discrepancies");
+                Ok(())
+            }
         }
-    })
+        Err(e) => Err(anyhow::anyhow!("Validation failed: {}", e))
+    }
 }
 
 #[tokio::main]
@@ -145,12 +144,30 @@ async fn main() -> Result<()> {
             let processor = ParallelLVRProcessor::new(
                 start_block,
                 end_block,
-                store
+                store.clone()
             ).await?;
 
-            processor.process_blocks(None).await?;
-            
-            info!("Processing completed successfully");
+            // Create validation callback
+            let validation_callback: Option<ValidationCallback> = Some(|store: &Arc<dyn ObjectStore>| {
+                Box::pin(async move {
+                    match run_validation(store).await {
+                        Ok(_) => Ok(()),
+                        Err(e) => {
+                            error!("Validation error during processing: {}", e);
+                            Err(e)
+                        }
+                    }
+                })
+            });
+
+            // Process blocks with validation after each chunk
+            match processor.process_blocks(validation_callback).await {
+                Ok(_) => info!("Processing completed successfully"),
+                Err(e) => {
+                    error!("Processing failed: {}", e);
+                    return Err(e);
+                }
+            }
         },
         Commands::Validate { data_dir } => {
             let data_dir = data_dir.unwrap_or_else(|| PathBuf::from("data"));

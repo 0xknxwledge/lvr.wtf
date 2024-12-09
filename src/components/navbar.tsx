@@ -38,7 +38,7 @@ function NavBar() {
               <img src="/fenbushi_white.png" alt="Fenbushi Capital" className="h-full" />
             </a>
             <a
-              href="https://sorellalabs.com"
+              href="https://sorellalabs.xyz"
               target="_blank"
               rel="noopener noreferrer"
               className="h-10"
