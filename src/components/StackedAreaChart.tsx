@@ -40,9 +40,10 @@ const StackedAreaChart: React.FC<StackedAreaChartProps> = ({ selectedMarkout }) 
           throw new Error(`HTTP error! status: ${response.status}`);
         }
         const jsonData: DataPoint[] = await response.json();
-        setData(jsonData);
+        setData(jsonData || []); // Ensure we always set an array, even if empty
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to fetch data');
+        setData([]); // Reset data to empty array on error
       } finally {
         setIsLoading(false);
       }
@@ -71,6 +72,16 @@ const StackedAreaChart: React.FC<StackedAreaChartProps> = ({ selectedMarkout }) 
     );
   }
 
+  if (!data || data.length === 0) {
+    return (
+      <div className="w-full bg-black rounded-lg border border-[#212121]">
+        <div className="flex items-center justify-center h-[600px]">
+          <p className="text-white">No data available</p>
+        </div>
+      </div>
+    );
+  }
+
   // Get unique block numbers and pool addresses
   const blockNumbers = Array.from(new Set(data.map(d => d.block_number))).sort((a, b) => a - b);
   const poolAddresses = Array.from(new Set(data.map(d => d.pool_name)));
@@ -85,7 +96,7 @@ const StackedAreaChart: React.FC<StackedAreaChartProps> = ({ selectedMarkout }) 
     return {
       x: poolData.map(d => d.block_number),
       y: poolData.map(d => d.running_total_cents / 100), // Convert cents to dollars
-      name: names[poolAddress] || `${poolAddress.slice(0, 6)}...${poolAddress.slice(-4)}`,
+      name: names[poolAddress] || `${poolAddress?.slice(0, 6)}...${poolAddress?.slice(-4)}`,
       type: 'scatter',
       mode: 'lines',
       stackgroup: 'one',

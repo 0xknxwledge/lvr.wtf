@@ -104,6 +104,7 @@ pub struct Checkpoint {
     pub markout_time: MarkoutTime,
     pub max_lvr: Arc<Mutex<MaxLVRData>>,
     pub running_total: AtomicI64,
+    pub total_bucket_0: AtomicU64,      
     pub total_bucket_0_10: AtomicU64,
     pub total_bucket_10_100: AtomicU64,
     pub total_bucket_100_500: AtomicU64,
@@ -121,6 +122,7 @@ pub struct CheckpointSnapshot {
     pub max_lvr_value: u64,
     pub max_lvr_block: u64,
     pub running_total: u64,
+    pub total_bucket_0: u64,           
     pub total_bucket_0_10: u64,
     pub total_bucket_10_100: u64,
     pub total_bucket_100_500: u64,
@@ -129,7 +131,9 @@ pub struct CheckpointSnapshot {
     pub total_bucket_10000_30000: u64,
     pub total_bucket_30000_plus: u64,
     pub last_updated_block: u64,
+    pub non_zero_proportion: f64,      
 }
+
 
 #[derive(Debug)]
 pub struct CheckpointUpdate {
@@ -151,6 +155,7 @@ impl Checkpoint {
                 block: 0,
             })),
             running_total: AtomicI64::new(0),
+            total_bucket_0: AtomicU64::new(0),    // Initialize zero bucket
             total_bucket_0_10: AtomicU64::new(0),
             total_bucket_10_100: AtomicU64::new(0),
             total_bucket_100_500: AtomicU64::new(0),
@@ -164,6 +169,22 @@ impl Checkpoint {
 
     pub fn to_snapshot(&self) -> CheckpointSnapshot {
         let max_lvr_data = self.max_lvr.lock().unwrap();
+        let total_observations = self.total_bucket_0.load(Ordering::Acquire) +
+            self.total_bucket_0_10.load(Ordering::Acquire) +
+            self.total_bucket_10_100.load(Ordering::Acquire) +
+            self.total_bucket_100_500.load(Ordering::Acquire) +
+            self.total_bucket_1000_3000.load(Ordering::Acquire) +
+            self.total_bucket_3000_10000.load(Ordering::Acquire) +
+            self.total_bucket_10000_30000.load(Ordering::Acquire) +
+            self.total_bucket_30000_plus.load(Ordering::Acquire);
+
+        let non_zero_observations = total_observations - self.total_bucket_0.load(Ordering::Acquire);
+        
+        let non_zero_proportion = if total_observations > 0 {
+            non_zero_observations as f64 / total_observations as f64
+        } else {
+            0.0
+        };
         
         CheckpointSnapshot {
             pair_address: self.pair_address.clone(),
@@ -171,6 +192,7 @@ impl Checkpoint {
             max_lvr_value: max_lvr_data.value,
             max_lvr_block: max_lvr_data.block,
             running_total: self.running_total.load(Ordering::Acquire).to_u64().unwrap(),
+            total_bucket_0: self.total_bucket_0.load(Ordering::Acquire),
             total_bucket_0_10: self.total_bucket_0_10.load(Ordering::Acquire),
             total_bucket_10_100: self.total_bucket_10_100.load(Ordering::Acquire),
             total_bucket_100_500: self.total_bucket_100_500.load(Ordering::Acquire),
@@ -179,6 +201,7 @@ impl Checkpoint {
             total_bucket_10000_30000: self.total_bucket_10000_30000.load(Ordering::Acquire),
             total_bucket_30000_plus: self.total_bucket_30000_plus.load(Ordering::Acquire),
             last_updated_block: self.last_updated_block.load(Ordering::Acquire),
+            non_zero_proportion,
         }
     }
 
@@ -225,12 +248,19 @@ pub struct CheckpointStats {
     pub running_total: u64,
     pub max_lvr: u64,
     pub max_lvr_block: u64,
-    pub buckets: [u64; 7],
+    pub buckets: [u64; 8]
 }
+
 
 impl CheckpointStats {
     pub fn update(&mut self, data_point: &UnifiedLVRData) {
         self.updates += 1;
+
+        if data_point.lvr_cents == 0 {
+            self.buckets[0] += 1;  // Zero bucket
+            return;
+        }
+
         self.running_total += data_point.lvr_cents;
 
         if data_point.lvr_cents > self.max_lvr {
@@ -240,13 +270,13 @@ impl CheckpointStats {
 
         let abs_dollars = (data_point.lvr_cents as f64 / 100.0).abs();
         let bucket_idx = match abs_dollars {
-            x if x <= 10.0 => 0,
-            x if x <= 100.0 => 1,
-            x if x <= 500.0 => 2,
-            x if x <= 3000.0 => 3,
-            x if x <= 10000.0 => 4,
-            x if x <= 30000.0 => 5,
-            _ => 6,
+            x if x <= 10.0 => 1,
+            x if x <= 100.0 => 2,
+            x if x <= 500.0 => 3,
+            x if x <= 3000.0 => 4,
+            x if x <= 10000.0 => 5,
+            x if x <= 30000.0 => 6,
+            _ => 7,
         };
         self.buckets[bucket_idx] += 1;
     }

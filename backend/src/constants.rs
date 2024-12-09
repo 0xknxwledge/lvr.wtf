@@ -3,6 +3,9 @@ use lazy_static::lazy_static;
 use ordered_float::OrderedFloat;
 use crate::MarkoutTime;
 
+
+// POOL_ADDRESSES and BRONTES_ADDIES are missing 6 pools which need either Brontes integration or need to be
+// simulated with refined methodology
 lazy_static! {
     pub static ref POOL_ADDRESSES: Vec<&'static str> = vec![
         "0x88e6A0c2dDD26FEEb64F039a2c41296FcB3f5640",
@@ -16,16 +19,13 @@ lazy_static! {
         "0x4e68Ccd3E89f51C3074ca5072bbAC773960dFa36",
         "0x60594a405d53811d3BC4766596EFD80fd545A270",
         "0x7858E59e0C01EA06Df3aF3D20aC7B0003275D4Bf",
-        "0x435664008F38B0650fBC1C9fc971D0A3Bc2f1e47",
         "0xa6Cc3C2531FdaA6Ae1A3CA84c2855806728693e8",
         "0x11950d141EcB863F01007AdD7D1A342041227b58",
         "0x9a772018FbD77fcD2d25657e5C547BAfF3Fd7D16",
         "0x99ac8cA7087fA4A2A1FB6357269965A2014ABc35",
         "0x1d42064Fc4Beb5F8aAF85F4617AE8b3b5B8Bd801",
         "0xC2e9F25Be6257c210d7Adf0D4Cd6E3E881ba25f8",
-        "0x48DA0965ab2d2cbf1C17C09cFB5Cbe67Ad5B1406",
-        "0x0d4a11d5EEaaC28EC3F61d100daF4d40471f1852",
-        "0xB4e16d0168e52d35CaCD2c6185b44281Ec28C9Dc"
+        "0x48DA0965ab2d2cbf1C17C09cFB5Cbe67Ad5B1406"
     ];
 
     pub static ref BRONTES_ADDIES: Vec<&'static str> = vec![
@@ -40,16 +40,13 @@ lazy_static! {
         "0x4e68ccd3e89f51c3074ca5072bbac773960dfa36",
         "0x60594a405d53811d3bc4766596efd80fd545a270",
         "0x7858e59e0c01ea06df3af3d20ac7b0003275d4bf",
-        "0x435664008F38B0650fBC1C9fc971D0A3Bc2f1e47",
         "0xa6cc3c2531fdaa6ae1a3ca84c2855806728693e8",
         "0x11950d141ecb863f01007add7d1a342041227b58",
         "0x9a772018fbd77fcd2d25657e5c547baff3fd7d16",
         "0x99ac8ca7087fa4a2a1fb6357269965a2014abc35",
         "0x1d42064fc4beb5f8aaf85f4617ae8b3b5b8bd801",
         "0xc2e9f25be6257c210d7adf0d4cd6e3e881ba25f8",
-        "0x48da0965ab2d2cbf1c17c09cfb5cbe67ad5b1406",
-        "0x0d4a11d5EEaaC28EC3F61d100daF4d40471f1852",
-        "0xB4e16d0168e52d35CaCD2c6185b44281Ec28C9Dc"
+        "0x48da0965ab2d2cbf1c17c09cfb5cbe67ad5b1406"
     ];
     
     pub static ref POOL_NAMES: HashMap<&'static str, &'static str> = {
@@ -75,6 +72,9 @@ lazy_static! {
         m.insert("0x48DA0965ab2d2cbf1C17C09cFB5Cbe67Ad5B1406","DAI-USDT-100");
         m.insert("0x0d4a11d5EEaaC28EC3F61d100daF4d40471f1852","USDT-WETH-v2");
         m.insert("0xB4e16d0168e52d35CaCD2c6185b44281Ec28C9Dc","WETH-USDC-v2");
+        m.insert("0x840deeef2f115cf50da625f7368c24af6fe74410", "cbETH-WETH-500");
+        m.insert("0xa3f558aebaecaf0e11ca4b2199cc5ed341edfd74", "LDO-WETH-3000");
+        m.insert("0x109830a1aaad605bbf02a9dfa7b0b92ec2fb7daa", "wstETH-WETH-100");
         m
     };
     
