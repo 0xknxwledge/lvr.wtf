@@ -1,23 +1,46 @@
-import React from 'react';
+import React, { useState } from 'react';
+import StackedAreaChart from '../components/StackedAreaChart';
+import PoolTotalsPieChart from '../components/PieChart';
+import MarkoutSelect from '../components/MarkoutSelect';
+import HistogramChart from '../components/Histogram';
+import MaxLVRDisplay from '../components/MaxLVR';
+import MedianLVRChart from '../components/MedianLVR';
+import names from '../names';
 
 function Pair() {
+  const [selectedMarkout, setSelectedMarkout] = useState('brontes');
+  const [selectedPool, setSelectedPool] = useState('0x88e6a0c2ddd26feeb64f039a2c41296fcb3f5640'); // USDC/WETH(5bp)
+
+  const poolOptions = Object.entries(names).map(([address, name]) => ({
+    value: address,
+    label: name
+  }));
+
   return (
     <div className="p-8">
-      <div className="flex justify-between items-center mb-8">
-        <h1 className="text-4xl font-bold">All Pairs</h1>
-        <button className="px-4 py-2 bg-[#161616] text-white border border-[#b4d838] rounded">
-          Select Markout
-        </button>
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-4xl font-bold">Pair Analysis</h1>
+        <MarkoutSelect 
+          selectedMarkout={selectedMarkout} 
+          onChange={setSelectedMarkout} 
+        />
+      </div>
+
+      <div className="bg-[#0f0f13] rounded-2xl border border-[#212121] p-6 mb-8">
+        <h3 className="text-xl font-semibold mb-4">Per-Block Median</h3>
+        <MedianLVRChart 
+        selectedMarkout={selectedMarkout}/>
+      </div>
+
+      <div className="bg-[#0f0f13] rounded-2xl border border-[#212121] p-6 mb-8">
+        <h3 className="text-xl font-semibold mb-4">Total LVR (across 22 pairs)</h3>
+        <StackedAreaChart selectedMarkout={selectedMarkout} />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-8">
         <div className="bg-[#0f0f13] rounded-2xl border border-[#212121] p-6">
-          <h2 className="text-xl font-semibold mb-4">LVR for All Pairs</h2>
-          {/* Add chart component here */}
-        </div>
-        <div className="bg-[#0f0f13] rounded-2xl border border-[#212121] p-6">
           <h2 className="text-xl font-semibold mb-4">Proportion of total LVR (each pair)</h2>
-          {/* Add pie chart component here */}
+          <PoolTotalsPieChart selectedMarkout={selectedMarkout} />
         </div>
       </div>
 
@@ -25,49 +48,43 @@ function Pair() {
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-4xl font-semibold">Individual Pairs</h2>
           <div className="space-x-4">
-            <button className="px-4 py-2 bg-[#161616] text-white border border-[#b4d838] rounded">
-              Select Pair
-            </button>
-            <button className="px-4 py-2 bg-[#161616] text-white border border-[#b4d838] rounded">
-              Select Markout
-            </button>
+            <select
+              value={selectedPool}
+              onChange={(e) => setSelectedPool(e.target.value)}
+              className="px-4 py-2 bg-[#161616] text-white border border-[#b4d838] rounded cursor-pointer"
+            >
+              {poolOptions.map(option => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+            <MarkoutSelect 
+              selectedMarkout={selectedMarkout} 
+              onChange={setSelectedMarkout}
+            />
           </div>
         </div>
-        <div className="bg-[#0f0f13] rounded-2xl border border-[#212121] p-6">
-          <h3 className="text-xl font-semibold mb-4">Single Block LVR</h3>
-          {/* Add bar chart component here */}
+        
+        <div className="space-y-8">
+          <div className="bg-[#0f0f13] rounded-2xl border border-[#212121] p-6">
+            <h3 className="text-xl font-semibold mb-4">LVR Distribution</h3>
+            <HistogramChart 
+              poolAddress={selectedPool}
+              markoutTime={selectedMarkout}
+            />
+          </div>
         </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-8">
         <div className="bg-[#0f0f13] rounded-2xl border border-[#212121] p-6">
-          <h3 className="text-xl font-semibold mb-4">LVR for Pair</h3>
-          {/* Add box plot component here */}
-        </div>
-        <div className="bg-[#0f0f13] rounded-2xl border border-[#212121] p-6">
           <h3 className="text-xl font-semibold mb-4">Max LVR</h3>
-          <div className="space-y-4">
-            <div>
-              <p className="text-[#b4d838]">Block Number</p>
-              <p className="text-4xl font-semibold">20,592,430</p>
-            </div>
-            <hr className="border-[#333333]" />
-            <div>
-              <p className="text-[#b4d838]">Amount</p>
-              <p className="text-4xl font-semibold">$12.5M</p>
-            </div>
-          </div>
+          <MaxLVRDisplay 
+            poolAddress={selectedPool}
+            markoutTime={selectedMarkout}
+          />
         </div>
-      </div>
-
-      <div className="bg-[#0f0f13] rounded-2xl border border-[#212121] p-6 mb-8">
-        <h3 className="text-xl font-semibold mb-4">Correlation of Median LVR Between Pairs</h3>
-        {/* Add correlation matrix component here */}
-      </div>
-
-      <div className="bg-[#0f0f13] rounded-2xl border border-[#212121] p-6">
-        <h3 className="text-xl font-semibold mb-4">Total LVR (across 22 pairs)</h3>
-        {/* Add line chart component here */}
       </div>
     </div>
   );

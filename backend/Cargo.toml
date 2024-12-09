@@ -1,0 +1,40 @@
+[package]
+name = "backend"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+clickhouse = { version = "0.13.1" }
+mysql_async = "0.34.2" 
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+chrono = "0.4"
+arrow = "53.3.0"
+parquet = {version = "53.3.0", features = ["async"] }
+object_store = { version = "0.11.1", features = ["aws"] }
+tokio = { version = "1.36", features = ["full"] }
+tracing = "0.1"
+tracing-subscriber = "0.3"
+anyhow = "1.0"
+thiserror = "2.0.3"
+async-trait = "0.1"
+futures = "0.3"
+dashmap = "6.1.0"
+num = "0.4"
+rayon = "1.8"
+lazy_static = "1.5.0"
+dotenv = "0.15.0"
+deadpool = "0.12.1"
+ordered-float = "4.5.0"
+async-stream = "0.3.6"
+pin-project = "1.0"
+itertools = "0.13.0"
+bytes = "1.9.0"
+clap = { version = "4.5.21", features = ["derive"] }
+axum = "0.7.9"
+tower-http = { version = "0.6.2", features = ["cors"] }
+futures-util = "0.3.31"
+time = "0.3.36"
+num-traits = "0.2.19"
