@@ -4,7 +4,7 @@ import PoolTotalsPieChart from '../components/PieChart';
 import MarkoutSelect from '../components/MarkoutSelect';
 import HistogramChart from '../components/Histogram';
 import MaxLVRDisplay from '../components/MaxLVR';
-import MedianLVRChart from '../components/MedianLVR';
+import MedianLVR from '../components/MedianLVR';
 import names from '../names';
 
 function Pair() {
@@ -28,7 +28,7 @@ function Pair() {
 
       <div className="bg-[#0f0f13] rounded-2xl border border-[#212121] p-6 mb-8">
         <h3 className="text-xl font-semibold mb-4">Per-Block Median</h3>
-        <MedianLVRChart 
+        <MedianLVR 
         selectedMarkout={selectedMarkout}/>
       </div>
 

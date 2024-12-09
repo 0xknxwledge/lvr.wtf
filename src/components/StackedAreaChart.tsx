@@ -33,7 +33,7 @@ const StackedAreaChart: React.FC<StackedAreaChartProps> = ({ selectedMarkout }) 
           params.append('markout_time', selectedMarkout);
         }
 
-        const endpoint = `http://127.0.0.1:3000/running_total?${params.toString()}`;
+        const endpoint = `https://lvr-wtf-568975696472.us-central1.run.app/running_total?${params.toString()}`;
         
         const response = await fetch(endpoint);
         if (!response.ok) {
