@@ -239,7 +239,7 @@ impl ParallelLVRProcessor {
                     .filter_map(|detail| {
                         self.parse_lvr_details(&detail.details, pool_name)
                             .and_then(|lvr| {
-                                self.to_cents(lvr, &DataSource::Aurora).ok().map(|cents| UnifiedLVRData {
+                                self.to_cents(lvr).ok().map(|cents| UnifiedLVRData {
                                     block_number: detail.block_number,
                                     lvr_cents: cents,
                                     source: DataSource::Aurora,
@@ -260,7 +260,7 @@ impl ParallelLVRProcessor {
         // First, collect all actual Brontes events
         for result in brontes_results {
             if result.block_number >= chunk_start && result.block_number < chunk_end {
-                if let Ok(cents) = self.to_cents(result.lvr, &DataSource::Brontes) {
+                if let Ok(cents) = self.to_cents(result.lvr) {
                     brontes_data
                         .entry(result.pool_address.to_lowercase())
                         .or_default()
@@ -408,11 +408,8 @@ impl ParallelLVRProcessor {
     
 
 
-    fn to_cents(&self, value: f64, source: &DataSource) -> Result<u64> {
-        let cents = match source {
-            DataSource::Aurora => (value * 100.0).round(), // Convert dollars to cents for Aurora
-            DataSource::Brontes => value.round()           // Brontes already in cents
-        };
+    fn to_cents(&self, value: f64) -> Result<u64> {
+        let cents = (value * 100.0).round();
         
         if cents > u64::MAX as f64 || cents < u64::MIN as f64 {
             return Err(Error::Processing(

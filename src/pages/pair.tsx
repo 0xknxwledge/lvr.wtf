@@ -1,14 +1,15 @@
 import React, { useState } from 'react';
-import StackedAreaChart from '../components/StackedAreaChart';
 import PoolTotalsPieChart from '../components/PieChart';
 import MarkoutSelect from '../components/MarkoutSelect';
 import HistogramChart from '../components/Histogram';
 import MaxLVRDisplay from '../components/MaxLVR';
+import SoleRunningTotal from '../components/SoleRunningTotal';
 import MedianLVR from '../components/MedianLVR';
+import NonZeroProportion from '../components/NonZeroProp';
 import names from '../names';
 
 function Pair() {
-  const [selectedMarkout, setSelectedMarkout] = useState('brontes');
+  const [selectedMarkout, setSelectedMarkout] = useState('0.0');
   const [selectedPool, setSelectedPool] = useState('0x88e6a0c2ddd26feeb64f039a2c41296fcb3f5640'); // USDC/WETH(5bp)
 
   const poolOptions = Object.entries(names).map(([address, name]) => ({
@@ -28,13 +29,7 @@ function Pair() {
 
       <div className="bg-[#0f0f13] rounded-2xl border border-[#212121] p-6 mb-8">
         <h3 className="text-xl font-semibold mb-4">Per-Block Median</h3>
-        <MedianLVR 
-        selectedMarkout={selectedMarkout}/>
-      </div>
-
-      <div className="bg-[#0f0f13] rounded-2xl border border-[#212121] p-6 mb-8">
-        <h3 className="text-xl font-semibold mb-4">Total LVR (across 22 pairs)</h3>
-        <StackedAreaChart selectedMarkout={selectedMarkout} />
+        <MedianLVR selectedMarkout={selectedMarkout}/>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-8">
@@ -59,12 +54,16 @@ function Pair() {
                 </option>
               ))}
             </select>
-            <MarkoutSelect 
-              selectedMarkout={selectedMarkout} 
-              onChange={setSelectedMarkout}
-            />
           </div>
         </div>
+
+        <div className="bg-[#0f0f13] rounded-2xl border border-[#212121] p-6 mb-8">
+          <h3 className="text-xl font-semibold mb-4">Running Total LVR</h3>
+            <SoleRunningTotal 
+              poolAddress={selectedPool}
+              markoutTime={selectedMarkout}
+            />
+      </div>
         
         <div className="space-y-8">
           <div className="bg-[#0f0f13] rounded-2xl border border-[#212121] p-6">
@@ -85,6 +84,10 @@ function Pair() {
             markoutTime={selectedMarkout}
           />
         </div>
+        <NonZeroProportion 
+          poolAddress={selectedPool}
+          selectedMarkout={selectedMarkout}
+        />
       </div>
     </div>
   );

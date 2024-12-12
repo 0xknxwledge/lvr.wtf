@@ -13,11 +13,25 @@ const RunningTotalChart: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Color scheme for different markout times
+  const markoutColors = {
+    'brontes': '#b4d838',  // Bright lime green for observed
+    '-2.0': '#FF6B6B',     // Red
+    '-1.5': '#4ECDC4',     // Turquoise
+    '-1.0': '#45B7D1',     // Light blue
+    '-0.5': '#96CEB4',     // Sage green
+    '0.0': '#FFBE0B',      // Yellow
+    '0.5': '#FF006E',      // Pink
+    '1.0': '#8338EC',      // Purple
+    '1.5': '#3A86FF',      // Blue
+    '2.0': '#FB5607'       // Orange
+  };
+
   useEffect(() => {
     const fetchData = async () => {
       try {
         setIsLoading(true);
-        const response = await fetch('https://lvr-wtf-568975696472.us-central1.run.app/running_total?aggregate=true');
+        const response = await fetch('http://127.0.0.1:3000/running_total?aggregate=true');
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
         }
@@ -71,17 +85,17 @@ const RunningTotalChart: React.FC = () => {
       y: series.y,
       type: 'scatter' as const,
       mode: 'lines' as const,
-      name: isBrontes ? 'Observed LVR (Brontes)' : `Theoretical (${series.markout}s)`,
+      name: isBrontes ? 'Observed (Brontes)' : `${series.markout}s`,
       line: {
-        color: isBrontes ? '#b4d838' : '#4682B4',
-        width: isBrontes ? 3 : 1,
-        dash: isBrontes ? undefined : ('dot' as Dash)
+        color: markoutColors[series.markout as keyof typeof markoutColors],
+        width: isBrontes ? 3 : 2,
+        dash: isBrontes ? undefined : ('solid' as Dash)
       },
-      opacity: isBrontes ? 1 : 0.3,
-      hoverinfo: 'x+y' as const,
+      opacity: isBrontes ? 1 : 0.8,
+      hoverinfo: 'x+y+name' as const,
       hoverlabel: {
         bgcolor: '#424242',
-        bordercolor: isBrontes ? '#b4d838' : '#4682B4',
+        bordercolor: markoutColors[series.markout as keyof typeof markoutColors],
         font: { color: '#ffffff' }
       }
     };
@@ -100,14 +114,12 @@ const RunningTotalChart: React.FC = () => {
             },
             tickformat: ',d',
             tickfont: { color: '#ffffff' },
-            fixedrange: true,
           },
           yaxis: {
             tickformat: '$,.0f',
             tickfont: { color: '#ffffff' },
             side: 'right',
             showgrid: false,
-            fixedrange: true,
             rangemode: 'tozero',
           },
           autosize: true,
@@ -140,8 +152,17 @@ const RunningTotalChart: React.FC = () => {
         }}
         config={{
           responsive: true,
-          displayModeBar: false,
-          scrollZoom: false,
+          displayModeBar: true,
+          displaylogo: false,
+          modeBarButtonsToAdd: ['zoomIn2d', 'zoomOut2d', 'autoScale2d'],
+          modeBarButtonsToRemove: ['lasso2d', 'select2d'],
+          toImageButtonOptions: {
+            format: 'png',
+            filename: 'running_total_lvr',
+            height: 600,
+            width: 1200,
+            scale: 2
+          }
         }}
         style={{ width: '100%', height: '100%' }}
       />

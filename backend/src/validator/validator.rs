@@ -34,7 +34,7 @@ struct CheckpointData {
 #[derive(Debug, Default, Clone)]
 struct IntervalValidationData {
     total_lvr: u64,
-    zero_count: u64,
+    non_zero_count: u64,
     total_count: u64,
 }
 
@@ -44,11 +44,9 @@ impl Validator {
     }
 
     pub async fn validate_all(&self) -> Result<HashMap<String, ValidationStats>> {
-        // Get checkpoint and interval data
         let checkpoint_data = self.load_checkpoint_data().await?;
         let interval_data = self.load_interval_data().await?;
         
-        // Compare and generate validation stats
         let mut results = HashMap::new();
         
         for (key, checkpoint) in checkpoint_data {
@@ -60,8 +58,9 @@ impl Validator {
                 0.0
             };
 
+            let interval_zero_count = interval.total_count.saturating_sub(interval.non_zero_count);
             let interval_non_zero_ratio = if interval.total_count > 0 {
-                (interval.total_count - interval.zero_count) as f64 / interval.total_count as f64
+                interval.non_zero_count as f64 / interval.total_count as f64
             } else {
                 0.0
             };
@@ -79,7 +78,7 @@ impl Validator {
                 difference,
                 difference_percent,
                 checkpoint_zero_count: checkpoint.zero_count,
-                interval_zero_count: interval.zero_count,
+                interval_zero_count,
                 checkpoint_non_zero_ratio,
                 interval_non_zero_ratio,
             };
@@ -239,8 +238,7 @@ impl Validator {
             
             data.total_lvr += total_lvr_cents.value(i);
             data.total_count += total_counts.value(i);
-            let non_zero_count = non_zero_counts.value(i);
-            data.zero_count += total_counts.value(i) - non_zero_count;
+            data.non_zero_count += non_zero_counts.value(i);
         }
 
         Ok(())

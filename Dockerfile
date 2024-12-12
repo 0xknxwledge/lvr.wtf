@@ -1,26 +1,27 @@
 ARG TARGETOS=linux
 ARG TARGETARCH=x86_64
 
-FROM rustlang/rust:nightly AS chef
-RUN apt-get update && apt-get -y upgrade && apt-get install -y libclang-dev pkg-config cmake libclang-dev
+
+FROM rust:1-alpine AS chef
+RUN apk add --no-cache musl-dev build-base openssl-dev pkgconfig
 RUN cargo install cargo-chef
-WORKDIR /app
+WORKDIR /app/backend
 
 FROM chef AS planner
-COPY . .
+COPY backend/ .
 RUN cargo chef prepare --recipe-path recipe.json
 
 FROM chef AS builder
-
-COPY --from=planner /app/recipe.json recipe.json
-RUN cargo +nightly chef cook --release --recipe-path recipe.json
-COPY . .
+COPY --from=planner /app/backend/recipe.json recipe.json
+RUN cargo chef cook --release --recipe-path recipe.json
+COPY backend/ .
 
 RUN cargo build --release 
 
-FROM alpine AS runtime
+FROM alpine:latest AS runtime
+RUN apk add --no-cache ca-certificates libgcc
 RUN addgroup -S myuser && adduser -S myuser -G myuser
-COPY --from=builder /app/target/release/backend  /usr/local/bin/backend
+COPY --from=builder /app/backend/target/release/backend /usr/local/bin/backend
 USER myuser
 
 ENV BRONTES_HOST='REDACTED_BRONTES_HOST'

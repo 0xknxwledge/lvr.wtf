@@ -13,14 +13,17 @@ pub struct TimeRangeQuery {
     pub start_block: Option<u64>,
     pub end_block: Option<u64>,
     pub markout_time: Option<String>,
-    pub aggregate: Option<bool>, 
+    pub aggregate: Option<bool>,
+    pub pool: Option<String>,
 }
+
 
 #[derive(Debug, Serialize)]
 pub struct RunningTotal {
     pub block_number: u64,
     pub markout: String,
     pub pool_name: Option<String>, 
+    pub pool_address: Option<String>,
     pub running_total_cents: u64,
 }
 
@@ -48,7 +51,6 @@ pub struct MarkoutRatio {
 pub struct LVRRatioQuery {
     pub start_block: Option<u64>,
     pub end_block: Option<u64>,
-    /// Optional pool address for filtering data
     pub pool_address: Option<String>,
 }
 
@@ -124,4 +126,17 @@ pub struct HistogramResponse {
     pub pool_address: String,
     pub buckets: Vec<HistogramBucket>,
     pub total_observations: u64,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct NonZeroProportionQuery {
+    pub pool_address: String,
+    pub markout_time: String,
+}
+
+#[derive(Debug, Serialize)]
+pub struct NonZeroProportionResponse {
+    pub pool_name: String,
+    pub pool_address: String,
+    pub non_zero_proportion: f64,
 }

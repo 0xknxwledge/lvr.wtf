@@ -35,6 +35,7 @@ pub async fn serve(host: String, port: u16, store: Arc<dyn ObjectStore>) -> Resu
         .route("/pool_medians", get(handlers::get_pool_medians))
         .route("/max_lvr", get(handlers::get_max_lvr))
         .route("/histogram", get(handlers::get_lvr_histogram))
+        .route("/non_zero_proportion", get(handlers::get_non_zero_proportion))
         .route("/health", get(health_check))
         .layer(cors)
         .with_state(state);

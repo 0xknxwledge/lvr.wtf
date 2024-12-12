@@ -155,47 +155,19 @@ async fn write_batch_to_store(
 }
 
 fn create_record_batch_from_interval_data(data: Vec<IntervalData>) -> Result<RecordBatch> {
-    // Pre-collect all vectors to avoid multiple iterations
-    let interval_ids: Vec<_> = data.iter().map(|d| d.interval_id).collect();
-    let pair_addresses: Vec<_> = data.iter().map(|d| d.pair_address.clone()).collect();
-    let markout_times: Vec<_> = data.iter().map(|d| d.markout_time.to_string()).collect();
-    let total_lvr_cents: Vec<_> = data.iter().map(|d| d.total_lvr_cents).collect();
-    let median_lvr_cents: Vec<_> = data.iter().map(|d| d.median_lvr_cents).collect();
-    let percentile_25_cents: Vec<_> = data.iter().map(|d| d.percentile_25_cents).collect();
-    let percentile_75_cents: Vec<_> = data.iter().map(|d| d.percentile_75_cents).collect();
-    let max_lvr_cents: Vec<_> = data.iter().map(|d| d.max_lvr_cents).collect();
-    
-    // These are the critical fields for zero count consistency
-    let non_zero_counts: Vec<_> = data.iter()
-        .map(|d| d.non_zero_count)
-        .collect();
-    
-    let total_counts: Vec<_> = data.iter()
-        .map(|d| d.total_count)
-        .collect();
- 
-    // Verify zero count consistency
-    let implied_zero_counts: Vec<_> = total_counts.iter()
-        .zip(non_zero_counts.iter())
-        .map(|(total, non_zero)| total - non_zero)
-        .collect();
- 
-    // Create the record batch with all fields
     RecordBatch::try_from_iter([
-        ("interval_id", Arc::new(UInt64Array::from(interval_ids)) as ArrayRef),
-        ("pair_address", Arc::new(StringArray::from(pair_addresses)) as ArrayRef),
-        ("markout_time", Arc::new(StringArray::from(markout_times)) as ArrayRef),
-        ("total_lvr_cents", Arc::new(UInt64Array::from(total_lvr_cents)) as ArrayRef),
-        ("median_lvr_cents", Arc::new(UInt64Array::from(median_lvr_cents)) as ArrayRef),
-        ("percentile_25_cents", Arc::new(UInt64Array::from(percentile_25_cents)) as ArrayRef),
-        ("percentile_75_cents", Arc::new(UInt64Array::from(percentile_75_cents)) as ArrayRef),
-        ("max_lvr_cents", Arc::new(UInt64Array::from(max_lvr_cents)) as ArrayRef),
-        ("non_zero_count", Arc::new(UInt64Array::from(non_zero_counts)) as ArrayRef),
-        ("total_count", Arc::new(UInt64Array::from(total_counts)) as ArrayRef),
-        // Add implied zero count for validation
-        ("zero_count", Arc::new(UInt64Array::from(implied_zero_counts)) as ArrayRef),
+        ("interval_id", Arc::new(UInt64Array::from(data.iter().map(|d| d.interval_id).collect::<Vec<_>>())) as ArrayRef),
+        ("pair_address", Arc::new(StringArray::from(data.iter().map(|d| d.pair_address.clone()).collect::<Vec<_>>())) as ArrayRef),
+        ("markout_time", Arc::new(StringArray::from(data.iter().map(|d| d.markout_time.to_string()).collect::<Vec<_>>())) as ArrayRef),
+        ("total_lvr_cents", Arc::new(UInt64Array::from(data.iter().map(|d| d.total_lvr_cents).collect::<Vec<_>>())) as ArrayRef),
+        ("median_lvr_cents", Arc::new(UInt64Array::from(data.iter().map(|d| d.median_lvr_cents).collect::<Vec<_>>())) as ArrayRef),
+        ("percentile_25_cents", Arc::new(UInt64Array::from(data.iter().map(|d| d.percentile_25_cents).collect::<Vec<_>>())) as ArrayRef),
+        ("percentile_75_cents", Arc::new(UInt64Array::from(data.iter().map(|d| d.percentile_75_cents).collect::<Vec<_>>())) as ArrayRef),
+        ("max_lvr_cents", Arc::new(UInt64Array::from(data.iter().map(|d| d.max_lvr_cents).collect::<Vec<_>>())) as ArrayRef),
+        ("non_zero_count", Arc::new(UInt64Array::from(data.iter().map(|d| d.non_zero_count).collect::<Vec<_>>())) as ArrayRef),
+        ("total_count", Arc::new(UInt64Array::from(data.iter().map(|d| d.total_count).collect::<Vec<_>>())) as ArrayRef),
     ]).context("Failed to create interval data record batch")
- }
+}
 
 fn create_record_batch_from_checkpoint(checkpoint: &CheckpointSnapshot) -> Result<RecordBatch> {
     RecordBatch::try_from_iter([

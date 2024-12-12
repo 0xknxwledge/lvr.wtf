@@ -27,7 +27,7 @@ const MaxLVRDisplay: React.FC<MaxLVRDisplayProps> = ({ poolAddress, markoutTime 
           markout_time: markoutTime
         });
 
-        const response = await fetch(`https://lvr-wtf-568975696472.us-central1.run.app/max_lvr?${params.toString()}`);
+        const response = await fetch(`http://127.0.0.1:3000/max_lvr?${params.toString()}`);
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
         }
@@ -45,7 +45,6 @@ const MaxLVRDisplay: React.FC<MaxLVRDisplayProps> = ({ poolAddress, markoutTime 
 
   return (
     <div className="bg-[#0f0f13] rounded-2xl border border-[#212121] p-6">
-      <h3 className="text-xl font-semibold mb-6">Maximum LVR</h3>
       
       {isLoading ? (
         <div className="text-white text-center py-8">Loading...</div>

@@ -13,6 +13,7 @@ use backend::{
     serve};
 use futures::future::BoxFuture;
 
+// Block right before merge since SQL queries are lower bound exclusive
 const START_BLOCK: u64 = 15537392;
 const END_BLOCK: u64 = 20000000;
 
@@ -57,7 +58,7 @@ enum Commands {
 }
 
 fn ensure_directories() -> Result<PathBuf> {
-    let data_dir = PathBuf::from("data");
+    let data_dir = PathBuf::from("smeed");
     let output_dir = data_dir.join("intervals");
     let checkpoints_dir = data_dir.join("checkpoints");
 
@@ -170,7 +171,7 @@ async fn main() -> Result<()> {
             }
         },
         Commands::Validate { data_dir } => {
-            let data_dir = data_dir.unwrap_or_else(|| PathBuf::from("data"));
+            let data_dir = data_dir.unwrap_or_else(|| PathBuf::from("smeed"));
             info!("Starting validation of data in {:?}", data_dir);
             
             let store: Arc<dyn object_store::ObjectStore> = 
@@ -179,7 +180,12 @@ async fn main() -> Result<()> {
             run_validation(&store).await?;
         },
         Commands::Serve { host, port } => {
-            info!("Starting API server");
+            // Temporarily use data directory for serving instead of data
+            let store: Arc<dyn ObjectStore> = Arc::new(
+                LocalFileSystem::new_with_prefix("smeed")?
+            );
+            
+            info!("Starting API server using data from data/");
             serve(host, port, store).await?;
         }
     }

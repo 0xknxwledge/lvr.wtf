@@ -12,6 +12,7 @@ use crate::{AppState,
     MaxLVRQuery, MaxLVRResponse,
     LVRRatioQuery, LVRRatioResponse, 
     HistogramBucket, HistogramQuery, HistogramResponse,
+    NonZeroProportionQuery, NonZeroProportionResponse,
     MarkoutRatio, LVRTotals};
 use tracing::{error, debug, info, warn};
 use futures::StreamExt;
@@ -70,11 +71,26 @@ pub async fn get_running_total(
     let end_block = params.end_block.unwrap_or(20_000_000);
     let is_aggregate = params.aggregate.unwrap_or(false);
     
+    // Validate pool parameter when not aggregating
+    if !is_aggregate {
+        if let Some(ref pool) = params.pool {
+            let valid_pools = get_valid_pools();
+            if !valid_pools.contains(&pool.to_lowercase()) {
+                warn!("Invalid pool address provided: {}", pool);
+                return Err(StatusCode::BAD_REQUEST);
+            }
+        } else {
+            warn!("Pool parameter required when not aggregating");
+            return Err(StatusCode::BAD_REQUEST);
+        }
+    }
+    
     info!(
-        "Fetching {} running total for blocks {} to {}", 
+        "Fetching {} running total for blocks {} to {}{}", 
         if is_aggregate { "aggregated" } else { "individual" },
         start_block, 
-        end_block
+        end_block,
+        params.pool.as_ref().map_or(String::new(), |p| format!(", pool: {}", p))
     );
     
     let valid_pools = get_valid_pools();
@@ -83,9 +99,6 @@ pub async fn get_running_total(
     
     let mut files_processed = 0;
     let mut files_skipped = 0;
-    let mut brontes_records = 0;
-    let mut brontes_total = 0u64;
-
     info!("Reading interval data from: {:?}", intervals_path);
     let mut interval_files = state.store.list(Some(&intervals_path));
 
@@ -153,29 +166,19 @@ pub async fn get_running_total(
                 }
 
                 let pool_address = pool_addresses.value(i).to_lowercase();
+                
+                // Skip if not matching the specified pool (when not aggregating)
+                if !is_aggregate && params.pool.as_ref().map_or(false, |p| p.to_lowercase() != pool_address) {
+                    continue;
+                }
+                
                 if !valid_pools.contains(&pool_address) {
                     continue;
                 }
 
                 let interval_id = interval_ids.value(i);
                 let markout_time = markout_times.value(i).to_string();
-                let mut lvr_cents = total_lvr_cents.value(i);
-
-                // Multiply brontes values by 100 to convert to cents
-                if markout_time == "brontes" {
-                    lvr_cents *= 100;
-                    brontes_records += 1;
-                    brontes_total = brontes_total.saturating_add(lvr_cents);
-                    debug!(
-                        "Found brontes record: pool={}, interval={}, lvr_cents={} (after scaling), block={}, running_total={}",
-                        pool_address,
-                        interval_id,
-                        lvr_cents,
-                        calculate_block_number(start_block, interval_id, &file_path),
-                        brontes_total
-                    );
-                }
-
+                let lvr_cents = total_lvr_cents.value(i);
                 // Apply markout time filter if specified
                 if let Some(ref filter) = params.markout_time {
                     if &markout_time != filter {
@@ -193,8 +196,7 @@ pub async fn get_running_total(
                         .and_then(|num| num.parse::<u64>().ok())
                         .unwrap_or(start_block);
 
-                    let key = if is_aggregate || markout_time == "brontes" {
-                        // Always aggregate brontes data
+                    let key = if is_aggregate {
                         (file_start, interval_id, markout_time, None)
                     } else {
                         (file_start, interval_id, markout_time.clone(), Some(pool_address))
@@ -212,19 +214,111 @@ pub async fn get_running_total(
         }
     }
 
-    info!(
-        "Processed {} files ({} skipped). Found {} brontes records with total {} cents (${:.2})",
-        files_processed,
-        files_skipped,
-        brontes_records,
-        brontes_total,
-        brontes_total as f64 / 100.0
-    );
-
     let results = process_interval_totals(interval_totals, start_block, end_block, is_aggregate);
-
+    // Filter results for specific pool if needed
+    let results = if !is_aggregate {
+        results.into_iter()
+            .filter(|r| {
+                if let (Some(requested_pool), Some(result_address)) = (
+                    params.pool.as_ref(),
+                    r.pool_address.as_ref()
+                ) {
+                    requested_pool.to_lowercase() == result_address.to_lowercase()
+                } else {
+                    false
+                }
+            })
+            .collect()
+    } else {
+        results
+    };
     info!("Returning {} running total data points", results.len());
     Ok(Json(results))
+}
+
+fn process_interval_totals(
+    interval_totals: HashMap<(u64, u64, String, Option<String>), IntervalAPIData>,
+    start_block: u64,
+    end_block: u64,
+    is_aggregate: bool,
+) -> Vec<RunningTotal> {
+    let mut results = Vec::new();
+    let mut last_totals: HashMap<String, u64> = HashMap::new();
+    
+    // Convert to sorted Vec for chronological processing
+    let mut sorted_entries: Vec<_> = interval_totals.into_iter().collect();
+    sorted_entries.sort_by(|a, b| {
+        let block_a = a.0.0 + (a.0.1 * BLOCKS_PER_INTERVAL);
+        let block_b = b.0.0 + (b.0.1 * BLOCKS_PER_INTERVAL);
+        block_a.cmp(&block_b)
+    });
+
+    debug!("Processing {} sorted interval entries", sorted_entries.len());
+
+    for ((file_start, interval_id, markout, pool_opt), data) in sorted_entries {
+        let block_number = if data.file_path.ends_with(FINAL_INTERVAL_FILE) && interval_id == 19 {
+            file_start + (interval_id * BLOCKS_PER_INTERVAL) + FINAL_PARTIAL_BLOCKS
+        } else {
+            file_start + (interval_id * BLOCKS_PER_INTERVAL)
+        };
+
+        if block_number >= start_block && block_number <= end_block {
+            if is_aggregate {
+                let current_total = last_totals
+                    .entry(markout.clone())
+                    .and_modify(|total| *total = total.saturating_add(data.total))
+                    .or_insert(data.total);
+
+                if results.last().map_or(true, |last: &RunningTotal| 
+                    last.markout != markout || last.running_total_cents != *current_total
+                ) {
+                    results.push(RunningTotal {
+                        block_number,
+                        markout,
+                        pool_name: None,
+                        pool_address: None,
+                        running_total_cents: *current_total,
+                    });
+                }
+            } else if let Some(pool_address) = pool_opt {
+                let pool_name = POOL_NAMES
+                    .iter()
+                    .find(|(addr, _)| addr.to_lowercase() == pool_address)
+                    .map(|(_, name)| name.to_string())
+                    .unwrap_or_else(|| pool_address.clone());
+
+                let key = format!("{}_{}", markout, pool_name);
+                let current_total = last_totals
+                    .entry(key.clone())
+                    .and_modify(|total| *total = total.saturating_add(data.total))
+                    .or_insert(data.total);
+
+                if results.last().map_or(true, |last: &RunningTotal| 
+                    last.markout != markout || 
+                    last.pool_name.as_ref() != Some(&pool_name) ||
+                    last.running_total_cents != *current_total
+                ) {
+                    results.push(RunningTotal {
+                        block_number,
+                        markout,
+                        pool_name: Some(pool_name),
+                        pool_address: Some(pool_address),
+                        running_total_cents: *current_total,
+                    });
+                }
+            }
+        }
+    }
+
+    // Sort results
+    results.sort_by(|a, b| {
+        a.block_number
+            .cmp(&b.block_number)
+            .then_with(|| a.markout.to_lowercase().cmp(&b.markout.to_lowercase()))
+            .then(a.pool_name.cmp(&b.pool_name))
+    });
+
+    results
 }
 
 pub async fn get_lvr_ratios(
@@ -293,15 +387,13 @@ pub async fn get_lvr_ratios(
                 }
 
                 let markout_time = markout_times.value(i);
-                let mut lvr_cents = total_lvr_cents.value(i);
+                let lvr_cents = total_lvr_cents.value(i);
 
                 // Only include intervals that had actual activity
                 if lvr_cents > 0 {
-                    // Multiply brontes values by 100 to convert to cents
                     if markout_time == "brontes" {
-                        lvr_cents *= 100;
                         totals.realized = totals.realized.saturating_add(lvr_cents);
-                        debug!("Added {} cents (after scaling) to realized total", lvr_cents);
+                        debug!("Added {} cents to realized total", lvr_cents);
                     } else {
                         totals.theoretical
                             .entry(markout_time.to_string())
@@ -315,10 +407,9 @@ pub async fn get_lvr_ratios(
     }
 
     info!(
-        "Processed {} files. Found realized total of {} cents (${:.2}) and {} theoretical markout times",
+        "Processed {} files. Found realized total of {} cents and {} theoretical markout times",
         files_processed,
         totals.realized,
-        totals.realized as f64 / 100.0,
         totals.theoretical.len()
     );
 
@@ -326,112 +417,6 @@ pub async fn get_lvr_ratios(
     
     info!("Calculated {} LVR ratios", ratios.len());
     Ok(Json(LVRRatioResponse { ratios }))
-}
-
-fn process_interval_totals(
-    interval_totals: HashMap<(u64, u64, String, Option<String>), IntervalAPIData>,
-    start_block: u64,
-    end_block: u64,
-    is_aggregate: bool,
-) -> Vec<RunningTotal> {
-    let mut results = Vec::new();
-    let mut last_totals: HashMap<String, u64> = HashMap::new();
-    
-    // Convert to sorted Vec for chronological processing
-    let mut sorted_entries: Vec<_> = interval_totals.into_iter().collect();
-    sorted_entries.sort_by(|a, b| {
-        let block_a = a.0.0 + (a.0.1 * BLOCKS_PER_INTERVAL);
-        let block_b = b.0.0 + (b.0.1 * BLOCKS_PER_INTERVAL);
-        block_a.cmp(&block_b)
-    });
-
-    debug!("Processing {} sorted interval entries", sorted_entries.len());
-
-    let mut brontes_updates = 0;
-    let mut brontes_final_total = 0u64;
-
-    for ((file_start, interval_id, markout, pool_opt), data) in sorted_entries {
-        let block_number = if data.file_path.ends_with(FINAL_INTERVAL_FILE) && interval_id == 19 {
-            file_start + (interval_id * BLOCKS_PER_INTERVAL) + FINAL_PARTIAL_BLOCKS
-        } else {
-            file_start + (interval_id * BLOCKS_PER_INTERVAL)
-        };
-
-        if block_number >= start_block && block_number <= end_block {
-            if is_aggregate || markout == "brontes" {
-                // Special tracking for brontes totals
-                if markout == "brontes" {
-                    brontes_updates += 1;
-                    brontes_final_total = brontes_final_total.saturating_add(data.total);
-                    debug!(
-                        "Processing brontes update {}: block={}, value={}, running_total={}",
-                        brontes_updates,
-                        block_number,
-                        data.total,
-                        brontes_final_total
-                    );
-                }
-
-                let current_total = last_totals
-                    .entry(markout.clone())
-                    .and_modify(|total| *total = total.saturating_add(data.total))
-                    .or_insert(data.total);
-
-                if results.last().map_or(true, |last: &RunningTotal| 
-                    last.markout != markout || last.running_total_cents != *current_total
-                ) {
-                    results.push(RunningTotal {
-                        block_number,
-                        markout,
-                        pool_name: None,
-                        running_total_cents: *current_total,
-                    });
-                }
-            } else if let Some(pool_address) = pool_opt {
-                let pool_name = POOL_NAMES
-                    .iter()
-                    .find(|(addr, _)| addr.to_lowercase() == pool_address)
-                    .map(|(_, name)| name.to_string())
-                    .unwrap_or_else(|| pool_address.clone());
-
-                let key = format!("{}_{}", markout, pool_name);
-                let current_total = last_totals
-                    .entry(key.clone())
-                    .and_modify(|total| *total = total.saturating_add(data.total))
-                    .or_insert(data.total);
-
-                if results.last().map_or(true, |last: &RunningTotal| 
-                    last.markout != markout || 
-                    last.pool_name.as_ref() != Some(&pool_name) ||
-                    last.running_total_cents != *current_total
-                ) {
-                    results.push(RunningTotal {
-                        block_number,
-                        markout,
-                        pool_name: Some(pool_name),
-                        running_total_cents: *current_total,
-                    });
-                }
-            }
-        }
-    }
-
-    info!(
-        "Processed {} brontes updates with final total {} cents (${:.2})",
-        brontes_updates,
-        brontes_final_total,
-        brontes_final_total as f64 / 100.0
-    );
-
-    // Sort results
-    results.sort_by(|a, b| {
-        a.block_number
-            .cmp(&b.block_number)
-            .then_with(|| a.markout.to_lowercase().cmp(&b.markout.to_lowercase()))
-            .then(a.pool_name.cmp(&b.pool_name))
-    });
-
-    results
 }
 
 // calculate_lvr_ratios remains the same
@@ -838,13 +823,95 @@ pub async fn get_max_lvr(
         return Err(StatusCode::BAD_REQUEST);
     }
 
+    // If markout time is brontes, we need special handling
+    if markout_time == "brontes" {
+        return handle_brontes_max_lvr(&state, &pool_address).await;
+    }
+
+    // Regular non-brontes handling
     let checkpoint_pattern = format!("{}_{}.parquet", pool_address, markout_time);
     debug!("Looking for checkpoint file matching pattern: {}", checkpoint_pattern);
     
+    let max_lvr_data = get_checkpoint_max_lvr(&state, &checkpoint_pattern).await?;
+
+    match max_lvr_data {
+        Some((block_number, lvr_cents)) => {
+            let pool_name = get_pool_name(&pool_address);
+            
+            info!(
+                "Returning max LVR for {} ({}) - Block: {}, Value: {} cents (${:.2})",
+                pool_name,
+                pool_address,
+                block_number,
+                lvr_cents,
+                lvr_cents as f64 / 100.0
+            );
+
+            Ok(Json(MaxLVRResponse {
+                block_number,
+                lvr_cents,
+                pool_name,
+            }))
+        }
+        None => {
+            warn!(
+                "No max LVR data found for pool {} with markout time {}",
+                pool_address,
+                markout_time
+            );
+            Err(StatusCode::NOT_FOUND)
+        }
+    }
+}
+
+async fn handle_brontes_max_lvr(
+    state: &Arc<AppState>,
+    pool_address: &str,
+) -> Result<Json<MaxLVRResponse>, StatusCode> {
+    // First get all theoretical maximums
+    let theoretical_maxes = get_theoretical_maximums(state, pool_address).await?;
+    if theoretical_maxes.is_empty() {
+        warn!("No theoretical maximums found for pool {}", pool_address);
+        return Err(StatusCode::NOT_FOUND);
+    }
+
+    // Get the minimum theoretical maximum
+    let min_theoretical_max = theoretical_maxes.values().min().unwrap();
+    debug!(
+        "Minimum theoretical maximum for pool {}: {} cents (${:.2})",
+        pool_address,
+        min_theoretical_max,
+        *min_theoretical_max as f64 / 100.0
+    );
+
+    // Get brontes maximum from checkpoint
+    let checkpoint_pattern = format!("{}_{}.parquet", pool_address, "brontes");
+    let brontes_max = get_checkpoint_max_lvr(state, &checkpoint_pattern).await?;
+
+    match brontes_max {
+        Some((block, value)) if value <= *min_theoretical_max => {
+            // Brontes value is valid, return it
+            return Ok(Json(MaxLVRResponse {
+                block_number: block,
+                lvr_cents: value,
+                pool_name: get_pool_name(pool_address),
+            }));
+        }
+        _ => {
+            // Need to search through interval files
+            debug!("Searching intervals for valid maximum LVR");
+            return find_valid_max_from_intervals(state, pool_address, *min_theoretical_max).await;
+        }
+    }
+}
+
+async fn get_theoretical_maximums(
+    state: &Arc<AppState>,
+    pool_address: &str,
+) -> Result<HashMap<String, u64>, StatusCode> {
+    let mut maximums = HashMap::new();
     let checkpoints_path = object_store::path::Path::from("checkpoints");
     let mut checkpoint_files = state.store.list(Some(&checkpoints_path));
-    
-    let mut max_lvr_data = None;
 
     while let Some(meta_result) = checkpoint_files.next().await {
         let meta = meta_result.map_err(|e| {
@@ -853,7 +920,45 @@ pub async fn get_max_lvr(
         })?;
         
         let file_path = meta.location.to_string();
-        if !file_path.to_lowercase().ends_with(&checkpoint_pattern) {
+        // Skip brontes checkpoint
+        if file_path.to_lowercase().ends_with("_brontes.parquet") {
+            continue;
+        }
+
+        // Only process files for our pool
+        if !file_path.to_lowercase().contains(&pool_address.to_lowercase()) {
+            continue;
+        }
+
+        if let Some((_, max_value)) = get_checkpoint_max_lvr(state, &file_path).await? {
+            let markout = file_path
+                .split('_')
+                .last()
+                .and_then(|s| s.strip_suffix(".parquet"))
+                .unwrap_or("unknown");
+            
+            maximums.insert(markout.to_string(), max_value);
+        }
+    }
+
+    Ok(maximums)
+}
+
+async fn get_checkpoint_max_lvr(
+    state: &Arc<AppState>,
+    file_pattern: &str,
+) -> Result<Option<(u64, u64)>, StatusCode> {
+    let checkpoints_path = object_store::path::Path::from("checkpoints");
+    let mut checkpoint_files = state.store.list(Some(&checkpoints_path));
+    
+    while let Some(meta_result) = checkpoint_files.next().await {
+        let meta = meta_result.map_err(|e| {
+            error!("Failed to get file metadata: {}", e);
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?;
+        
+        let file_path = meta.location.to_string();
+        if !file_path.to_lowercase().ends_with(&file_pattern.to_lowercase()) {
             continue;
         }
 
@@ -884,55 +989,115 @@ pub async fn get_max_lvr(
                 StatusCode::INTERNAL_SERVER_ERROR
             })?;
 
-            // Get max LVR data
             let value = get_column_value::<UInt64Array>(&batch, "max_lvr_value")?;
             let block = get_column_value::<UInt64Array>(&batch, "max_lvr_block")?;
 
-            if value > 0 {  // Only store non-zero max values
-                info!(
-                    "Found max LVR - Block: {}, Value: {} cents (${:.2})",
-                    block,
-                    value,
-                    value as f64 / 100.0
-                );
-                max_lvr_data = Some((block, value));
+            if value > 0 {
+                return Ok(Some((block, value)));
             }
-            break; // Only need the first row
+            break;
         }
     }
 
-    match max_lvr_data {
-        Some((block_number, lvr_cents)) => {
-            let pool_name = POOL_NAMES
-                .iter()
-                .find(|(addr, _)| addr.to_lowercase() == pool_address)
-                .map(|(_, name)| name.to_string())
-                .unwrap_or_else(|| pool_address.clone());
+    Ok(None)
+}
 
-            info!(
-                "Returning max LVR for {} ({}) - Block: {}, Value: {} cents (${:.2})",
-                pool_name,
-                pool_address,
-                block_number,
-                lvr_cents,
-                lvr_cents as f64 / 100.0
-            );
+async fn find_valid_max_from_intervals(
+    state: &Arc<AppState>,
+    pool_address: &str,
+    max_allowed: u64,
+) -> Result<Json<MaxLVRResponse>, StatusCode> {
+    let mut max_valid_lvr = 0u64;
+    let mut max_valid_block = 0u64;
+    
+    let intervals_path = object_store::path::Path::from("intervals");
+    let mut interval_files = state.store.list(Some(&intervals_path));
 
-            Ok(Json(MaxLVRResponse {
-                block_number,
-                lvr_cents,
-                pool_name,
-            }))
-        }
-        None => {
-            warn!(
-                "No max LVR data found for pool {} with markout time {}",
-                pool_address,
-                markout_time
-            );
-            Err(StatusCode::NOT_FOUND)
+    while let Some(meta_result) = interval_files.next().await {
+        let meta = meta_result.map_err(|e| {
+            error!("Failed to get file metadata: {}", e);
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?;
+
+        let bytes = state.store.get(&meta.location)
+            .await
+            .map_err(|e| {
+                error!("Failed to read file: {}", e);
+                StatusCode::INTERNAL_SERVER_ERROR
+            })?
+            .bytes()
+            .await
+            .map_err(|e| {
+                error!("Failed to get bytes: {}", e);
+                StatusCode::INTERNAL_SERVER_ERROR
+            })?;
+
+        let record_reader = ParquetRecordBatchReader::try_new(bytes, 1024)
+            .map_err(|e| {
+                error!("Failed to create Parquet reader: {}", e);
+                StatusCode::INTERNAL_SERVER_ERROR
+            })?;
+
+        for batch_result in record_reader {
+            let batch = batch_result.map_err(|e| {
+                error!("Failed to read batch: {}", e);
+                StatusCode::INTERNAL_SERVER_ERROR
+            })?;
+
+            let pool_addresses = get_string_column(&batch, "pair_address")?;
+            let markout_times = get_string_column(&batch, "markout_time")?;
+            let max_lvr_cents = get_uint64_column(&batch, "max_lvr_cents")?;
+            let interval_ids = get_uint64_column(&batch, "interval_id")?;
+
+            for i in 0..batch.num_rows() {
+                if pool_addresses.value(i).to_lowercase() != pool_address {
+                    continue;
+                }
+                
+                if markout_times.value(i) != "brontes" {
+                    continue;
+                }
+
+                let lvr_value = max_lvr_cents.value(i);
+                if lvr_value > max_valid_lvr && lvr_value <= max_allowed {
+                    max_valid_lvr = lvr_value;
+                    // Calculate block number from interval
+                    let file_start = meta.location
+                        .to_string()
+                        .split("intervals/")
+                        .nth(1)
+                        .and_then(|name| name.trim_end_matches(".parquet").split('_').next())
+                        .and_then(|num| num.parse::<u64>().ok())
+                        .unwrap_or(0);
+                    
+                    max_valid_block = file_start + (interval_ids.value(i) * BLOCKS_PER_INTERVAL);
+                }
+            }
         }
     }
+
+    if max_valid_lvr > 0 {
+        Ok(Json(MaxLVRResponse {
+            block_number: max_valid_block,
+            lvr_cents: max_valid_lvr,
+            pool_name: get_pool_name(pool_address),
+        }))
+    } else {
+        warn!(
+            "No valid max LVR found for pool {} below threshold {} cents",
+            pool_address,
+            max_allowed
+        );
+        Err(StatusCode::NOT_FOUND)
+    }
+}
+
+fn get_pool_name(pool_address: &str) -> String {
+    POOL_NAMES
+        .iter()
+        .find(|(addr, _)| addr.to_lowercase() == pool_address)
+        .map(|(_, name)| name.to_string())
+        .unwrap_or_else(|| pool_address.to_string())
 }
 
 // Helper function to get column values with proper type handling
@@ -1140,4 +1305,101 @@ fn get_bucket_value(batch: &arrow::record_batch::RecordBatch, column_name: &str)
             Err(StatusCode::INTERNAL_SERVER_ERROR)
         }
     }
+}
+
+pub async fn get_non_zero_proportion(
+    State(state): State<Arc<AppState>>,
+    Query(params): Query<NonZeroProportionQuery>,
+) -> Result<Json<NonZeroProportionResponse>, StatusCode> {
+    let pool_address = params.pool_address.to_lowercase();
+    let markout_time = params.markout_time;
+    
+    info!(
+        "Received non-zero proportion request - Pool: {}, Markout Time: {}", 
+        pool_address, markout_time
+    );
+
+    // Validate pool address
+    let valid_pools = get_valid_pools();
+    if !valid_pools.contains(&pool_address) {
+        warn!("Invalid pool address requested: {}", pool_address);
+        return Err(StatusCode::BAD_REQUEST);
+    }
+
+    let checkpoint_pattern = format!("{}_{}.parquet", pool_address, markout_time);
+    debug!("Looking for checkpoint file matching pattern: {}", checkpoint_pattern);
+    
+    let checkpoints_path = object_store::path::Path::from("checkpoints");
+    let mut checkpoint_files = state.store.list(Some(&checkpoints_path));
+    
+    while let Some(meta_result) = checkpoint_files.next().await {
+        let meta = meta_result.map_err(|e| {
+            error!("Failed to get file metadata: {}", e);
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?;
+        
+        let file_path = meta.location.to_string();
+        if !file_path.to_lowercase().ends_with(&checkpoint_pattern) {
+            continue;
+        }
+
+        debug!("Found matching checkpoint file: {}", file_path);
+
+        let bytes = state.store.get(&meta.location)
+            .await
+            .map_err(|e| {
+                error!("Failed to read checkpoint file: {}", e);
+                StatusCode::INTERNAL_SERVER_ERROR
+            })?
+            .bytes()
+            .await
+            .map_err(|e| {
+                error!("Failed to get file bytes: {}", e);
+                StatusCode::INTERNAL_SERVER_ERROR
+            })?;
+
+        let record_reader = ParquetRecordBatchReader::try_new(bytes, 1)
+            .map_err(|e| {
+                error!("Failed to create Parquet reader: {}", e);
+                StatusCode::INTERNAL_SERVER_ERROR
+            })?;
+
+        for batch_result in record_reader {
+            let batch = batch_result.map_err(|e| {
+                error!("Failed to read batch: {}", e);
+                StatusCode::INTERNAL_SERVER_ERROR
+            })?;
+
+            let non_zero_proportions = get_float64_column(&batch, "non_zero_proportion")?;
+
+            if batch.num_rows() > 0 {
+                let non_zero_proportion = non_zero_proportions.value(0);
+                let pool_name = POOL_NAMES
+                    .iter()
+                    .find(|(addr, _)| addr.to_lowercase() == pool_address)
+                    .map(|(_, name)| name.to_string())
+                    .unwrap_or_else(|| pool_address.clone());
+
+                info!(
+                    "Found non-zero proportion for {} ({}): {:.2}%",
+                    pool_name,
+                    pool_address,
+                    non_zero_proportion * 100.0
+                );
+
+                return Ok(Json(NonZeroProportionResponse {
+                    pool_name,
+                    pool_address,
+                    non_zero_proportion,
+                }));
+            }
+        }
+    }
+
+    warn!(
+        "No checkpoint data found for pool {} with markout time {}",
+        pool_address,
+        markout_time
+    );
+    Err(StatusCode::NOT_FOUND)
 }
