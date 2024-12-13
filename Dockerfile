@@ -1,9 +1,11 @@
 ARG TARGETOS=linux
 ARG TARGETARCH=x86_64
 
+FROM lukemathwalker/cargo-chef:latest-rust-1 AS chef
+RUN apt-get update && \
+    apt-get install -y musl-tools build-essential pkg-config gcc libssl-dev && \
+    rm -rf /var/lib/apt/lists/*
 
-FROM rust:1-alpine AS chef
-RUN apk add --no-cache musl-dev build-base openssl-dev pkgconfig
 RUN cargo install cargo-chef
 WORKDIR /app/backend
 
@@ -15,14 +17,18 @@ FROM chef AS builder
 COPY --from=planner /app/backend/recipe.json recipe.json
 RUN cargo chef cook --release --recipe-path recipe.json
 COPY backend/ .
+RUN cargo build --release
 
-RUN cargo build --release 
+FROM ubuntu AS runtime
+RUN apt-get update && \
+    apt-get install -y ca-certificates && \
+    rm -rf /var/lib/apt/lists/*
 
-FROM alpine:latest AS runtime
-RUN apk add --no-cache ca-certificates libgcc
-RUN addgroup -S myuser && adduser -S myuser -G myuser
+RUN groupadd -r myuser && useradd -r -g myuser myuser
+
 COPY --from=builder /app/backend/target/release/backend /usr/local/bin/backend
 USER myuser
+
 
 ENV BRONTES_HOST='REDACTED_BRONTES_HOST'
 ENV BRONTES_PORT='REDACTED_BRONTES_PORT'
