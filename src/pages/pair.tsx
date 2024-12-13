@@ -2,10 +2,10 @@ import React, { useState } from 'react';
 import PoolTotalsPieChart from '../components/PieChart';
 import MarkoutSelect from '../components/MarkoutSelect';
 import HistogramChart from '../components/Histogram';
-import MaxLVRDisplay from '../components/MaxLVR';
 import SoleRunningTotal from '../components/SoleRunningTotal';
-import MedianLVR from '../components/MedianLVR';
 import NonZeroProportion from '../components/NonZeroProp';
+import PercentileBandChart from '../components/BandPlot';
+import BoxPlot from '../components/BoxPlot';
 import names from '../names';
 
 function Pair() {
@@ -28,9 +28,10 @@ function Pair() {
       </div>
 
       <div className="bg-[#0f0f13] rounded-2xl border border-[#212121] p-6 mb-8">
-        <h3 className="text-xl font-semibold mb-4">Per-Block Median</h3>
-        <MedianLVR selectedMarkout={selectedMarkout}/>
+        <h3 className="text-xl font-semibold mb-4">LVR Distribution</h3>
+        <BoxPlot selectedMarkout={selectedMarkout} />
       </div>
+
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-8">
         <div className="bg-[#0f0f13] rounded-2xl border border-[#212121] p-6">
@@ -76,13 +77,18 @@ function Pair() {
         </div>
       </div>
 
+      <div className="space-y-8">
+        <div className="bg-[#0f0f13] rounded-2xl border border-[#212121] p-6">
+            <h3 className="text-xl font-semibold mb-4">LVR Distribution Over Time</h3>
+            <PercentileBandChart 
+              poolAddress={selectedPool}
+              markoutTime={selectedMarkout}
+            />
+        </div>
+    </div>
+
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-8">
         <div className="bg-[#0f0f13] rounded-2xl border border-[#212121] p-6">
-          <h3 className="text-xl font-semibold mb-4">Max LVR</h3>
-          <MaxLVRDisplay 
-            poolAddress={selectedPool}
-            markoutTime={selectedMarkout}
-          />
         </div>
         <NonZeroProportion 
           poolAddress={selectedPool}

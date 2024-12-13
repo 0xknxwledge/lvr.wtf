@@ -33,6 +33,30 @@ pub struct IntervalAPIData {
     pub file_path: String,
 }
 
+
+#[derive(Debug, Deserialize)]
+pub struct BoxplotLVRQuery {
+    pub markout_time: String,
+    pub start_block: Option<u64>,
+    pub end_block: Option<u64>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct PoolBoxplotData {
+    pub pool_name: String,
+    pub pool_address: String,
+    pub percentile_25_cents: u64,
+    pub median_cents: u64,
+    pub percentile_75_cents: u64,
+    pub max_lvr_cents: u64,
+    pub max_lvr_block: u64,
+}
+
+#[derive(Debug, Serialize)]
+pub struct BoxplotLVRResponse {
+    pub markout_time: String,
+    pub pool_data: Vec<PoolBoxplotData>,
+}
 #[derive(Debug, Serialize)]
 pub struct LVRRatioResponse {
     /// Vector of ratios for each markout time
@@ -75,23 +99,6 @@ pub struct PoolTotal {
 #[derive(Debug, Serialize)]
 pub struct PoolTotalsResponse {
     pub totals: Vec<PoolTotal>,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct MedianLVRQuery {
-    pub markout_time: Option<String>,
-}
-
-#[derive(Debug, Serialize)]
-pub struct PoolMedianLVR {
-    pub pool_name: String,
-    pub pool_address: String,
-    pub median_lvr_cents: u64,
-}
-
-#[derive(Debug, Serialize)]
-pub struct MedianLVRResponse {
-    pub medians: Vec<PoolMedianLVR>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -140,3 +147,28 @@ pub struct NonZeroProportionResponse {
     pub pool_address: String,
     pub non_zero_proportion: f64,
 }
+
+#[derive(Debug, Deserialize)]
+pub struct PercentileBandQuery {
+    pub start_block: Option<u64>,
+    pub end_block: Option<u64>,
+    pub pool_address: Option<String>,
+    pub markout_time: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct PercentileDataPoint {
+    pub block_number: u64,
+    pub percentile_25_cents: u64,
+    pub median_cents: u64,
+    pub percentile_75_cents: u64
+}
+
+#[derive(Debug, Serialize)]
+pub struct PercentileBandResponse {
+    pub pool_name: String,
+    pub pool_address: String,
+    pub markout_time: String,
+    pub data_points: Vec<PercentileDataPoint>,
+}
+
