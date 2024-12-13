@@ -40,5 +40,5 @@ ENV AURORA_USER='REDACTED_AURORA_USER'
 ENV AURORA_PASSWORD='REDACTED_AURORA_PASSWORD'
 ENV AURORA_DATABASE='REDACTED_AURORA_DATABASE'
 
-EXPOSE 3000
-ENTRYPOINT ["/usr/local/bin/backend", "serve", "--host", "0.0.0.0", "--port", "3000"]
+EXPOSE 50001
+ENTRYPOINT ["/usr/local/bin/backend", "serve", "--host", "0.0.0.0", "--port", "50001"]
