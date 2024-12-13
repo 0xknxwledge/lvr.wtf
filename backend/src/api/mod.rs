@@ -33,7 +33,6 @@ pub async fn serve(host: String, port: u16, store: Arc<dyn ObjectStore>) -> Resu
         axum::http::Method::OPTIONS,
     ])
     .allow_headers(Any)
-    .allow_credentials(true)
     .max_age(Duration::from_secs(3600));
 
     // Build router with routes and middleware
