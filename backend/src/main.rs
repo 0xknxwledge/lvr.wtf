@@ -48,7 +48,7 @@ enum Commands {
     /// Start the API server
     Serve {
         /// Port to listen on
-        #[arg(short, long, default_value = "3000")]
+        #[arg(short, long, default_value = "50001")]
         port: u16,
         
         /// Host address to bind to

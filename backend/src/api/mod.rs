@@ -8,15 +8,15 @@ pub use state::*;
 use tokio::net::TcpListener;
 use axum::{
     Router,
-    routing::get,
-    http::HeaderValue
+    routing::get
 };
-use tower_http::cors::CorsLayer;
+use tower_http::cors::{Any, CorsLayer};
 use std::sync::Arc;
 use std::net::SocketAddr;
 use object_store::ObjectStore;
 use tracing::info;
 use anyhow::Result;
+use std::time::Duration;
 
 pub async fn serve(host: String, port: u16, store: Arc<dyn ObjectStore>) -> Result<()> {
     // Create application state
@@ -24,9 +24,17 @@ pub async fn serve(host: String, port: u16, store: Arc<dyn ObjectStore>) -> Resu
 
     // Configure CORS
     let cors = CorsLayer::new()
-        .allow_origin(HeaderValue::from_static("https://lvr-wtf.vercel.app"))
-        .allow_methods([axum::http::Method::GET])
-        .allow_headers([axum::http::header::CONTENT_TYPE]);
+    .allow_origin(Any)
+    .allow_methods([
+        axum::http::Method::GET,
+        axum::http::Method::POST,
+        axum::http::Method::PUT,
+        axum::http::Method::DELETE,
+        axum::http::Method::OPTIONS,
+    ])
+    .allow_headers(Any)
+    .allow_credentials(true)
+    .max_age(Duration::from_secs(3600));
 
     // Build router with routes and middleware
     let app = Router::new()
