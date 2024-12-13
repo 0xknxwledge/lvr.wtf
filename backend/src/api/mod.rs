@@ -9,8 +9,9 @@ use tokio::net::TcpListener;
 use axum::{
     Router,
     routing::get,
+    http::HeaderValue
 };
-use tower_http::cors::{CorsLayer, Any};
+use tower_http::cors::CorsLayer;
 use std::sync::Arc;
 use std::net::SocketAddr;
 use object_store::ObjectStore;
@@ -23,7 +24,9 @@ pub async fn serve(host: String, port: u16, store: Arc<dyn ObjectStore>) -> Resu
 
     // Configure CORS
     let cors = CorsLayer::new()
-        .allow_origin(Any)
+        .allow_origin([
+            "https://lvr-wtf-johns-projects-a3181f15.vercel.app".parse::<HeaderValue>()?
+        ])
         .allow_methods([axum::http::Method::GET])
         .allow_headers([axum::http::header::CONTENT_TYPE]);
 
