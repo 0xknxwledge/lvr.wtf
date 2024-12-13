@@ -5,7 +5,6 @@ import HistogramChart from '../components/Histogram';
 import SoleRunningTotal from '../components/SoleRunningTotal';
 import NonZeroProportion from '../components/NonZeroProp';
 import PercentileBandChart from '../components/BandPlot';
-import BoxPlot from '../components/BoxPlot';
 import names from '../names';
 
 function Pair() {
@@ -25,11 +24,6 @@ function Pair() {
           selectedMarkout={selectedMarkout} 
           onChange={setSelectedMarkout} 
         />
-      </div>
-
-      <div className="bg-[#0f0f13] rounded-2xl border border-[#212121] p-6 mb-8">
-        <h3 className="text-xl font-semibold mb-4">LVR Distribution</h3>
-        <BoxPlot selectedMarkout={selectedMarkout} />
       </div>
 
 
@@ -79,7 +73,7 @@ function Pair() {
 
       <div className="space-y-8">
         <div className="bg-[#0f0f13] rounded-2xl border border-[#212121] p-6">
-            <h3 className="text-xl font-semibold mb-4">LVR Distribution Over Time</h3>
+            <h3 className="text-xl font-semibold mb-4">Month-to-Month Daily Percentiles</h3>
             <PercentileBandChart 
               poolAddress={selectedPool}
               markoutTime={selectedMarkout}

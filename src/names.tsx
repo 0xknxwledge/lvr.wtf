@@ -1,5 +1,3 @@
-import React from "react"
-
 let names: PoolNames = {
     "0x88e6a0c2ddd26feeb64f039a2c41296fcb3f5640": "USDC/WETH(5bp)",
     "0x3416cf6c708da44db2624d63ea0aaef7113527c6": "USDC/USDT(1bp)",

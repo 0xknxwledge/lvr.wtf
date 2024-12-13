@@ -172,3 +172,11 @@ pub struct PercentileBandResponse {
     pub data_points: Vec<PercentileDataPoint>,
 }
 
+
+#[derive(Debug)]
+pub struct AggregatedStats {
+    pub percentile_25: u64,
+    pub median: u64,
+    pub percentile_75: u64,
+    pub count: u64,
+}

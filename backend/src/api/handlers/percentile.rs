@@ -6,12 +6,19 @@ use axum::{
 use crate::{AppState, 
     MERGE_BLOCK, POOL_ADDRESSES,
     PercentileBandQuery, PercentileBandResponse, PercentileDataPoint,
-    api::handlers::common::{get_uint64_column, get_valid_pools,get_string_column, get_pool_name, calculate_block_number}};
+    api::handlers::common::{get_uint64_column, get_valid_pools, get_string_column, get_pool_name}};
 use tracing::{error, debug, info, warn};
 use futures::StreamExt;
-use std::sync::Arc;
+use std::{sync::Arc, collections::HashMap};
 use parquet::arrow::arrow_reader::ParquetRecordBatchReader;
 
+fn calculate_percentile(sorted_values: &[u64], percentile: f64) -> u64 {
+    if sorted_values.is_empty() {
+        return 0;
+    }
+    let index = (sorted_values.len() as f64 * percentile).floor() as usize;
+    sorted_values[index.min(sorted_values.len() - 1)]
+}
 
 pub async fn get_percentile_band(
     State(state): State<Arc<AppState>>,
@@ -22,7 +29,7 @@ pub async fn get_percentile_band(
     let markout_time = params.markout_time.unwrap_or_else(|| String::from("brontes"));
     
     info!(
-        "Fetching percentile band data for blocks {} to {}, markout_time: {}", 
+        "Fetching LVR distribution for blocks {} to {}, markout_time: {}", 
         start_block, end_block, markout_time
     );
     
@@ -35,12 +42,12 @@ pub async fn get_percentile_band(
         }
         Some(pool_address)
     } else {
-        None
+        // Default to first valid pool if none specified
+        Some(POOL_ADDRESSES[0].to_lowercase())
     };
 
-    let mut data_points = Vec::new();
-
-    
+    // Map to collect all LVR values per interval file
+    let mut file_lvr_values: HashMap<u64, Vec<u64>> = HashMap::new();
     let intervals_path = object_store::path::Path::from("intervals");
     let mut interval_files = state.store.list(Some(&intervals_path));
 
@@ -52,23 +59,26 @@ pub async fn get_percentile_band(
 
         let file_path = meta.location.to_string();
 
-
-        // Skip files outside our range
-        if let Some(file_name) = file_path.split('/').last() {
+        // Extract block range from file name
+        let (file_start, file_end) = if let Some(file_name) = file_path.split('/').last() {
             let parts: Vec<&str> = file_name.split('_').collect();
             if parts.len() == 2 {
-                if let (Ok(file_start), Ok(file_end)) = (
-                    parts[0].parse::<u64>(),
-                    parts[1].trim_end_matches(".parquet").parse::<u64>()
-                ) {
-                    if file_start > end_block || file_end < start_block {
-                        continue;
-                    }
-                }
+                let start = parts[0].parse::<u64>().unwrap_or(0);
+                let end = parts[1].trim_end_matches(".parquet").parse::<u64>().unwrap_or(0);
+                (start, end)
+            } else {
+                (0, 0)
             }
+        } else {
+            (0, 0)
+        };
+
+        // Skip files outside our range
+        if file_start > end_block || file_end < start_block {
+            continue;
         }
 
-        debug!("Processing file: {}", file_path);
+        debug!("Processing interval file: {}", file_path);
 
         let bytes = state.store.get(&meta.location)
             .await
@@ -89,19 +99,18 @@ pub async fn get_percentile_band(
                 StatusCode::INTERNAL_SERVER_ERROR
             })?;
 
+        let mut interval_values = Vec::new();
+
         for batch_result in record_reader {
             let batch = batch_result.map_err(|e| {
                 error!("Failed to read batch: {}", e);
                 StatusCode::INTERNAL_SERVER_ERROR
             })?;
 
-            // Get all required columns
-            let interval_ids = get_uint64_column(&batch, "interval_id")?;
             let markout_times = get_string_column(&batch, "markout_time")?;
             let pool_addresses = get_string_column(&batch, "pair_address")?;
-            let median_lvrs = get_uint64_column(&batch, "median_lvr_cents")?;
-            let p25_lvrs = get_uint64_column(&batch, "percentile_25_cents")?;
-            let p75_lvrs = get_uint64_column(&batch, "percentile_75_cents")?;
+            let total_lvr_cents = get_uint64_column(&batch, "total_lvr_cents")?;
+            let non_zero_counts = get_uint64_column(&batch, "non_zero_count")?;
 
             for i in 0..batch.num_rows() {
                 // Apply filters
@@ -110,45 +119,46 @@ pub async fn get_percentile_band(
                 }
 
                 let pool_address = pool_addresses.value(i).to_lowercase();
-                if let Some(ref filter_address) = pool_filter {
-                    if &pool_address != filter_address {
-                        continue;
-                    }
-                } else if !get_valid_pools().contains(&pool_address) {
+                if pool_filter.as_ref().map_or(true, |filter| &pool_address != filter) {
                     continue;
                 }
 
-                // Calculate block number for this interval
-                let block_number = calculate_block_number(
-                    start_block,
-                    interval_ids.value(i),
-                    &file_path
-                );
-
-                if block_number >= start_block && block_number <= end_block {
-                    data_points.push(PercentileDataPoint {
-                        block_number,
-                        percentile_25_cents: p25_lvrs.value(i),
-                        median_cents: median_lvrs.value(i),
-                        percentile_75_cents: p75_lvrs.value(i),
-                    });
+                // Only include intervals with activity
+                if non_zero_counts.value(i) > 0 {
+                    interval_values.push(total_lvr_cents.value(i));
                 }
             }
         }
+
+        // Store values if we found any matching entries
+        if !interval_values.is_empty() {
+            file_lvr_values.insert(file_start, interval_values);
+        }
     }
+
+    // Calculate percentiles for each interval file
+    let mut data_points: Vec<PercentileDataPoint> = file_lvr_values
+        .into_iter()
+        .map(|(block_number, mut values)| {
+            // Sort values for percentile calculation
+            values.sort_unstable();
+            
+            PercentileDataPoint {
+                block_number,
+                percentile_25_cents: calculate_percentile(&values, 0.25),
+                median_cents: calculate_percentile(&values, 0.5),
+                percentile_75_cents: calculate_percentile(&values, 0.75),
+            }
+        })
+        .collect();
 
     // Sort data points by block number
     data_points.sort_by_key(|point| point.block_number);
 
     // Get pool information for response
-    let pool_address = pool_filter.unwrap_or_else(|| {
-        // If no pool was specified, use the first one we found
-        data_points.first()
-            .map(|_| POOL_ADDRESSES[0].to_lowercase())
-            .unwrap_or_default()
-    });
-
+    let pool_address = pool_filter.unwrap_or_else(|| POOL_ADDRESSES[0].to_lowercase());
     let pool_name = get_pool_name(&pool_address);
+
     info!(
         "Returning {} data points for pool {} with markout time {}",
         data_points.len(),

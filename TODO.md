@@ -1,4 +1,11 @@
-Get Brontes data for:
-    "0x435664008F38B0650fBC1C9fc971D0A3Bc2f1e47": "USDe-USDT-100",
-    "0xB4e16d0168e52d35CaCD2c6185b44281Ec28C9Dc": "WETH-USDC-v2",
-    "0x0d4a11d5EEaaC28EC3F61d100daF4d40471f1852": "USDT-WETH-v2"
+Aggregate (All page + markout only Pair page as of now):
+    - Bar graph showing max LVR values for every pool (with hover annotation of block number)
+    - Quartile plot of 25th, 50th, and 75th percentile daily LVR for every pool
+
+Pool (pool + markout):
+    - Fix running total graph
+    - Add hover to histogram
+Group:
+    - Pie graph
+    - Histogram for each group
+    - Stacked Bar chart of total LVR month-to-month

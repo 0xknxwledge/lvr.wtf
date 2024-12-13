@@ -29,7 +29,7 @@ const NonZeroProportion: React.FC<NonZeroProportionProps> = ({ poolAddress, sele
 
         params.append('markout_time', selectedMarkout);
 
-        const response = await fetch(`http://127.0.0.1:3000/non_zero_proportion?${params.toString()}`);
+        const response = await fetch(`https://lvr-wtf-568975696472.us-central1.run.app/non_zero_proportion?${params.toString()}`);
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
         }

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import Plot from 'react-plotly.js';
 import names from '../names';
+import dates from '../dates';
 
 interface PercentileDataPoint {
   block_number: number;
@@ -37,7 +38,7 @@ const PercentileBandChart: React.FC<PercentileBandChartProps> = ({ poolAddress, 
           markout_time: markoutTime
         });
 
-        const response = await fetch(`http://127.0.0.1:3000/percentile_band?${params.toString()}`);
+        const response = await fetch(`https://lvr-wtf-568975696472.us-central1.run.app/percentile_band?${params.toString()}`);
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
         }
@@ -71,8 +72,7 @@ const PercentileBandChart: React.FC<PercentileBandChartProps> = ({ poolAddress, 
   }
 
   const { data_points } = data;
-  const blockNumbers = data_points.map(d => d.block_number);
-  const medianValues = data_points.map(d => d.median_cents / 100); // Convert to dollars
+  const medianValues = data_points.map(d => d.median_cents / 100);
   const percentile25Values = data_points.map(d => d.percentile_25_cents / 100);
   const percentile75Values = data_points.map(d => d.percentile_75_cents / 100);
 
@@ -81,9 +81,9 @@ const PercentileBandChart: React.FC<PercentileBandChartProps> = ({ poolAddress, 
     `(Markout ${markoutTime}s)`;
 
   const plotData = [
-    // Median line
+    // Median line with enhanced hover
     {
-      x: blockNumbers,
+      x: dates,
       y: medianValues,
       type: 'scatter' as const,
       mode: 'lines' as const,
@@ -92,11 +92,23 @@ const PercentileBandChart: React.FC<PercentileBandChartProps> = ({ poolAddress, 
         color: '#b4d838',
         width: 2
       },
-      hovertemplate: 'Block: %{x}<br>Median: $%{y:.2f}<extra></extra>'
+      customdata: data_points.map((d) => [
+        d.percentile_25_cents / 100,
+        d.median_cents / 100,
+        d.percentile_75_cents / 100,
+        d.block_number + 216000,
+        d.block_number
+      ]),
+      hovertemplate: 
+        '<b>Blocks %{customdata[4]} - %{customdata[3]}</b><br>' +
+        '75th Percentile: %{customdata[2]:$,.2f}<br>' +
+        'Median: %{customdata[1]:$,.2f}<br>' +
+        '25th Percentile: %{customdata[0]:$,.2f}' +
+        '<extra></extra>'
     },
-    // Fill between 25th and 75th percentiles
+    // Fill between percentiles
     {
-      x: [...blockNumbers, ...blockNumbers.slice().reverse()],
+      x: [...dates, ...dates.slice().reverse()],
       y: [...percentile75Values, ...percentile25Values.slice().reverse()],
       fill: 'toself' as const,
       fillcolor: 'rgba(180, 216, 56, 0.2)',
@@ -120,20 +132,21 @@ const PercentileBandChart: React.FC<PercentileBandChartProps> = ({ poolAddress, 
           },
           xaxis: {
             title: {
-              text: 'Block Number',
+              text: 'Date Range (UTC)',
               font: { color: '#b4d838', size: 14 },
-              standoff: 20
+              standoff: 30
             },
-            tickformat: ',d',
-            tickfont: { color: '#ffffff' },
+            tickfont: { color: '#ffffff', size: 10 },
+            tickangle: 45,
             fixedrange: true,
-            showgrid: false
+            showgrid: false,
+            automargin: true // Prevent x-axis label clipping
           },
           yaxis: {
             title: {
-              text: 'LVR ($)',
+              text: 'Daily Total LVR',
               font: { color: '#b4d838', size: 14 },
-              standoff: 20
+              standoff: 30
             },
             tickformat: '$,.2f',
             tickfont: { color: '#ffffff' },
@@ -150,10 +163,15 @@ const PercentileBandChart: React.FC<PercentileBandChartProps> = ({ poolAddress, 
           },
           autosize: true,
           height: 400,
-          margin: { l: 80, r: 50, b: 60, t: 80 },
+          margin: { l: 100, r: 50, b: 140, t: 80 }, // Increased bottom margin
           paper_bgcolor: '#000000',
           plot_bgcolor: '#000000',
-          hovermode: 'closest'
+          hovermode: 'x unified',
+          hoverlabel: {
+            bgcolor: '#424242',
+            bordercolor: '#b4d838',
+            font: { color: '#ffffff', size: 12 }
+          },
         }}
         config={{
           responsive: true,
