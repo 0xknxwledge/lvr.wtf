@@ -2,7 +2,7 @@ import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import Overview from '../pages/overview';
 import All from '../pages/all';
-import Group from '../pages/group';
+import Group from '../pages/cluster';
 import Pair from '../pages/pair';
 
 function NavBar() {

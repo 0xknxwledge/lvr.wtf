@@ -24,27 +24,35 @@ pub async fn serve(host: String, port: u16, store: Arc<dyn ObjectStore>) -> Resu
 
     // Configure CORS
     let cors = CorsLayer::new()
-    .allow_origin(Any)
-    .allow_methods([
-        axum::http::Method::GET,
-        axum::http::Method::POST,
-        axum::http::Method::PUT,
-        axum::http::Method::DELETE,
-        axum::http::Method::OPTIONS,
-    ])
-    .allow_headers(Any)
-    .max_age(Duration::from_secs(3600));
+        .allow_origin(Any)
+        .allow_methods([
+            axum::http::Method::GET,
+            axum::http::Method::POST,
+            axum::http::Method::PUT,
+            axum::http::Method::DELETE,
+            axum::http::Method::OPTIONS,
+        ])
+        .allow_headers(Any)
+        .max_age(Duration::from_secs(3600));
 
     // Build router with routes and middleware
     let app = Router::new()
-        .route("/running_total", get(handlers::get_running_total))
-        .route("/ratios", get(handlers::get_lvr_ratios))
-        .route("/pool_totals", get(handlers::get_pool_totals))
-        .route("/max_lvr", get(handlers::get_max_lvr))
-        .route("/histogram", get(handlers::get_lvr_histogram))
-        .route("/non_zero_proportion", get(handlers::get_non_zero_proportion))
-        .route("/percentile_band", get(handlers::get_percentile_band))
+        // Core endpoints
         .route("/health", get(health_check))
+        
+        // Data analysis endpoints
+        .route("/running_total", get(get_running_total))
+        .route("/ratios", get(get_lvr_ratios))
+        .route("/pool_totals", get(get_pool_totals))
+        .route("/max_lvr", get(get_max_lvr))
+        .route("/histogram", get(get_lvr_histogram))
+        .route("/non_zero_proportion", get(get_non_zero_proportion))
+        .route("/percentile_band", get(get_percentile_band))
+        
+        // Cluster analysis endpoints
+        .route("/clusters/pie", get(get_cluster_proportion))
+        .route("/clusters/histogram", get(get_cluster_histogram))
+        .route("/clusters/monthly", get(get_monthly_cluster_totals))
         .layer(cors)
         .with_state(state);
 

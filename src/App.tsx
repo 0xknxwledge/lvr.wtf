@@ -4,7 +4,7 @@ import NavBar from './components/navbar';
 import Footer from './components/footer';
 import Overview from './pages/overview';
 import All from './pages/all';
-import Group from './pages/group';
+import Cluster from './pages/cluster';
 import Pair from './pages/pair';
 import DataLayout from './components/datalayout';
 
@@ -17,7 +17,7 @@ function App() {
           <Routes>
             <Route path="/" element={<Overview />} />
             <Route path="/all" element={<DataLayout><All /></DataLayout>} />
-            <Route path="/group" element={<DataLayout><Group /></DataLayout>} />
+            <Route path="/cluster" element={<DataLayout><Cluster /></DataLayout>} />
             <Route path="/pair" element={<DataLayout><Pair /></DataLayout>} />
           </Routes>
         </div>

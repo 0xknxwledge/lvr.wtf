@@ -5,7 +5,3 @@ Aggregate (All page + markout only Pair page as of now):
 Pool (pool + markout):
     - Fix running total graph axes + zoom
     - Add hover to histogram
-Group:
-    - Pie graph
-    - Histogram for each group
-    - Stacked Bar chart of total LVR month-to-month

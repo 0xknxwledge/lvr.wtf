@@ -180,3 +180,63 @@ pub struct AggregatedStats {
     pub percentile_75: u64,
     pub count: u64,
 }
+
+#[derive(Debug, Deserialize)]
+pub struct ClusterQuery {
+    pub markout_time: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct ClusterTotal {
+    pub name: String,
+    pub total_lvr_cents: u64,
+}
+
+#[derive(Debug, Serialize)]
+pub struct ClusterPieResponse {
+    pub clusters: Vec<ClusterTotal>,
+    pub total_lvr_cents: u64,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct ClusterHistogramQuery {
+    pub markout_time: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct ClusterHistogramBucket {
+    pub range_start: f64,
+    pub range_end: Option<f64>,
+    pub count: u64,
+    pub label: String,
+}
+
+#[derive(Debug, Serialize)]
+pub struct ClusterHistogramData {
+    pub name: String,
+    pub buckets: Vec<ClusterHistogramBucket>,
+    pub total_observations: u64,
+}
+
+#[derive(Debug, Serialize)]
+pub struct ClusterHistogramResponse {
+    pub clusters: Vec<ClusterHistogramData>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct MonthlyClusterQuery {
+    pub markout_time: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct MonthlyData {
+    pub time_range: String,
+    pub cluster_totals: HashMap<String, u64>,
+    pub total_lvr_cents: u64,
+}
+
+#[derive(Debug, Serialize)]
+pub struct ClusterMonthlyResponse {
+    pub monthly_data: Vec<MonthlyData>,
+    pub clusters: Vec<String>,
+}

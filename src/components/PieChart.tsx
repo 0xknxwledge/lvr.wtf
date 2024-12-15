@@ -23,7 +23,7 @@ const PoolTotalsPieChart: React.FC<PoolTotalsPieChartProps> = ({ selectedMarkout
         setIsLoading(true);
         const params = new URLSearchParams();
         params.append('markout_time', selectedMarkout);
-        const response = await fetch(`https://lvr-wtf-568975696472.us-central1.run.app/pool_totals?${params.toString()}`);
+        const response = await fetch(`http://127.0.0.1:3000/pool_totals?${params.toString()}`);
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
         }
