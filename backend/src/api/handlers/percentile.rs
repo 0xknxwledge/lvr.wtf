@@ -6,19 +6,11 @@ use axum::{
 use crate::{AppState, 
     MERGE_BLOCK, POOL_ADDRESSES,
     PercentileBandQuery, PercentileBandResponse, PercentileDataPoint,
-    api::handlers::common::{get_uint64_column, get_valid_pools, get_string_column, get_pool_name}};
+    api::handlers::common::{get_uint64_column, get_valid_pools, get_string_column, get_pool_name, calculate_percentile}};
 use tracing::{error, debug, info, warn};
 use futures::StreamExt;
 use std::{sync::Arc, collections::HashMap};
 use parquet::arrow::arrow_reader::ParquetRecordBatchReader;
-
-fn calculate_percentile(sorted_values: &[u64], percentile: f64) -> u64 {
-    if sorted_values.is_empty() {
-        return 0;
-    }
-    let index = (sorted_values.len() as f64 * percentile).floor() as usize;
-    sorted_values[index.min(sorted_values.len() - 1)]
-}
 
 pub async fn get_percentile_band(
     State(state): State<Arc<AppState>>,

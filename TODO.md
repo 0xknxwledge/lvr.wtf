@@ -1,7 +1,6 @@
-Aggregate (All page + markout only Pair page as of now):
-    - Bar graph showing max LVR values for every pool (with hover annotation of block number)
-    - Fix quartile plot of 25th, 50th, and 75th percentile daily LVR for every pool
-
-Pool (pool + markout):
-    - Fix running total graph axes + zoom
-    - Add hover to histogram
+- Fix axes on all graphs
+- Accurate titles and axes labels
+- Add zoom in/out functionality for box plot
+- Consistent styling and colors across graphs (change main color to sage green instead of lime too)
+- Write out "What is LVR?" and "Methodology"
+- Hover descriptions for every graph 

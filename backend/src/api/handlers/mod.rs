@@ -11,6 +11,7 @@ pub mod max;
 pub mod histogram;
 pub mod nonzero;
 pub mod percentile;
+pub mod quartile;
 
 // Re-exports
 pub use health::health_check;
@@ -23,6 +24,7 @@ pub use max::get_max_lvr;
 pub use histogram::get_lvr_histogram;
 pub use nonzero::get_non_zero_proportion;
 pub use percentile::get_percentile_band;
+pub use quartile::get_quartile_plot;
 
 // Cluster analysis endpoints
 pub use clusters::*;

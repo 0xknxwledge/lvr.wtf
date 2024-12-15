@@ -33,30 +33,6 @@ pub struct IntervalAPIData {
     pub file_path: String,
 }
 
-
-#[derive(Debug, Deserialize)]
-pub struct BoxplotLVRQuery {
-    pub markout_time: String,
-    pub start_block: Option<u64>,
-    pub end_block: Option<u64>,
-}
-
-#[derive(Debug, Serialize)]
-pub struct PoolBoxplotData {
-    pub pool_name: String,
-    pub pool_address: String,
-    pub percentile_25_cents: u64,
-    pub median_cents: u64,
-    pub percentile_75_cents: u64,
-    pub max_lvr_cents: u64,
-    pub max_lvr_block: u64,
-}
-
-#[derive(Debug, Serialize)]
-pub struct BoxplotLVRResponse {
-    pub markout_time: String,
-    pub pool_data: Vec<PoolBoxplotData>,
-}
 #[derive(Debug, Serialize)]
 pub struct LVRRatioResponse {
     /// Vector of ratios for each markout time
@@ -103,16 +79,23 @@ pub struct PoolTotalsResponse {
 
 #[derive(Debug, Deserialize)]
 pub struct MaxLVRQuery {
-    pub pool_address: String,
     pub markout_time: String,
 }
 
 #[derive(Debug, Serialize)]
-pub struct MaxLVRResponse {
+pub struct MaxLVRPoolData {
+    pub pool_name: String,
+    pub pool_address: String,
     pub block_number: u64,
     pub lvr_cents: u64,
-    pub pool_name: String,
 }
+
+#[derive(Debug, Serialize)]
+pub struct MaxLVRResponse {
+    pub pools: Vec<MaxLVRPoolData>,
+}
+
+
 #[derive(Debug, Deserialize)]
 pub struct HistogramQuery {
     pub pool_address: String,
@@ -239,4 +222,25 @@ pub struct MonthlyData {
 pub struct ClusterMonthlyResponse {
     pub monthly_data: Vec<MonthlyData>,
     pub clusters: Vec<String>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct QuartilePlotQuery {
+    pub markout_time: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct PoolQuartileData {
+    pub pool_name: String,
+    pub pool_address: String,
+    pub min_nonzero_cents: u64,
+    pub percentile_25_cents: u64,
+    pub median_cents: u64,
+    pub percentile_75_cents: u64,
+}
+
+#[derive(Debug, Serialize)]
+pub struct QuartilePlotResponse {
+    pub markout_time: String,
+    pub pool_data: Vec<PoolQuartileData>,
 }

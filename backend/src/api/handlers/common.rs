@@ -39,6 +39,29 @@ pub fn calculate_block_number(base_block: u64, interval_id: u64, file_path: &str
     }
 }
 
+pub fn calculate_percentile(sorted_values: &[u64], percentile: f64) -> u64 {
+    if sorted_values.is_empty() {
+        return 0;
+    }
+    
+    if sorted_values.len() == 1 {
+        return sorted_values[0];
+    }
+    
+    let n = sorted_values.len() as f64;
+    let rank = (n - 1.0) * percentile;
+    let k = rank.floor() as usize;
+    let d = rank - k as f64;
+    
+    if k + 1 >= sorted_values.len() {
+        sorted_values[sorted_values.len() - 1]
+    } else {
+        let lower = sorted_values[k] as f64;
+        let upper = sorted_values[k + 1] as f64;
+        ((1.0 - d) * lower + d * upper).round() as u64
+    }
+}
+
 pub fn get_column_value<A: Array + 'static>(
     batch: &RecordBatch, 
     column_name: &str
