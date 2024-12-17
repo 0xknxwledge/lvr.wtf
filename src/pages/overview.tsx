@@ -35,7 +35,7 @@ function Overview() {
         </div>
       </div>
       <div className="mt-12">
-        <Link to="/all" className="inline-flex items-center px-6 py-4 rounded-[9.75rem] border border-[#b4d838] text-[#b4d838] text-lg font-medium">
+        <Link to="/aggregate" className="inline-flex items-center px-6 py-4 rounded-[9.75rem] border border-[#b4d838] text-[#b4d838] text-lg font-medium">
           <span className="mr-2">⟳</span> Access Data Dashboard
         </Link>
       </div>

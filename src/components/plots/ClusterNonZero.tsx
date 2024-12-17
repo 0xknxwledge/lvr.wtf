@@ -60,7 +60,7 @@ const ClusterNonZero: React.FC<ClusterNonZeroProps> = ({ selectedMarkout }) => {
 
   if (isLoading) {
     return (
-      <div className="w-full bg-black rounded-lg border border-[#212121] p-6">
+      <div className="w-full">
         <div className="flex items-center justify-center h-48">
           <p className="text-white">Loading...</p>
         </div>
@@ -70,7 +70,7 @@ const ClusterNonZero: React.FC<ClusterNonZeroProps> = ({ selectedMarkout }) => {
 
   if (error) {
     return (
-      <div className="w-full bg-black rounded-lg border border-[#212121] p-6">
+      <div className="w-full">
         <div className="flex items-center justify-center h-48">
           <p className="text-red-500">{error}</p>
         </div>
@@ -83,7 +83,7 @@ const ClusterNonZero: React.FC<ClusterNonZeroProps> = ({ selectedMarkout }) => {
     `(Markout ${selectedMarkout}s)`;
 
   return (
-    <div className="w-full bg-black rounded-lg border border-[#212121] p-6">
+    <div className="w-full">
       <div className="mb-4">
         <h2 className="text-[#b4d838] text-base text-center">
           Non-Zero Block Proportions by Cluster {titleSuffix}

@@ -40,7 +40,32 @@ const HistogramChart: React.FC<HistogramChartProps> = ({ poolAddress, markoutTim
         }
         
         const jsonData: HistogramResponse = await response.json();
-        setData(jsonData);
+        
+        // Process the data to consolidate all buckets above $500 into a single $500+ bucket
+        const consolidatedBuckets = jsonData.buckets.reduce((acc: HistogramBucket[], bucket: HistogramBucket) => {
+          if (bucket.range_start < 500) {
+            acc.push(bucket);
+          } else {
+            // Find existing $500+ bucket or create it
+            let consolidatedBucket = acc.find(b => b.label === '$500+');
+            if (!consolidatedBucket) {
+              consolidatedBucket = {
+                range_start: 500,
+                range_end: null,
+                count: 0,
+                label: '$500+'
+              };
+              acc.push(consolidatedBucket);
+            }
+            consolidatedBucket.count += bucket.count;
+          }
+          return acc;
+        }, []);
+
+        setData({
+          ...jsonData,
+          buckets: consolidatedBuckets
+        });
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to fetch histogram data');
       } finally {
@@ -71,8 +96,20 @@ const HistogramChart: React.FC<HistogramChartProps> = ({ poolAddress, markoutTim
     );
   }
 
-  const xValues = data.buckets.map(bucket => bucket.label);
-  const yValues = data.buckets.map(bucket => bucket.count);
+  const bucketOrder = [
+    '$0.01-$10',
+    '$10-$100',
+    '$100-$500',
+    '$500+'
+  ];
+
+  // Sort buckets according to the predefined order
+  const sortedBuckets = [...data.buckets].sort((a, b) => 
+    bucketOrder.indexOf(a.label) - bucketOrder.indexOf(b.label)
+  );
+
+  const xValues = sortedBuckets.map(bucket => bucket.label);
+  const yValues = sortedBuckets.map(bucket => bucket.count);
   
   // Calculate percentage of total observations for hover text
   const percentages = yValues.map(count => 
@@ -98,7 +135,7 @@ const HistogramChart: React.FC<HistogramChartProps> = ({ poolAddress, markoutTim
             },
             hovertemplate: 
               'Range: %{x}<br>' +
-              'Count: %{y}<br>' +
+              'Count: %{y:,}<br>' +
               'Percentage: %{customdata}%' +
               '<extra></extra>',
             customdata: percentages,
@@ -118,6 +155,8 @@ const HistogramChart: React.FC<HistogramChartProps> = ({ poolAddress, markoutTim
             tickfont: { color: '#ffffff' },
             tickangle: 45,
             fixedrange: true,
+            categoryorder: 'array' as const,
+            categoryarray: bucketOrder
           },
           yaxis: {
             title: {

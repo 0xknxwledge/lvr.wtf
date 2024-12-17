@@ -81,7 +81,7 @@ pub async fn get_lvr_histogram(
             let bucket_0_10 = get_bucket_value(&batch, "total_bucket_0_10")?;
             let bucket_10_100 = get_bucket_value(&batch, "total_bucket_10_100")?;
             let bucket_100_500 = get_bucket_value(&batch, "total_bucket_100_500")?;
-            let bucket_1000_3000 = get_bucket_value(&batch, "total_bucket_1000_3000")?;
+            let bucket_500_3000 = get_bucket_value(&batch, "total_bucket_500_3000")?;
             let bucket_3000_10000 = get_bucket_value(&batch, "total_bucket_3000_10000")?;
             let bucket_10000_30000 = get_bucket_value(&batch, "total_bucket_10000_30000")?;
             let bucket_30000_plus = get_bucket_value(&batch, "total_bucket_30000_plus")?;
@@ -107,10 +107,10 @@ pub async fn get_lvr_histogram(
                     label: "$100-$500".to_string(),
                 },
                 HistogramBucket {
-                    range_start: 1000.0,
+                    range_start: 500.0,
                     range_end: Some(3000.0),
-                    count: bucket_1000_3000,
-                    label: "$1K-$3K".to_string(),
+                    count: bucket_500_3000,
+                    label: "$500-$3K".to_string(),
                 },
                 HistogramBucket {
                     range_start: 3000.0,

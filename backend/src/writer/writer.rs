@@ -180,7 +180,7 @@ fn create_record_batch_from_checkpoint(checkpoint: &CheckpointSnapshot) -> Resul
         ("total_bucket_0_10", Arc::new(UInt64Array::from(vec![checkpoint.total_bucket_0_10])) as ArrayRef),
         ("total_bucket_10_100", Arc::new(UInt64Array::from(vec![checkpoint.total_bucket_10_100])) as ArrayRef),
         ("total_bucket_100_500", Arc::new(UInt64Array::from(vec![checkpoint.total_bucket_100_500])) as ArrayRef),
-        ("total_bucket_1000_3000", Arc::new(UInt64Array::from(vec![checkpoint.total_bucket_1000_3000])) as ArrayRef),
+        ("total_bucket_500_3000", Arc::new(UInt64Array::from(vec![checkpoint.total_bucket_500_3000])) as ArrayRef),
         ("total_bucket_3000_10000", Arc::new(UInt64Array::from(vec![checkpoint.total_bucket_3000_10000])) as ArrayRef),
         ("total_bucket_10000_30000", Arc::new(UInt64Array::from(vec![checkpoint.total_bucket_10000_30000])) as ArrayRef),
         ("total_bucket_30000_plus", Arc::new(UInt64Array::from(vec![checkpoint.total_bucket_30000_plus])) as ArrayRef),

@@ -82,7 +82,7 @@ pub async fn get_non_zero_proportion(
                 "total_bucket_0_10",
                 "total_bucket_10_100",
                 "total_bucket_100_500",
-                "total_bucket_1000_3000",
+                "total_bucket_500_3000",
                 "total_bucket_3000_10000",
                 "total_bucket_10000_30000",
                 "total_bucket_30000_plus",

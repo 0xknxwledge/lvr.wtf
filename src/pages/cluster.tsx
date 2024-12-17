@@ -1,40 +1,40 @@
 import React, { useState } from 'react';
-import ClusterPieChart from '../components/plots/ClusterPie';
-import MarkoutSelect from '../components/select/MarkoutSelect';
+import { MarkoutSelect } from '../components/LabeledSelect';
 import ClusterHistogram from '../components/plots/ClusterHistogram';
 import ClusterStackedBar from '../components/plots/ClusterStackedBar';
 import ClusterNonZero from '../components/plots/ClusterNonZero';
+import ClusterPieChart from '../components/plots/ClusterPie';
+import PageLayout from '../components/pagelayout';
 
-function Cluster() {
+const Cluster: React.FC = () => {
   const [selectedMarkout, setSelectedMarkout] = useState('0.0');
 
+  const controls = (
+    <MarkoutSelect
+      selectedMarkout={selectedMarkout}
+      onChange={setSelectedMarkout}
+    />
+  );
+
   return (
-    <div className="p-8 bg-[#030304]">
-      <div className="flex justify-between items-center mb-8">
-        <h1 className="text-4xl font-bold">Cluster Data</h1>
-        <MarkoutSelect 
-          selectedMarkout={selectedMarkout}
-          onChange={setSelectedMarkout}
-        />
+    <PageLayout title="Cluster Analysis" controls={controls}>
+      <div className="bg-black rounded-2xl border border-[#212121] p-8">
+        <ClusterPieChart selectedMarkout={selectedMarkout} />
       </div>
 
-      <div className="space-y-12">
-        <div className="bg-black rounded-2xl p-6">
-          <ClusterPieChart selectedMarkout={selectedMarkout} />
-        </div>
+      <div className="bg-black rounded-2xl border border-[#212121] p-8">
+        <ClusterStackedBar selectedMarkout={selectedMarkout} />
+      </div>
 
-        <div className="bg-black rounded-2xl p-6">
-          <ClusterStackedBar selectedMarkout={selectedMarkout} />
-        </div>
+      <div className="bg-black rounded-2xl border border-[#212121] p-8">
+        <ClusterHistogram selectedMarkout={selectedMarkout} />
+      </div>
 
-        <div className="bg-black rounded-2xl p-6">
-          <ClusterHistogram selectedMarkout={selectedMarkout} />
-        </div>
-
+      <div className="bg-black rounded-2xl border border-[#212121] p-8">
         <ClusterNonZero selectedMarkout={selectedMarkout} />
       </div>
-    </div>
+    </PageLayout>
   );
-}
+};
 
 export default Cluster;

@@ -85,7 +85,7 @@ const RunningTotalChart: React.FC = () => {
       y: series.y,
       type: 'scatter' as const,
       mode: 'lines' as const,
-      name: isBrontes ? 'Observed (Brontes)' : `${series.markout}s`,
+      name: isBrontes ? 'Observed' : `${series.markout}s`,
       line: {
         color: markoutColors[series.markout as keyof typeof markoutColors],
         width: isBrontes ? 3 : 2,

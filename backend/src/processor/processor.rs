@@ -475,7 +475,7 @@ impl ParallelLVRProcessor {
                 &checkpoint.total_bucket_0_10,
                 &checkpoint.total_bucket_10_100,
                 &checkpoint.total_bucket_100_500,
-                &checkpoint.total_bucket_1000_3000,
+                &checkpoint.total_bucket_500_3000,
                 &checkpoint.total_bucket_3000_10000,
                 &checkpoint.total_bucket_10000_30000,
                 &checkpoint.total_bucket_30000_plus,

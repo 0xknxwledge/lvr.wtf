@@ -108,7 +108,7 @@ pub struct Checkpoint {
     pub total_bucket_0_10: AtomicU64,
     pub total_bucket_10_100: AtomicU64,
     pub total_bucket_100_500: AtomicU64,
-    pub total_bucket_1000_3000: AtomicU64,
+    pub total_bucket_500_3000: AtomicU64,
     pub total_bucket_3000_10000: AtomicU64,
     pub total_bucket_10000_30000: AtomicU64,
     pub total_bucket_30000_plus: AtomicU64,
@@ -126,7 +126,7 @@ pub struct CheckpointSnapshot {
     pub total_bucket_0_10: u64,
     pub total_bucket_10_100: u64,
     pub total_bucket_100_500: u64,
-    pub total_bucket_1000_3000: u64,
+    pub total_bucket_500_3000: u64,
     pub total_bucket_3000_10000: u64,
     pub total_bucket_10000_30000: u64,
     pub total_bucket_30000_plus: u64,
@@ -159,7 +159,7 @@ impl Checkpoint {
             total_bucket_0_10: AtomicU64::new(0),
             total_bucket_10_100: AtomicU64::new(0),
             total_bucket_100_500: AtomicU64::new(0),
-            total_bucket_1000_3000: AtomicU64::new(0),
+            total_bucket_500_3000: AtomicU64::new(0),
             total_bucket_3000_10000: AtomicU64::new(0),
             total_bucket_10000_30000: AtomicU64::new(0),
             total_bucket_30000_plus: AtomicU64::new(0),
@@ -173,7 +173,7 @@ impl Checkpoint {
             self.total_bucket_0_10.load(Ordering::Acquire) +
             self.total_bucket_10_100.load(Ordering::Acquire) +
             self.total_bucket_100_500.load(Ordering::Acquire) +
-            self.total_bucket_1000_3000.load(Ordering::Acquire) +
+            self.total_bucket_500_3000.load(Ordering::Acquire) +
             self.total_bucket_3000_10000.load(Ordering::Acquire) +
             self.total_bucket_10000_30000.load(Ordering::Acquire) +
             self.total_bucket_30000_plus.load(Ordering::Acquire);
@@ -196,7 +196,7 @@ impl Checkpoint {
             total_bucket_0_10: self.total_bucket_0_10.load(Ordering::Acquire),
             total_bucket_10_100: self.total_bucket_10_100.load(Ordering::Acquire),
             total_bucket_100_500: self.total_bucket_100_500.load(Ordering::Acquire),
-            total_bucket_1000_3000: self.total_bucket_1000_3000.load(Ordering::Acquire),
+            total_bucket_500_3000: self.total_bucket_500_3000.load(Ordering::Acquire),
             total_bucket_3000_10000: self.total_bucket_3000_10000.load(Ordering::Acquire),
             total_bucket_10000_30000: self.total_bucket_10000_30000.load(Ordering::Acquire),
             total_bucket_30000_plus: self.total_bucket_30000_plus.load(Ordering::Acquire),

@@ -78,7 +78,6 @@ const ClusterStackedBar: React.FC<ClusterStackedBarProps> = ({ selectedMarkout }
     `(Markout ${selectedMarkout}s)`;
 
   return (
-    <div className="w-full bg-black rounded-2xl border border-[#212121] p-6">
       <Plot
         data={traces}
         layout={{
@@ -137,7 +136,6 @@ const ClusterStackedBar: React.FC<ClusterStackedBarProps> = ({ selectedMarkout }
         }}
         style={{ width: '100%', height: '100%' }}
       />
-    </div>
   );
 };
 

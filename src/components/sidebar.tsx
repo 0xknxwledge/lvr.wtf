@@ -5,9 +5,9 @@ const SidebarNavigation: React.FC = () => {
   const location = useLocation();
 
   const navItems = [
-    { name: 'All LVR', path: '/all' },
-    { name: 'Pair Data', path: '/pair' },
-    { name: 'Cluster Data', path: '/cluster' },
+    { name: 'Aggegrate', path: '/aggregate' },
+    { name: 'Pool', path: '/pool' },
+    { name: 'Cluster', path: '/cluster' },
   ];
 
   return (

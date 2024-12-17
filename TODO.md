@@ -1,8 +1,7 @@
-- Accurate titles and axes labels
-- Add zoom in/out functionality for box plot
 - Consistent styling and colors across graphs (change main color to sage green instead of lime too) #B2AC88
 - Write out "What is LVR?" and "Methodology"
 - Hover descriptions for every graph 
+
 
 100% Realized Pools:
 

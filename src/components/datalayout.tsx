@@ -7,12 +7,15 @@ interface DataLayoutProps {
 
 function DataLayout({ children }: DataLayoutProps) {
   return (
-    <div className="flex bg-[#030304]">
+    <div className="flex bg-[#030304] min-h-screen">
+      {/* Fixed width sidebar */}
       <div className="fixed w-64">
         <SidebarNavigation />
       </div>
-      <div className="ml-64 w-full">
-        <main className="w-full">
+      
+      {/* Main content area with consistent margin */}
+      <div className="flex-1 ml-64">
+        <main>
           {children}
         </main>
       </div>

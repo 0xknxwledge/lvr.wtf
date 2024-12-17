@@ -80,7 +80,6 @@ const ClusterPieChart: React.FC<ClusterPieChartProps> = ({ selectedMarkout }) =>
     `(Markout ${selectedMarkout}s)`;
 
   return (
-    <div className="w-full bg-black rounded-2xl border border-[#212121] p-6">
       <Plot
         data={[
           {
@@ -130,7 +129,6 @@ const ClusterPieChart: React.FC<ClusterPieChartProps> = ({ selectedMarkout }) =>
         }}
         style={{ width: '100%', height: '100%' }}
       />
-    </div>
   );
 };
 

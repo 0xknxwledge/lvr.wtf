@@ -3,9 +3,9 @@ import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
 import NavBar from './components/navbar';
 import Footer from './components/footer';
 import Overview from './pages/overview';
-import All from './pages/all';
+import Aggregate from './pages/aggregate';
 import Cluster from './pages/cluster';
-import Pair from './pages/pair';
+import Pool from './pages/pool';
 import DataLayout from './components/datalayout';
 
 function App() {
@@ -22,9 +22,9 @@ function App() {
               <Footer />
             </>
           } />
-          <Route path="/all" element={<DataLayout><All /></DataLayout>} />
+          <Route path="/aggregate" element={<DataLayout><Aggregate /></DataLayout>} />
           <Route path="/cluster" element={<DataLayout><Cluster /></DataLayout>} />
-          <Route path="/pair" element={<DataLayout><Pair /></DataLayout>} />
+          <Route path="/pool" element={<DataLayout><Pool /></DataLayout>} />
         </Routes>
       </div>
     </Router>
