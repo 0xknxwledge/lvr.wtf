@@ -107,7 +107,7 @@ const RealizedRatioChart: React.FC = () => {
     },
     hovertemplate: 
       'Markout: %{x}s<br>' +
-      'Realized: %{y:.1f}%<br>' +
+      'Capture Efficiency: %{y:.1f}%<br>' +
       'Realized: $%{customdata[0]:,.2f}<br>' +
       'Theoretical: $%{customdata[1]:,.2f}<extra></extra>',
     customdata: sortedData.map(d => [
@@ -157,7 +157,7 @@ const RealizedRatioChart: React.FC = () => {
         data={plotData}
         layout={{
           title: {
-            text: 'LVR Capture Efficiency by Markout Time',
+            text: 'LVR Capture Efficiency',
             font: { color: '#b4d838', size: 16 },
             y: 0.95
           },
@@ -175,7 +175,7 @@ const RealizedRatioChart: React.FC = () => {
           },
           yaxis: {
             title: {
-              text: 'Realized Ratio (%)',
+              text: 'Observed/Theoretical Ratio',
               font: { color: '#b4d838', size: 14 },
               standoff: 20
             },

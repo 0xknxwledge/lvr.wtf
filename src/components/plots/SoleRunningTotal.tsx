@@ -123,25 +123,31 @@ const SoleRunningTotal: React.FC<SoleRunningTotalProps> = ({ poolAddress, markou
             tickfont: { color: '#ffffff' },
             showgrid: true,
             gridcolor: '#212121',
+            automargin: true,  // Enable automatic margin adjustment
+            tickangle: 0       // Keep numbers horizontal
           },
           yaxis: {
-            title: {
-              text: 'Running Total LVR ($)',
-              font: { color: '#b4d838', size: 14 },
-              standoff: 30
-            },
             tickformat: '$,.2f',
             tickfont: { color: '#ffffff' },
             showgrid: true,
             gridcolor: '#212121',
             nticks: numTicks,
             range: [0, maxY * 1.1], // Add 10% padding to the top
-            automargin: true,
+            automargin: true,    // Enable automatic margin adjustment
+            side: 'right',       // Keep y-axis on the right
+            ticklabelposition: 'outside right' // Ensure labels are outside the plot area
           },
           showlegend: false,
           autosize: true,
           height: 600,
-          margin: { l: 100, r: 50, b: 80, t: 80 },
+          // Increased bottom and right margins to prevent overlap
+          margin: { 
+            l: 50,    // Left margin
+            r: 120,   // Increased right margin for y-axis labels
+            b: 100,   // Increased bottom margin for x-axis labels
+            t: 80,    // Top margin
+            pad: 10   // Added padding
+          },
           paper_bgcolor: '#000000',
           plot_bgcolor: '#000000',
           hovermode: 'closest',

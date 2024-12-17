@@ -32,7 +32,6 @@ const MaxLVRChart: React.FC<MaxLVRChartProps> = ({ selectedMarkout }) => {
         }
         
         const jsonData = await response.json();
-        // API returns array under 'pools' key
         setData(jsonData.pools);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to fetch data');
@@ -46,7 +45,7 @@ const MaxLVRChart: React.FC<MaxLVRChartProps> = ({ selectedMarkout }) => {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-[400px]">
+      <div className="flex items-center justify-center h-96">
         <p className="text-white">Loading...</p>
       </div>
     );
@@ -54,7 +53,7 @@ const MaxLVRChart: React.FC<MaxLVRChartProps> = ({ selectedMarkout }) => {
 
   if (error || !data || data.length === 0) {
     return (
-      <div className="flex items-center justify-center h-[400px]">
+      <div className="flex items-center justify-center h-96">
         <p className="text-red-500">{error || 'No data available'}</p>
       </div>
     );
@@ -70,7 +69,7 @@ const MaxLVRChart: React.FC<MaxLVRChartProps> = ({ selectedMarkout }) => {
   const numTicks = Math.ceil(maxY / tickSpacing);
 
   const titleSuffix = selectedMarkout === 'brontes' ? 
-    '(Observed LVR)' : 
+    '(Observed)' : 
     `(Markout ${selectedMarkout}s)`;
 
   return (
@@ -84,12 +83,19 @@ const MaxLVRChart: React.FC<MaxLVRChartProps> = ({ selectedMarkout }) => {
             color: '#b4d838',
             opacity: 0.8,
           },
+          hoverlabel: {
+            bgcolor: '#424242',
+            bordercolor: '#b4d838',
+            font: { color: '#ffffff' },
+            namelength: -1  // Show full pool name
+          },
           hovertemplate: 
             '<b>%{x}</b><br>' +
             'Maximum LVR: $%{y:,.2f}<br>' +
             'Block: %{customdata:,d}' +
             '<extra></extra>',
           customdata: sortedData.map(d => d.block_number),
+          width: 0.8  // Make bars wider
         }
       ]}
       layout={{
@@ -98,21 +104,12 @@ const MaxLVRChart: React.FC<MaxLVRChartProps> = ({ selectedMarkout }) => {
           font: { color: '#b4d838', size: 16 }
         },
         xaxis: {
-          title: {
-            text: 'Pool',
-            font: { color: '#b4d838', size: 14 },
-            standoff: 20
-          },
           tickfont: { color: '#ffffff', size: 10 },
           tickangle: 45,
           fixedrange: true,
+          automargin: true,  // Ensure labels don't get cut off
         },
         yaxis: {
-          title: {
-            text: 'Maximum LVR ($)',
-            font: { color: '#b4d838', size: 14 },
-            standoff: 30
-          },
           tickformat: '$,.2f',
           tickfont: { color: '#ffffff' },
           fixedrange: true,
@@ -120,25 +117,29 @@ const MaxLVRChart: React.FC<MaxLVRChartProps> = ({ selectedMarkout }) => {
           gridcolor: '#212121',
           zeroline: false,
           nticks: numTicks,
-          range: [0, maxY * 1.1], // Add 10% padding at the top
+          range: [0, maxY * 1.1],
           automargin: true,
         },
         showlegend: false,
         autosize: true,
-        height: 400,
-        margin: { l: 100, r: 50, b: 160, t: 80 },
+        height: 500,  // Increased height for better visibility
+        margin: { 
+          l: 100,
+          r: 50,
+          b: 160,
+          t: 80,
+          pad: 10  // Added padding
+        },
         paper_bgcolor: '#000000',
         plot_bgcolor: '#000000',
-        hoverlabel: {
-          bgcolor: '#424242',
-          bordercolor: '#b4d838',
-          font: { color: '#ffffff' }
-        },
-        hovermode: 'closest'
+        hovermode: 'closest',
+        hoverdistance: 50,  // Increased hover distance
+        bargap: 0.2,  // Added gap between bars
       }}
       config={{
         responsive: true,
         displayModeBar: false,
+        scrollZoom: false,
       }}
       style={{ width: '100%', height: '100%' }}
     />

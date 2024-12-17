@@ -51,8 +51,7 @@ const NonZeroProportion: React.FC<NonZeroProportionProps> = ({ poolAddress, sele
 
   if (isLoading) {
     return (
-      <div className="bg-black rounded-2xl p-6">
-        <h2 className="text-xl font-semibold mb-6">Non-Zero Block Proportions</h2>
+      <div className="w-full bg-black rounded-lg border border-[#212121] p-6">
         <div className="flex items-center justify-center h-48">
           <p className="text-white">Loading...</p>
         </div>
@@ -62,8 +61,7 @@ const NonZeroProportion: React.FC<NonZeroProportionProps> = ({ poolAddress, sele
 
   if (error) {
     return (
-      <div className="bg-black rounded-2xl p-6">
-        <h2 className="text-xl font-semibold mb-6">Non-Zero Block Proportions</h2>
+      <div className="w-full bg-black rounded-lg border border-[#212121] p-6">
         <div className="flex items-center justify-center h-48">
           <p className="text-red-500">{error}</p>
         </div>
@@ -73,8 +71,7 @@ const NonZeroProportion: React.FC<NonZeroProportionProps> = ({ poolAddress, sele
 
   if (!data) {
     return (
-      <div className="bg-black rounded-2xl p-6">
-        <h2 className="text-xl font-semibold mb-6">Non-Zero Block Proportions</h2>
+      <div className="w-full bg-black rounded-lg border border-[#212121] p-6">
         <div className="flex items-center justify-center h-48">
           <p className="text-white">No data available</p>
         </div>
@@ -83,16 +80,17 @@ const NonZeroProportion: React.FC<NonZeroProportionProps> = ({ poolAddress, sele
   }
 
   const titleSuffix = selectedMarkout === 'brontes' ? 
-    '(Observed LVR)' : 
+    '(Observed)' : 
     `(Markout ${selectedMarkout}s)`;
 
   return (
-    <div className="bg-black rounded-2xl p-6">
-      <h2 className="text-xl font-semibold mb-6">Non-Zero Block Proportions {titleSuffix}</h2>
-      <div className="bg-[#0f0f13] rounded-xl p-6 flex flex-col items-center justify-center">
-        <h3 className="text-lg font-medium mb-4 text-center text-gray-300">
-          {names[data.pool_address] || data.pool_name}
-        </h3>
+    <div className="w-full bg-black rounded-lg border border-[#212121] p-6">
+      <div className="mb-4">
+        <h2 className="text-[#b4d838] text-base text-center">
+          Non-Zero Blocks for {names[data.pool_address] || data.pool_name} {titleSuffix}
+        </h2>
+      </div>
+      <div className="flex flex-col items-center justify-center">
         <p className="text-5xl font-semibold text-[#b4d838]">
           {(data.non_zero_proportion * 100).toFixed(2)}%
         </p>

@@ -122,6 +122,11 @@ const RunningTotalChart: React.FC = () => {
             showgrid: false,
             rangemode: 'tozero',
           },
+          title: {
+            text: 'Running Total LVR',
+            font: { color: '#b4d838', size: 16 },
+            y: 0.95
+          },
           autosize: true,
           height: 600,
           margin: { l: 80, r: 100, b: 100, t: 80, pad: 4 },
@@ -137,18 +142,6 @@ const RunningTotalChart: React.FC = () => {
             bordercolor: '#212121',
             font: { color: '#ffffff' }
           },
-          annotations: [
-            {
-              text: 'Running Total',
-              font: { color: '#b4d838', size: 14 },
-              showarrow: false,
-              xref: 'paper',
-              yref: 'paper',
-              x: -0.07,
-              y: 0.5,
-              textangle: '-90',
-            },
-          ],
         }}
         config={{
           responsive: true,

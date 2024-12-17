@@ -81,7 +81,7 @@ const PoolTotalsPieChart: React.FC<PoolTotalsPieChartProps> = ({ selectedMarkout
   });
 
   const titleSuffix = selectedMarkout === 'brontes' ? 
-    '(Observed LVR)' : 
+    '(Observed)' : 
     `(Markout ${selectedMarkout}s)`;
 
   return (
@@ -121,7 +121,7 @@ const PoolTotalsPieChart: React.FC<PoolTotalsPieChartProps> = ({ selectedMarkout
       ]}
       layout={{
         title: {
-          text: `Total by Pool ${titleSuffix}`,
+          text: `Total LVR by Pool ${titleSuffix}`,
           font: { color: '#b4d838', size: 16 },
         },
         showlegend: false,

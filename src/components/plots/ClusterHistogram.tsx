@@ -96,7 +96,7 @@ const ClusterHistogram: React.FC<ClusterHistogramProps> = ({ selectedMarkout }) 
         data={traces}
         layout={{
           title: {
-            text: `Non-Zero Per-Block Distribution by Cluster ${titleSuffix}`,
+            text: `Non-Zero Single-Block LVR Distribution by Cluster ${titleSuffix}`,
             font: { color: '#b4d838', size: 16 }
           },
           barmode: 'group',

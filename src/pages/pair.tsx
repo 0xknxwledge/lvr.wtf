@@ -40,7 +40,6 @@ function Pair() {
 
       <div className="space-y-12">
         <div className="bg-black rounded-2xl p-6">
-          <h3 className="text-xl font-semibold mb-6">Running Total LVR</h3>
           <SoleRunningTotal 
             poolAddress={selectedPool}
             markoutTime={selectedMarkout}
@@ -48,7 +47,6 @@ function Pair() {
         </div>
         
         <div className="bg-black rounded-2xl p-6">
-          <h3 className="text-xl font-semibold mb-6">LVR Distribution</h3>
           <HistogramChart 
             poolAddress={selectedPool}
             markoutTime={selectedMarkout}
@@ -56,7 +54,6 @@ function Pair() {
         </div>
 
         <div className="bg-black rounded-2xl p-6">
-          <h3 className="text-xl font-semibold mb-6">Month-to-Month Daily Percentiles</h3>
           <PercentileBandChart 
             poolAddress={selectedPool}
             markoutTime={selectedMarkout}

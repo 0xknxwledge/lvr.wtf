@@ -20,17 +20,14 @@ function Cluster() {
 
       <div className="space-y-12">
         <div className="bg-black rounded-2xl p-6">
-          <h2 className="text-xl font-semibold mb-6">Proportion of total LVR (each cluster)</h2>
           <ClusterPieChart selectedMarkout={selectedMarkout} />
         </div>
 
         <div className="bg-black rounded-2xl p-6">
-          <h2 className="text-xl font-semibold mb-6">Monthly LVR by Cluster</h2>
           <ClusterStackedBar selectedMarkout={selectedMarkout} />
         </div>
 
         <div className="bg-black rounded-2xl p-6">
-          <h2 className="text-xl font-semibold mb-6">LVR Distribution by Cluster</h2>
           <ClusterHistogram selectedMarkout={selectedMarkout} />
         </div>
 

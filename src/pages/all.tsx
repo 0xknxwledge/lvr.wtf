@@ -18,13 +18,11 @@ const All: React.FC = () => {
         <div className="space-y-12"> {/* Increased from space-y-8 to space-y-12 for more breathing room */}
           {/* Running Totals Section */}
           <div className="chart-container bg-[#000000] rounded-2xl border border-[#212121] p-8">
-            <h2 className="text-xl font-semibold mb-8 text-white">Running Totals</h2>
             <RunningTotalChart />
           </div>
 
           {/* Realized Ratios Section */}
           <div className="chart-container bg-[#000000] rounded-2xl border border-[#212121] p-8">
-            <h2 className="text-xl font-semibold mb-8 text-white">Realized Ratios</h2>
             <EfficiencyRatioChart />
           </div>
 
@@ -38,17 +36,14 @@ const All: React.FC = () => {
             </div>
             
             <div className="chart-container bg-[#000000] rounded-2xl border border-[#212121] p-8">
-              <h2 className="text-xl font-semibold mb-8 text-white">Proportion of total LVR (each pair)</h2>
               <PoolTotalsPieChart selectedMarkout={selectedMarkout} />
             </div>
             
             <div className="chart-container bg-[#000000] rounded-2xl border border-[#212121] p-8">
-              <h2 className="text-xl font-semibold mb-8 text-white">Maximum LVR by Pool</h2>
               <MaxLVRChart selectedMarkout={selectedMarkout} />
             </div>
             
             <div className="chart-container bg-[#000000] rounded-2xl border border-[#212121] p-8">
-              <h2 className="text-xl font-semibold mb-8 text-white">Daily LVR Distribution by Pool</h2>
               <QuartilePlot selectedMarkout={selectedMarkout} />
             </div>
           </div>

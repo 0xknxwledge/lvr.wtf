@@ -46,7 +46,6 @@ const ClusterNonZero: React.FC<ClusterNonZeroProps> = ({ selectedMarkout }) => {
         }
         
         const jsonData: ClusterNonZeroResponse = await response.json();
-        // Sort the data in descending order by proportion
         const sortedData = [...jsonData.clusters].sort((a, b) => b.non_zero_proportion - a.non_zero_proportion);
         setData(sortedData);
       } catch (err) {
@@ -61,8 +60,7 @@ const ClusterNonZero: React.FC<ClusterNonZeroProps> = ({ selectedMarkout }) => {
 
   if (isLoading) {
     return (
-      <div className="bg-black rounded-2xl p-6">
-        <h2 className="text-xl font-semibold mb-6">Non-Zero Block Proportions by Cluster</h2>
+      <div className="w-full bg-black rounded-lg border border-[#212121] p-6">
         <div className="flex items-center justify-center h-48">
           <p className="text-white">Loading...</p>
         </div>
@@ -72,8 +70,7 @@ const ClusterNonZero: React.FC<ClusterNonZeroProps> = ({ selectedMarkout }) => {
 
   if (error) {
     return (
-      <div className="bg-black rounded-2xl p-6">
-        <h2 className="text-xl font-semibold mb-6">Non-Zero Block Proportions by Cluster</h2>
+      <div className="w-full bg-black rounded-lg border border-[#212121] p-6">
         <div className="flex items-center justify-center h-48">
           <p className="text-red-500">{error}</p>
         </div>
@@ -86,13 +83,17 @@ const ClusterNonZero: React.FC<ClusterNonZeroProps> = ({ selectedMarkout }) => {
     `(Markout ${selectedMarkout}s)`;
 
   return (
-    <div className="bg-black rounded-2xl p-6">
-      <h2 className="text-xl font-semibold mb-6">Non-Zero Block Proportions by Cluster {titleSuffix}</h2>
+    <div className="w-full bg-black rounded-lg border border-[#212121] p-6">
+      <div className="mb-4">
+        <h2 className="text-[#b4d838] text-base text-center">
+          Non-Zero Block Proportions by Cluster {titleSuffix}
+        </h2>
+      </div>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
         {data.map((item) => (
           <div 
             key={item.name}
-            className="bg-[#0f0f13] rounded-xl p-6 flex flex-col items-center justify-center"
+            className="flex flex-col items-center justify-center"
           >
             <h3 className="text-lg font-medium mb-4 text-center text-gray-300">
               {CLUSTER_DISPLAY_NAMES[item.name] || item.name}

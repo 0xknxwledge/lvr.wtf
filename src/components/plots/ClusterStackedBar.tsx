@@ -70,10 +70,7 @@ const ClusterStackedBar: React.FC<ClusterStackedBarProps> = ({ selectedMarkout }
     x: data.monthly_data.map(d => d.time_range),
     y: data.monthly_data.map(d => d.cluster_totals[cluster] / 100), // Convert cents to dollars
     type: 'bar' as const,
-    hovertemplate: 
-      '<b>%{x}</b><br>' +
-      '%{fullData.name}: $%{y:,.2f}<br>' +
-      '<extra></extra>',
+    hovertemplate: '%{fullData.name}: $%{y:,.2f}<extra></extra>',
   }));
 
   const titleSuffix = selectedMarkout === 'brontes' ? 
@@ -92,7 +89,7 @@ const ClusterStackedBar: React.FC<ClusterStackedBarProps> = ({ selectedMarkout }
           barmode: 'stack',
           xaxis: {
             title: {
-              text: 'Time Range',
+              text: 'Date Range (UTC)',
               font: { color: '#b4d838', size: 14 },
               standoff: 20
             },
@@ -104,7 +101,7 @@ const ClusterStackedBar: React.FC<ClusterStackedBarProps> = ({ selectedMarkout }
             title: {
               text: 'Total LVR ($)',
               font: { color: '#b4d838', size: 14 },
-              standoff: 20
+              standoff: 70  // Increased standoff for more spacing
             },
             tickfont: { color: '#ffffff' },
             tickformat: '$,.0f',
@@ -117,12 +114,14 @@ const ClusterStackedBar: React.FC<ClusterStackedBarProps> = ({ selectedMarkout }
             font: { color: '#ffffff' },
             bgcolor: '#000000',
             bordercolor: '#212121',
-            orientation: 'h',
-            y: -0.2,
+            x: 1,
+            y: 1.1,
+            xanchor: 'right',
+            yanchor: 'top',
           },
           autosize: true,
           height: 500,
-          margin: { l: 80, r: 50, b: 160, t: 80 },
+          margin: { l: 120, r: 50, b: 160, t: 80 }, // Increased left margin to accommodate y-axis
           paper_bgcolor: '#000000',
           plot_bgcolor: '#000000',
           hovermode: 'x unified',
@@ -130,7 +129,7 @@ const ClusterStackedBar: React.FC<ClusterStackedBarProps> = ({ selectedMarkout }
             bgcolor: '#424242',
             bordercolor: '#b4d838',
             font: { color: '#ffffff' }
-          },
+          }
         }}
         config={{
           responsive: true,

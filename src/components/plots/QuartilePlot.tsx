@@ -174,7 +174,7 @@ const QuartilePlot: React.FC<QuartilePlotProps> = ({ selectedMarkout }) => {
   ]);
 
   const titleSuffix = selectedMarkout === 'brontes' ? 
-    '(Observed LVR)' : 
+    '(Observed)' : 
     `(Markout ${selectedMarkout}s)`;
 
   return (
@@ -182,15 +182,10 @@ const QuartilePlot: React.FC<QuartilePlotProps> = ({ selectedMarkout }) => {
       data={plotData}
       layout={{
         title: {
-          text: `Non-Zero Daily LVR Distribution by Pool ${titleSuffix}`,
+          text: `Non-Zero Daily LVR Quartiles by Pool ${titleSuffix}`,
           font: { color: '#b4d838', size: 16 }
         },
         xaxis: {
-          title: {
-            text: 'Pool',
-            font: { color: '#b4d838', size: 14 },
-            standoff: 20
-          },
           ticktext: sortedData.map(d => names[d.pool_address] || d.pool_name),
           tickvals: xPositions,
           tickfont: { color: '#ffffff', size: 10 },
@@ -198,11 +193,6 @@ const QuartilePlot: React.FC<QuartilePlotProps> = ({ selectedMarkout }) => {
           fixedrange: true,
         },
         yaxis: {
-          title: {
-            text: 'Daily Total LVR ($)',
-            font: { color: '#b4d838', size: 14 },
-            standoff: 30
-          },
           tickformat: '$,.2f',
           tickfont: { color: '#ffffff' },
           fixedrange: true,

@@ -114,7 +114,7 @@ const ClusterPieChart: React.FC<ClusterPieChartProps> = ({ selectedMarkout }) =>
         ]}
         layout={{
           title: {
-            text: `Total by Cluster ${titleSuffix}`,
+            text: `Total LVR by Cluster ${titleSuffix}`,
             font: { color: '#b4d838', size: 16 }
           },
           showlegend: false,

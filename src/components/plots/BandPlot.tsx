@@ -77,10 +77,23 @@ const PercentileBandChart: React.FC<PercentileBandChartProps> = ({ poolAddress, 
   const percentile75Values = data_points.map(d => d.percentile_75_cents / 100);
 
   const titleSuffix = markoutTime === 'brontes' ? 
-    '(Observed LVR)' : 
-    `(Markout ${markoutTime}s)`;
+    `${names[poolAddress]} (Observed LVR)` : 
+    `${names[poolAddress]} (Markout ${markoutTime}s)`;
 
   const plotData = [
+    // Fill between percentiles (placing this first so it appears behind the median line)
+    {
+      x: [...dates, ...dates.slice().reverse()],
+      y: [...percentile75Values, ...percentile25Values.slice().reverse()],
+      fill: 'toself' as const,
+      fillcolor: 'rgba(180, 216, 56, 0.2)',
+      line: { color: 'rgba(180, 216, 56, 0.5)' },
+      name: '25th-75th Percentile',
+      showlegend: false,  // Hide from legend to prevent toggling
+      type: 'scatter' as const,
+      mode: 'none' as const,
+      hoverinfo: 'skip' as const
+    },
     // Median line with enhanced hover
     {
       x: dates,
@@ -92,6 +105,7 @@ const PercentileBandChart: React.FC<PercentileBandChartProps> = ({ poolAddress, 
         color: '#b4d838',
         width: 2
       },
+      showlegend: false,  // Hide from legend to prevent toggling
       customdata: data_points.map((d) => [
         d.percentile_25_cents / 100,
         d.median_cents / 100,
@@ -105,19 +119,6 @@ const PercentileBandChart: React.FC<PercentileBandChartProps> = ({ poolAddress, 
         'Median: %{customdata[1]:$,.2f}<br>' +
         '25th Percentile: %{customdata[0]:$,.2f}' +
         '<extra></extra>'
-    },
-    // Fill between percentiles
-    {
-      x: [...dates, ...dates.slice().reverse()],
-      y: [...percentile75Values, ...percentile25Values.slice().reverse()],
-      fill: 'toself' as const,
-      fillcolor: 'rgba(180, 216, 56, 0.2)',
-      line: { color: 'rgba(180, 216, 56, 0.5)' },
-      name: '25th-75th Percentile',
-      showlegend: true,
-      type: 'scatter' as const,
-      mode: 'none' as const,
-      hoverinfo: 'skip' as const
     }
   ];
 
@@ -127,7 +128,7 @@ const PercentileBandChart: React.FC<PercentileBandChartProps> = ({ poolAddress, 
         data={plotData}
         layout={{
           title: {
-            text: `Daily Percentile Bandplot ${titleSuffix}`,
+            text: `Daily LVR Percentile Bandplot for ${titleSuffix}`,
             font: { color: '#b4d838', size: 16 }
           },
           xaxis: {
@@ -140,7 +141,7 @@ const PercentileBandChart: React.FC<PercentileBandChartProps> = ({ poolAddress, 
             tickangle: 45,
             fixedrange: true,
             showgrid: false,
-            automargin: true // Prevent x-axis label clipping
+            automargin: true
           },
           yaxis: {
             title: {
@@ -154,16 +155,10 @@ const PercentileBandChart: React.FC<PercentileBandChartProps> = ({ poolAddress, 
             showgrid: true,
             gridcolor: '#212121'
           },
-          showlegend: true,
-          legend: {
-            x: 0,
-            y: 1,
-            bgcolor: '#000000',
-            font: { color: '#ffffff' }
-          },
+          showlegend: false,  // Hide legend completely since we don't want toggles
           autosize: true,
           height: 400,
-          margin: { l: 100, r: 50, b: 140, t: 80 }, // Increased bottom margin
+          margin: { l: 100, r: 50, b: 140, t: 80 },
           paper_bgcolor: '#000000',
           plot_bgcolor: '#000000',
           hovermode: 'x unified',
