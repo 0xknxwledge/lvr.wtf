@@ -47,24 +47,30 @@ const SoleRunningTotal: React.FC<SoleRunningTotalProps> = ({ poolAddress, markou
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-[600px] bg-[#000000] rounded-lg border border-[#212121]">
-        <div className="text-white text-lg">Loading...</div>
+      <div className="w-full bg-black rounded-2xl border border-[#212121] p-6">
+        <div className="h-[600px] flex items-center justify-center">
+          <div className="text-white text-lg">Loading...</div>
+        </div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="flex items-center justify-center h-[600px] bg-[#000000] rounded-lg border border-[#212121]">
-        <div className="text-white bg-red-600 p-4 rounded">{error}</div>
+      <div className="w-full bg-black rounded-2xl border border-[#212121] p-6">
+        <div className="h-[600px] flex items-center justify-center">
+          <div className="text-white bg-red-600 p-4 rounded">{error}</div>
+        </div>
       </div>
     );
   }
 
   if (!data || data.length === 0) {
     return (
-      <div className="flex items-center justify-center h-[600px] bg-[#000000] rounded-lg border border-[#212121]">
-        <div className="text-white text-lg">No data available</div>
+      <div className="w-full bg-black rounded-2xl border border-[#212121] p-6">
+        <div className="h-[600px] flex items-center justify-center">
+          <div className="text-white text-lg">No data available</div>
+        </div>
       </div>
     );
   }
@@ -79,7 +85,7 @@ const SoleRunningTotal: React.FC<SoleRunningTotalProps> = ({ poolAddress, markou
   const numTicks = Math.ceil(maxY / tickSpacing);
 
   return (
-    <div className="w-full">
+    <div className="w-full bg-black rounded-2xl border border-[#212121] p-6">
       <Plot
         data={[
           {

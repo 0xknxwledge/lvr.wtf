@@ -129,6 +129,8 @@ pub struct NonZeroProportionResponse {
     pub pool_name: String,
     pub pool_address: String,
     pub non_zero_proportion: f64,
+    pub total_blocks: u64,
+    pub non_zero_blocks: u64,
 }
 
 #[derive(Debug, Deserialize)]

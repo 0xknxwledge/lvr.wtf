@@ -3,12 +3,14 @@ use axum::{
     response::Json,
     http::StatusCode,
 };
-use crate::{api::handlers::common::{get_pool_name, get_valid_pools, get_float64_column}, 
+use crate::{api::handlers::common::{get_pool_name, get_valid_pools, get_uint64_column}, 
     AppState, NonZeroProportionQuery, NonZeroProportionResponse};
 use tracing::{error, debug, info, warn};
 use futures::StreamExt;
 use std::sync::Arc;
 use parquet::arrow::arrow_reader::ParquetRecordBatchReader;
+
+
 pub async fn get_non_zero_proportion(
     State(state): State<Arc<AppState>>,
     Query(params): Query<NonZeroProportionQuery>,
@@ -72,23 +74,54 @@ pub async fn get_non_zero_proportion(
                 StatusCode::INTERNAL_SERVER_ERROR
             })?;
 
-            let non_zero_proportions = get_float64_column(&batch, "non_zero_proportion")?;
+            // Get the zero bucket count
+            let zero_bucket = get_uint64_column(&batch, "total_bucket_0")?;
+            
+            // Get counts from all non-zero buckets
+            let non_zero_buckets = [
+                "total_bucket_0_10",
+                "total_bucket_10_100",
+                "total_bucket_100_500",
+                "total_bucket_1000_3000",
+                "total_bucket_3000_10000",
+                "total_bucket_10000_30000",
+                "total_bucket_30000_plus",
+            ];
 
             if batch.num_rows() > 0 {
-                let non_zero_proportion = non_zero_proportions.value(0);
+                let mut non_zero_blocks = 0u64;
+                
+                // Sum up all non-zero buckets
+                for bucket_name in &non_zero_buckets {
+                    let bucket = get_uint64_column(&batch, bucket_name)?;
+                    non_zero_blocks += bucket.value(0);
+                }
+
+                let zero_blocks = zero_bucket.value(0);
+                let total_blocks = zero_blocks + non_zero_blocks;
+                let non_zero_proportion = if total_blocks > 0 {
+                    non_zero_blocks as f64 / total_blocks as f64
+                } else {
+                    0.0
+                };
+
                 let pool_name = get_pool_name(&pool_address);
 
                 info!(
-                    "Found non-zero proportion for {} ({}): {:.2}%",
+                    "Found stats for {} ({}): {:.2}% non-zero ({} out of {} blocks)",
                     pool_name,
                     pool_address,
-                    non_zero_proportion * 100.0
+                    non_zero_proportion * 100.0,
+                    non_zero_blocks,
+                    total_blocks
                 );
 
                 return Ok(Json(NonZeroProportionResponse {
                     pool_name,
                     pool_address,
                     non_zero_proportion,
+                    total_blocks,
+                    non_zero_blocks,
                 }));
             }
         }

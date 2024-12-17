@@ -53,16 +53,20 @@ const HistogramChart: React.FC<HistogramChartProps> = ({ poolAddress, markoutTim
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-[400px]">
-        <p className="text-white">Loading...</p>
+      <div className="w-full bg-black rounded-2xl border border-[#212121] p-6">
+        <div className="h-[400px] flex items-center justify-center">
+          <p className="text-white">Loading...</p>
+        </div>
       </div>
     );
   }
 
   if (error || !data) {
     return (
-      <div className="flex items-center justify-center h-[400px]">
-        <p className="text-red-500">{error || 'No data available'}</p>
+      <div className="w-full bg-black rounded-2xl border border-[#212121] p-6">
+        <div className="h-[400px] flex items-center justify-center">
+          <p className="text-red-500">{error || 'No data available'}</p>
+        </div>
       </div>
     );
   }
@@ -81,71 +85,73 @@ const HistogramChart: React.FC<HistogramChartProps> = ({ poolAddress, markoutTim
     `(Markout ${markoutTime}s)`;
 
   return (
-    <Plot
-      data={[
-        {
-          type: 'bar',
-          x: xValues,
-          y: yValues,
-          marker: {
-            color: '#b4d838',
-            opacity: 0.8,
-          },
-          hovertemplate: 
-            'Range: %{x}<br>' +
-            'Count: %{y}<br>' +
-            'Percentage: %{customdata}%' +
-            '<extra></extra>',
-          customdata: percentages,
-        }
-      ]}
-      layout={{
-        title: {
-          text: `LVR Distribution for ${poolName} ${titleSuffix}`,
-          font: { color: '#b4d838', size: 16 }
-        },
-        xaxis: {
+    <div className="w-full bg-black rounded-2xl border border-[#212121] p-6">
+      <Plot
+        data={[
+          {
+            type: 'bar',
+            x: xValues,
+            y: yValues,
+            marker: {
+              color: '#b4d838',
+              opacity: 0.8,
+            },
+            hovertemplate: 
+              'Range: %{x}<br>' +
+              'Count: %{y}<br>' +
+              'Percentage: %{customdata}%' +
+              '<extra></extra>',
+            customdata: percentages,
+          }
+        ]}
+        layout={{
           title: {
-            text: 'LVR Range ($)',
-            font: { color: '#b4d838', size: 14 },
-            standoff: 20
+            text: `LVR Distribution for ${poolName} ${titleSuffix}`,
+            font: { color: '#b4d838', size: 16 }
           },
-          tickfont: { color: '#ffffff' },
-          tickangle: 45,
-          fixedrange: true,
-        },
-        yaxis: {
-          title: {
-            text: 'Number of Blocks',
-            font: { color: '#b4d838', size: 14 },
-            standoff: 20
+          xaxis: {
+            title: {
+              text: 'LVR Range ($)',
+              font: { color: '#b4d838', size: 14 },
+              standoff: 20
+            },
+            tickfont: { color: '#ffffff' },
+            tickangle: 45,
+            fixedrange: true,
           },
-          tickfont: { color: '#ffffff' },
-          fixedrange: true,
-          showgrid: true,
-          gridcolor: '#212121',
-        },
-        bargap: 0.1,
-        autosize: true,
-        height: 400,
-        margin: { l: 80, r: 50, b: 100, t: 80, pad: 4 },
-        paper_bgcolor: '#000000',
-        plot_bgcolor: '#000000',
-        font: { color: '#ffffff' },
-        hovermode: 'closest',
-        hoverlabel: {
-          bgcolor: '#424242',
-          bordercolor: '#b4d838',
-          font: { color: '#ffffff' }
-        },
-        showlegend: false,
-      }}
-      config={{
-        responsive: true,
-        displayModeBar: false,
-      }}
-      style={{ width: '100%', height: '100%' }}
-    />
+          yaxis: {
+            title: {
+              text: 'Number of Blocks',
+              font: { color: '#b4d838', size: 14 },
+              standoff: 20
+            },
+            tickfont: { color: '#ffffff' },
+            fixedrange: true,
+            showgrid: true,
+            gridcolor: '#212121',
+          },
+          bargap: 0.1,
+          autosize: true,
+          height: 400,
+          margin: { l: 80, r: 50, b: 100, t: 80, pad: 4 },
+          paper_bgcolor: '#000000',
+          plot_bgcolor: '#000000',
+          font: { color: '#ffffff' },
+          hovermode: 'closest',
+          hoverlabel: {
+            bgcolor: '#424242',
+            bordercolor: '#b4d838',
+            font: { color: '#ffffff' }
+          },
+          showlegend: false,
+        }}
+        config={{
+          responsive: true,
+          displayModeBar: false,
+        }}
+        style={{ width: '100%', height: '100%' }}
+      />
+    </div>
   );
 };
 

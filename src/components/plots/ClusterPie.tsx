@@ -47,16 +47,20 @@ const ClusterPieChart: React.FC<ClusterPieChartProps> = ({ selectedMarkout }) =>
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-96">
-        <p className="text-white">Loading...</p>
+      <div className="w-full bg-black rounded-2xl border border-[#212121] p-6">
+        <div className="flex items-center justify-center h-96">
+          <p className="text-white">Loading...</p>
+        </div>
       </div>
     );
   }
 
   if (error || !data) {
     return (
-      <div className="flex items-center justify-center h-96">
-        <p className="text-red-500">{error || 'No data available'}</p>
+      <div className="w-full bg-black rounded-2xl border border-[#212121] p-6">
+        <div className="flex items-center justify-center h-96">
+          <p className="text-red-500">{error || 'No data available'}</p>
+        </div>
       </div>
     );
   }
@@ -76,55 +80,57 @@ const ClusterPieChart: React.FC<ClusterPieChartProps> = ({ selectedMarkout }) =>
     `(Markout ${selectedMarkout}s)`;
 
   return (
-    <Plot
-      data={[
-        {
-          values,
-          labels,
-          type: 'pie',
-          textinfo: 'label',
-          textposition: 'outside',
-          automargin: true,
-          marker: {
-            colors: [
-              '#b4d838', // Primary brand color
-              '#9fc732',
-              '#8ab62c',
-              '#75a526',
-              '#609420',
-              '#4b831a',
-              '#367214'
-            ],
-            line: {
-              color: '#000000',
-              width: 2
-            }
+    <div className="w-full bg-black rounded-2xl border border-[#212121] p-6">
+      <Plot
+        data={[
+          {
+            values,
+            labels,
+            type: 'pie',
+            textinfo: 'label',
+            textposition: 'outside',
+            automargin: true,
+            marker: {
+              colors: [
+                '#b4d838', // Primary brand color
+                '#9fc732',
+                '#8ab62c',
+                '#75a526',
+                '#609420',
+                '#4b831a',
+                '#367214'
+              ],
+              line: {
+                color: '#000000',
+                width: 2
+              }
+            },
+            hoverlabel: {
+              bgcolor: '#424242',
+              font: { color: '#ffffff' }
+            },
+            hovertemplate: '%{label}<br>$%{value:,.2f}<extra></extra>'
+          }
+        ]}
+        layout={{
+          title: {
+            text: `Total by Cluster ${titleSuffix}`,
+            font: { color: '#b4d838', size: 16 }
           },
-          hoverlabel: {
-            bgcolor: '#424242',
-            font: { color: '#ffffff' }
-          },
-          hovertemplate: '%{label}<br>$%{value:,.2f}<extra></extra>'
-        }
-      ]}
-      layout={{
-        title: {
-          text: `Total by Cluster ${titleSuffix}`,
-          font: { color: '#b4d838', size: 16 }
-        },
-        showlegend: false,
-        paper_bgcolor: '#000000',
-        plot_bgcolor: '#000000',
-        margin: { t: 50, b: 50, l: 50, r: 50 },
-        height: 500,
-        font: { color: '#ffffff' }
-      }}
-      config={{
-        responsive: true,
-        displayModeBar: false
-      }}
-      style={{ width: '100%', height: '100%' }}
-    />
+          showlegend: false,
+          paper_bgcolor: '#000000',
+          plot_bgcolor: '#000000',
+          margin: { t: 50, b: 50, l: 50, r: 50 },
+          height: 500,
+          font: { color: '#ffffff' }
+        }}
+        config={{
+          responsive: true,
+          displayModeBar: false
+        }}
+        style={{ width: '100%', height: '100%' }}
+      />
+    </div>
   );
 };
 
