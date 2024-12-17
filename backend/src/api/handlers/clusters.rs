@@ -14,7 +14,8 @@ use crate::{
     DAI_WETH_POOLS, USDC_WBTC_POOLS, ALTCOIN_WETH_POOLS,
     ClusterPieResponse, ClusterQuery, ClusterTotal,
     ClusterHistogramBucket, ClusterHistogramData, ClusterHistogramQuery, ClusterHistogramResponse,
-    MonthlyClusterQuery, MonthlyData, ClusterMonthlyResponse
+    MonthlyClusterQuery, MonthlyData, ClusterMonthlyResponse,
+    ClusterNonZero, ClusterNonZeroQuery, ClusterNonZeroResponse
 };
 
 
@@ -471,4 +472,126 @@ pub async fn get_monthly_cluster_totals(
         monthly_data: monthly_result,
         clusters,
     }))
+}
+
+pub async fn get_cluster_non_zero(
+    State(state): State<Arc<AppState>>,
+    Query(params): Query<ClusterNonZeroQuery>,
+) -> Result<Json<ClusterNonZeroResponse>, StatusCode> {
+    let markout_time = params.markout_time.unwrap_or_else(|| String::from("brontes"));
+    
+    info!(
+        "Fetching cluster non-zero proportions for markout_time: {}", 
+        markout_time
+    );
+
+    let mut cluster_stats: HashMap<String, (u64, u64)> = HashMap::new();
+    let checkpoints_path = object_store::path::Path::from("checkpoints");
+    let mut checkpoint_files = state.store.list(Some(&checkpoints_path));
+    
+    while let Some(meta_result) = checkpoint_files.next().await {
+        let meta = meta_result.map_err(|e| {
+            error!("Failed to get file metadata: {}", e);
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?;
+        
+        let file_path = meta.location.to_string();
+        
+        // Only process files for the specified markout time
+        if !file_path.ends_with(&format!("_{}.parquet", markout_time)) {
+            continue;
+        }
+
+        let bytes = state.store.get(&meta.location)
+            .await
+            .map_err(|e| {
+                error!("Failed to read checkpoint file: {}", e);
+                StatusCode::INTERNAL_SERVER_ERROR
+            })?
+            .bytes()
+            .await
+            .map_err(|e| {
+                error!("Failed to get file bytes: {}", e);
+                StatusCode::INTERNAL_SERVER_ERROR
+            })?;
+
+        let record_reader = ParquetRecordBatchReader::try_new(bytes, 1)
+            .map_err(|e| {
+                error!("Failed to create Parquet reader: {}", e);
+                StatusCode::INTERNAL_SERVER_ERROR
+            })?;
+
+        for batch_result in record_reader {
+            let batch = batch_result.map_err(|e| {
+                error!("Failed to read batch: {}", e);
+                StatusCode::INTERNAL_SERVER_ERROR
+            })?;
+
+            let pool_addresses = get_string_column(&batch, "pair_address")?;
+            let total_bucket_0 = get_uint64_column(&batch, "total_bucket_0")?;
+            
+            // Get all non-zero bucket columns
+            let non_zero_buckets = [
+                "total_bucket_0_10",
+                "total_bucket_10_100",
+                "total_bucket_100_500",
+                "total_bucket_1000_3000",
+                "total_bucket_3000_10000",
+                "total_bucket_10000_30000",
+                "total_bucket_30000_plus",
+            ];
+
+            for i in 0..batch.num_rows() {
+                let pool_address = pool_addresses.value(i).to_lowercase();
+                
+                // Get the cluster name for this pool
+                if let Some(cluster_name) = get_cluster_name(&pool_address) {
+                    let zero_count = total_bucket_0.value(i);
+                    let mut non_zero_count = 0u64;
+
+                    // Sum up all non-zero buckets
+                    for bucket_name in &non_zero_buckets {
+                        let bucket = get_uint64_column(&batch, bucket_name)?;
+                        non_zero_count = non_zero_count.saturating_add(bucket.value(i));
+                    }
+
+                    // Update cluster stats
+                    cluster_stats
+                        .entry(cluster_name.to_string())
+                        .and_modify(|(total, non_zero)| {
+                            *total = total.saturating_add(zero_count + non_zero_count);
+                            *non_zero = non_zero.saturating_add(non_zero_count);
+                        })
+                        .or_insert((zero_count + non_zero_count, non_zero_count));
+                }
+            }
+        }
+    }
+
+    // Convert to response format
+    let clusters: Vec<ClusterNonZero> = cluster_stats
+        .into_iter()
+        .map(|(name, (total, non_zero))| {
+            let proportion = if total > 0 {
+                non_zero as f64 / total as f64
+            } else {
+                0.0
+            };
+            
+            ClusterNonZero {
+                name,
+                total_observations: total,
+                non_zero_observations: non_zero,
+                non_zero_proportion: proportion,
+            }
+        })
+        .collect();
+
+    info!(
+        "Returning non-zero proportions for {} clusters with markout time {}", 
+        clusters.len(), 
+        markout_time
+    );
+
+    Ok(Json(ClusterNonZeroResponse { clusters }))
 }

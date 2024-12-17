@@ -54,6 +54,7 @@ pub async fn serve(host: String, port: u16, store: Arc<dyn ObjectStore>) -> Resu
         .route("/clusters/pie", get(get_cluster_proportion))
         .route("/clusters/histogram", get(get_cluster_histogram))
         .route("/clusters/monthly", get(get_monthly_cluster_totals))
+        .route("/clusters/nonzero", get(get_cluster_non_zero))
         .layer(cors)
         .with_state(state);
 

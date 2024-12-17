@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
-import MarkoutSelect from '../components/MarkoutSelect';
-import HistogramChart from '../components/Histogram';
-import SoleRunningTotal from '../components/SoleRunningTotal';
-import NonZeroProportion from '../components/NonZeroProp';
-import PercentileBandChart from '../components/BandPlot';
+import MarkoutSelect from '../components/select/MarkoutSelect';
+import HistogramChart from '../components/plots/Histogram';
+import SoleRunningTotal from '../components/plots/SoleRunningTotal';
+import NonZeroProportion from '../components/plots/NonZeroProp';
+import PercentileBandChart from '../components/plots/BandPlot';
 import names from '../names';
 
 function Pair() {
@@ -16,8 +16,8 @@ function Pair() {
   }));
 
   return (
-    <div className="p-8">
-      <div className="flex justify-between items-center mb-6">
+    <div className="p-8 bg-[#030304]">
+      <div className="flex justify-between items-center mb-8">
         <h1 className="text-4xl font-bold">Pair Analysis</h1>
         <div className="flex gap-4 items-center">
           <select
@@ -38,32 +38,32 @@ function Pair() {
         </div>
       </div>
 
-      <div className="space-y-8">
-        <div className="bg-[#0f0f13] rounded-2xl border border-[#212121] p-6">
-          <h3 className="text-xl font-semibold mb-4">Running Total LVR</h3>
+      <div className="space-y-12">
+        <div className="bg-black rounded-2xl p-6">
+          <h3 className="text-xl font-semibold mb-6">Running Total LVR</h3>
           <SoleRunningTotal 
             poolAddress={selectedPool}
             markoutTime={selectedMarkout}
           />
         </div>
         
-        <div className="bg-[#0f0f13] rounded-2xl border border-[#212121] p-6">
-          <h3 className="text-xl font-semibold mb-4">LVR Distribution</h3>
+        <div className="bg-black rounded-2xl p-6">
+          <h3 className="text-xl font-semibold mb-6">LVR Distribution</h3>
           <HistogramChart 
             poolAddress={selectedPool}
             markoutTime={selectedMarkout}
           />
         </div>
 
-        <div className="bg-[#0f0f13] rounded-2xl border border-[#212121] p-6">
-          <h3 className="text-xl font-semibold mb-4">Month-to-Month Daily Percentiles</h3>
+        <div className="bg-black rounded-2xl p-6">
+          <h3 className="text-xl font-semibold mb-6">Month-to-Month Daily Percentiles</h3>
           <PercentileBandChart 
             poolAddress={selectedPool}
             markoutTime={selectedMarkout}
           />
         </div>
 
-        <div className="bg-[#0f0f13] rounded-2xl border border-[#212121] p-6">
+        <div className="bg-black rounded-2xl p-6">
           <NonZeroProportion 
             poolAddress={selectedPool}
             selectedMarkout={selectedMarkout}

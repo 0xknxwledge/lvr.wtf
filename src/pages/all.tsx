@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
-import RunningTotalChart from '../components/RunningTotalChart';
-import EfficiencyRatioChart from '../components/RealizedRatioChart';
-import PoolTotalsPieChart from '../components/PieChart';
-import MaxLVRChart from '../components/MaxLVRChart';
-import QuartilePlot from '../components/QuartilePlot';
-import MarkoutSelect from '../components/MarkoutSelect';
+import RunningTotalChart from '../components/plots/RunningTotalChart';
+import EfficiencyRatioChart from '../components/plots/RealizedRatioChart';
+import PoolTotalsPieChart from '../components/plots/PieChart';
+import MaxLVRChart from '../components/plots/MaxLVRChart';
+import QuartilePlot from '../components/plots/QuartilePlot';
+import MarkoutSelect from '../components/select/MarkoutSelect';
 
 const All: React.FC = () => {
   const [selectedMarkout, setSelectedMarkout] = useState('0.0');
@@ -13,34 +13,42 @@ const All: React.FC = () => {
     <div className="min-h-full bg-[#030304]">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <h1 className="text-4xl font-bold mb-8 text-white">All LVR</h1>
-        <div className="space-y-8">
-          <div className="bg-[#000000] rounded-2xl border border-[#212121] p-6">
-            <h2 className="text-xl font-semibold mb-6 text-white">Running Totals</h2>
+        
+        {/* Standard chart container class with consistent spacing */}
+        <div className="space-y-12"> {/* Increased from space-y-8 to space-y-12 for more breathing room */}
+          {/* Running Totals Section */}
+          <div className="chart-container bg-[#000000] rounded-2xl border border-[#212121] p-8">
+            <h2 className="text-xl font-semibold mb-8 text-white">Running Totals</h2>
             <RunningTotalChart />
           </div>
 
-          <div className="bg-[#000000] rounded-2xl border border-[#212121] p-6">
-            <h2 className="text-xl font-semibold mb-6 text-white">Realized Ratios</h2>
+          {/* Realized Ratios Section */}
+          <div className="chart-container bg-[#000000] rounded-2xl border border-[#212121] p-8">
+            <h2 className="text-xl font-semibold mb-8 text-white">Realized Ratios</h2>
             <EfficiencyRatioChart />
           </div>
 
-          <div>
-            <div className="flex justify-end mb-4">
+          {/* Markout-dependent charts section */}
+          <div className="space-y-12"> {/* Consistent spacing for this section too */}
+            <div className="flex justify-end mb-6">
               <MarkoutSelect 
                 selectedMarkout={selectedMarkout} 
                 onChange={setSelectedMarkout}
               />
             </div>
-            <div className="bg-[#000000] rounded-2xl border border-[#212121] p-6">
-              <h2 className="text-xl font-semibold mb-6 text-white">Proportion of total LVR (each pair)</h2>
+            
+            <div className="chart-container bg-[#000000] rounded-2xl border border-[#212121] p-8">
+              <h2 className="text-xl font-semibold mb-8 text-white">Proportion of total LVR (each pair)</h2>
               <PoolTotalsPieChart selectedMarkout={selectedMarkout} />
             </div>
-            <div className="bg-[#000000] rounded-2xl border border-[#212121] p-6">
-              <h2 className="text-xl font-semibold mb-6 text-white">Maximum LVR by Pool</h2>
+            
+            <div className="chart-container bg-[#000000] rounded-2xl border border-[#212121] p-8">
+              <h2 className="text-xl font-semibold mb-8 text-white">Maximum LVR by Pool</h2>
               <MaxLVRChart selectedMarkout={selectedMarkout} />
             </div>
-            <div className="bg-[#000000] rounded-2xl border border-[#212121] p-6">
-              <h2 className="text-xl font-semibold mb-6 text-white">Daily LVR Distribution by Pool</h2>
+            
+            <div className="chart-container bg-[#000000] rounded-2xl border border-[#212121] p-8">
+              <h2 className="text-xl font-semibold mb-8 text-white">Daily LVR Distribution by Pool</h2>
               <QuartilePlot selectedMarkout={selectedMarkout} />
             </div>
           </div>

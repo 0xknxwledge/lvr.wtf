@@ -7,11 +7,15 @@ interface DataLayoutProps {
 
 function DataLayout({ children }: DataLayoutProps) {
   return (
-    <div className="flex h-screen overflow-hidden">
-      <SidebarNavigation />
-      <main className="flex-1 overflow-y-auto overscroll-contain bg-[#030304]">
-        {children}
-      </main>
+    <div className="flex bg-[#030304]">
+      <div className="fixed w-64">
+        <SidebarNavigation />
+      </div>
+      <div className="ml-64 w-full">
+        <main className="w-full">
+          {children}
+        </main>
+      </div>
     </div>
   );
 }

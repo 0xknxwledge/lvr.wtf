@@ -13,15 +13,19 @@ function App() {
     <Router>
       <div className="App bg-[#030304] min-h-screen text-white flex flex-col">
         <NavBar />
-        <div className="flex-grow">
-          <Routes>
-            <Route path="/" element={<Overview />} />
-            <Route path="/all" element={<DataLayout><All /></DataLayout>} />
-            <Route path="/cluster" element={<DataLayout><Cluster /></DataLayout>} />
-            <Route path="/pair" element={<DataLayout><Pair /></DataLayout>} />
-          </Routes>
-        </div>
-        <Footer />
+        <Routes>
+          <Route path="/" element={
+            <>
+              <div className="flex-grow">
+                <Overview />
+              </div>
+              <Footer />
+            </>
+          } />
+          <Route path="/all" element={<DataLayout><All /></DataLayout>} />
+          <Route path="/cluster" element={<DataLayout><Cluster /></DataLayout>} />
+          <Route path="/pair" element={<DataLayout><Pair /></DataLayout>} />
+        </Routes>
       </div>
     </Router>
   );

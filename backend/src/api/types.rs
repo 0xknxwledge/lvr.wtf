@@ -225,6 +225,24 @@ pub struct ClusterMonthlyResponse {
 }
 
 #[derive(Debug, Deserialize)]
+pub struct ClusterNonZeroQuery {
+    pub markout_time: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct ClusterNonZero {
+    pub name: String,
+    pub total_observations: u64,
+    pub non_zero_observations: u64,
+    pub non_zero_proportion: f64,
+}
+
+#[derive(Debug, Serialize)]
+pub struct ClusterNonZeroResponse {
+    pub clusters: Vec<ClusterNonZero>,
+}
+
+#[derive(Debug, Deserialize)]
 pub struct QuartilePlotQuery {
     pub markout_time: Option<String>,
 }
