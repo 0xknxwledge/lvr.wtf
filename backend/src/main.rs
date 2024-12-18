@@ -174,10 +174,9 @@ async fn main() -> Result<()> {
             run_validation(&store).await?;
         }
         Commands::Serve { host, port } => {
-            // Temporarily use data directory for serving instead of data
             let store: Arc<dyn ObjectStore> = Arc::new(LocalFileSystem::new_with_prefix("smeed")?);
 
-            info!("Starting API server using data from data/");
+            info!("Starting API server using data from smeed/");
             serve(host, port, store).await?;
         }
     }
