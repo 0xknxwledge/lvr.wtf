@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-1 -1 12 12">
+  <!-- Main AMM curve (black) -->
+  <path
+    d="M 1 1 Q 2 6, 10 10"
+    stroke="black"
+    stroke-width="1.2"
+    fill="none"
+  />
+  
+  <!-- Two intersecting secant lines (sage green) -->
+  <line x1="0" y1="3" x2="10" y2="9" stroke="#557153" stroke-width="1"/>
+  <line x1="0" y1="5" x2="10" y2="7" stroke="#557153" stroke-width="1"/>
+</svg>
