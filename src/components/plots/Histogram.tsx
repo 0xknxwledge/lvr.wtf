@@ -32,7 +32,7 @@ const HistogramChart: React.FC<HistogramChartProps> = ({ poolAddress, markoutTim
         setIsLoading(true);
         setError(null);
         const response = await fetch(
-          `http://127.0.0.1:3000/histogram?pool_address=${poolAddress}&markout_time=${markoutTime}`
+          `https://lvr-wtf-568975696472.us-central1.run.app/histogram?pool_address=${poolAddress}&markout_time=${markoutTime}`
         );
         
         if (!response.ok) {

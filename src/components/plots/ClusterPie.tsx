@@ -28,7 +28,7 @@ const ClusterPieChart: React.FC<ClusterPieChartProps> = ({ selectedMarkout }) =>
         const params = new URLSearchParams();
         params.append('markout_time', selectedMarkout);
         
-        const response = await fetch(`http://127.0.0.1:3000/clusters/pie?${params.toString()}`);
+        const response = await fetch(`https://lvr-wtf-568975696472.us-central1.run.app/clusters/pie?${params.toString()}`);
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
         }
