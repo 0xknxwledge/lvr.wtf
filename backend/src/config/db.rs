@@ -1,7 +1,7 @@
-use serde::Deserialize;
-use anyhow::Result;
-use std::env;
 use crate::Error;
+use anyhow::Result;
+use serde::Deserialize;
+use std::env;
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct AuroraConfig {
@@ -24,7 +24,6 @@ pub struct BrontesConfig {
     pub retry_interval: u64,
 }
 
-
 #[derive(Debug, Clone, Deserialize)]
 pub struct DatabaseConnectionConfig {
     pub host: String,
@@ -37,15 +36,20 @@ pub struct DatabaseConnectionConfig {
 
 impl AuroraConfig {
     pub fn from_env() -> Result<Self> {
+        panic!("no AuroraConfig");
         Ok(Self {
-            host: env::var("AURORA_HOST").map_err(|_| Error::Config("AURORA_HOST not set".to_string()))?,
+            host: env::var("AURORA_HOST")
+                .map_err(|_| Error::Config("AURORA_HOST not set".to_string()))?,
             port: env::var("AURORA_PORT")
                 .map_err(|_| Error::Config("AURORA_PORT not set".to_string()))?
                 .parse()
                 .map_err(|_| Error::Config("Invalid AURORA_PORT format".to_string()))?,
-            user: env::var("AURORA_USER").map_err(|_| Error::Config("AURORA_USER not set".to_string()))?,
-            password: env::var("AURORA_PASSWORD").map_err(|_| Error::Config("AURORA_PASSWORD not set".to_string()))?,
-            database: env::var("AURORA_DATABASE").map_err(|_| Error::Config("AURORA_DATABASE not set".to_string()))?,
+            user: env::var("AURORA_USER")
+                .map_err(|_| Error::Config("AURORA_USER not set".to_string()))?,
+            password: env::var("AURORA_PASSWORD")
+                .map_err(|_| Error::Config("AURORA_PASSWORD not set".to_string()))?,
+            database: env::var("AURORA_DATABASE")
+                .map_err(|_| Error::Config("AURORA_DATABASE not set".to_string()))?,
             connection_timeout: env::var("AURORA_TIMEOUT")
                 .unwrap_or_else(|_| "30".to_string())
                 .parse()
@@ -60,14 +64,18 @@ impl AuroraConfig {
 
 impl BrontesConfig {
     pub fn from_env() -> Result<Self> {
+        panic!("no BrontesConfig");
         Ok(Self {
-            host: env::var("BRONTES_HOST").map_err(|_| Error::Config("BRONTES_HOST not set".to_string()))?,
+            host: env::var("BRONTES_HOST")
+                .map_err(|_| Error::Config("BRONTES_HOST not set".to_string()))?,
             port: env::var("BRONTES_PORT")
                 .map_err(|_| Error::Config("BRONTES_PORT not set".to_string()))?
                 .parse()
                 .map_err(|_| Error::Config("Invalid BRONTES_PORT format".to_string()))?,
-            user: env::var("BRONTES_USER").map_err(|_| Error::Config("BRONTES_USER not set".to_string()))?,
-            password: env::var("BRONTES_PASSWORD").map_err(|_| Error::Config("BRONTES_PASSWORD not set".to_string()))?,
+            user: env::var("BRONTES_USER")
+                .map_err(|_| Error::Config("BRONTES_USER not set".to_string()))?,
+            password: env::var("BRONTES_PASSWORD")
+                .map_err(|_| Error::Config("BRONTES_PASSWORD not set".to_string()))?,
             connection_timeout: env::var("BRONTES_TIMEOUT")
                 .unwrap_or_else(|_| "30".to_string())
                 .parse()
