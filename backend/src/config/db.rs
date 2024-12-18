@@ -36,7 +36,6 @@ pub struct DatabaseConnectionConfig {
 
 impl AuroraConfig {
     pub fn from_env() -> Result<Self> {
-        panic!("no AuroraConfig");
         Ok(Self {
             host: env::var("AURORA_HOST")
                 .map_err(|_| Error::Config("AURORA_HOST not set".to_string()))?,
@@ -64,7 +63,6 @@ impl AuroraConfig {
 
 impl BrontesConfig {
     pub fn from_env() -> Result<Self> {
-        panic!("no BrontesConfig");
         Ok(Self {
             host: env::var("BRONTES_HOST")
                 .map_err(|_| Error::Config("BRONTES_HOST not set".to_string()))?,
