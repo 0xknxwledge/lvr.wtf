@@ -1,11 +1,7 @@
-
-
 FROM lukemathwalker/cargo-chef:latest-rust-1 AS chef
 RUN apt-get update && \
     apt-get install -y musl-tools build-essential pkg-config gcc libssl-dev ca-certificates && \
     rm -rf /var/lib/apt/lists/*
-
-
 
 RUN cargo install cargo-chef
 WORKDIR /app
@@ -20,9 +16,10 @@ RUN cargo chef cook --release --recipe-path recipe.json
 COPY backend/ .
 RUN cargo build --release
 
-
 FROM ubuntu AS runtime
 COPY --from=builder /app/target/release/backend /usr/local/bin/backend
+COPY backend/smeed /usr/local/bin/smeed
+WORKDIR /usr/local/bin
 USER root
 
 ENV BRONTES_HOST='REDACTED_BRONTES_HOST'
