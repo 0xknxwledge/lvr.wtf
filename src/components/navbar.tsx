@@ -29,7 +29,7 @@ function NavBar() {
               href="https://fenbushi.vc"
               target="_blank"
               rel="noopener noreferrer"
-              className="h-14"
+              className="h-16"
             >
               <img src="/fenbushi_white.png" alt="Fenbushi Capital" className="h-full" />
             </a>
@@ -37,7 +37,7 @@ function NavBar() {
               href="https://sorellalabs.xyz"
               target="_blank"
               rel="noopener noreferrer"
-              className="h-10"
+              className="h-16"
             >
               <img src="/sorella.png" alt="Sorella Labs" className="h-full" />
             </a>

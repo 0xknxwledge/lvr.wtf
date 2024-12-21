@@ -4,20 +4,15 @@ import { Link } from 'react-router-dom';
 function Overview() {
   return (
     <div className="py-12">
-      <h1 className="text-6xl font-bold mb-12">Overview</h1>
+      <h1 className="text-6xl font-bold text-center mb-12">Overview</h1>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
         <div className="bg-gradient-to-br from-[#0b0b0e] to-[#4b5c10] rounded-3xl border border-[#b4d838] p-10">
-          <h2 className="text-4xl font-semibold mb-8">What is LVR?</h2>
+          <h2 className="text-4xl font-semibold mb-8">What is lvr.wtf?</h2>
           <hr className="border-[#3a3a3a] mb-8" />
           <p className="text-base">
-            Loss-versus-revbalancing (LVR) measures the opportunity cost that on-chain liquidity providers face due to CEX-DEX (Centralized Exchange-Decentralized Exchange) arbitrage. **Cite millonis paper***
-            So, what the fuck does that mean? 
-            Essentially, liquidity providers on the blockchain are trading at an "uninformed" price at the start of every block. This happens because blockchains update their state every block, while centralized exchanges update their state practically instantly.
-            Thankfully, arbitrageurs (i.e, the people who buy low on the DEX (CEX) and sell high on the CEX (DEX)) make sure that on-chain prices are in sync with off-chain basically every block.
-            Unfortuneately, this is an existential threat to DeFi, because why the fuck would anyone want to liquidity provide on-chain if they're consistently and inevitably going to be trading at shitty prices?
-            Thankfully, lots of smart people are working on solving this (shoutout Sorella Labs, maybe tuff competitors)
+          Loss-Versus-Rebalancing (LVR), as defined by Millonis et al., measures the cost on-chain liquidity providers (LPs) face from trading at outdated prices compared to centralized exchanges (CEXs). While AMMs update prices every 12 seconds, CEXs operate in real-time, enabling arbitrageurs to profit from price gaps.
+          To quantify this, Brontes flagged potential CEX-DEX arbitrage trades on Ethereum and estimated profits using T+X markouts against Binance mid-prices. However, its accuracy depends on correctly identifying arbitrage trades. LVR.wtf builds on this by comparing Brontes with alternative methods, offering a new perspective on LVR through empirical simulation that attempts to capture the observable maximum LVR. This reveals the true scale of value leakage from LPs and highlights the opportunities to address it.
 
-            **Add another section explaining markouts in intuitive manner, leads into purpose of lvr.wtf**
           </p>
         </div>
         <div className="bg-gradient-to-br from-[#0b0b0e] to-[#70881d] rounded-3xl border border-[#b4d838] p-10">
