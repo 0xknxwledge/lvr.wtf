@@ -7,17 +7,17 @@ interface MonthlyData {
   total_lvr_cents: number;
 }
 
-interface ClusterStackedBarResponse {
+interface CategoryStackedBarResponse {
   monthly_data: MonthlyData[];
   clusters: string[];
 }
 
-interface ClusterStackedBarProps {
+interface CategoryStackedBarProps {
   selectedMarkout: string;
 }
 
-const ClusterStackedBar: React.FC<ClusterStackedBarProps> = ({ selectedMarkout }) => {
-  const [data, setData] = useState<ClusterStackedBarResponse | null>(null);
+const CategoryStackedBar: React.FC<CategoryStackedBarProps> = ({ selectedMarkout }) => {
+  const [data, setData] = useState<CategoryStackedBarResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -82,7 +82,7 @@ const ClusterStackedBar: React.FC<ClusterStackedBarProps> = ({ selectedMarkout }
         data={traces}
         layout={{
           title: {
-            text: `Monthly Total LVR by Cluster ${titleSuffix}`,
+            text: `Monthly Total LVR by Category ${titleSuffix}`,
             font: { color: '#b4d838', size: 16 }
           },
           barmode: 'stack',
@@ -139,4 +139,4 @@ const ClusterStackedBar: React.FC<ClusterStackedBarProps> = ({ selectedMarkout }
   );
 };
 
-export default ClusterStackedBar;
+export default CategoryStackedBar;

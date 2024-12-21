@@ -128,7 +128,7 @@ const PercentileBandChart: React.FC<PercentileBandChartProps> = ({ poolAddress, 
         data={plotData}
         layout={{
           title: {
-            text: `Daily LVR Percentile Bandplot for ${titleSuffix}`,
+            text: `Monthly LVR Percentile Bandplot for ${titleSuffix}`,
             font: { color: '#b4d838', size: 16 }
           },
           xaxis: {

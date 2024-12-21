@@ -9,18 +9,18 @@ interface HistogramBucket {
   label: string;
 }
 
-interface ClusterData {
+interface CategoryData {
   name: string;
   buckets: HistogramBucket[];
   total_observations: number;
 }
 
-interface ClusterHistogramProps {
+interface CategoryHistogramProps {
   selectedMarkout: string;
 }
 
-const ClusterHistogram: React.FC<ClusterHistogramProps> = ({ selectedMarkout }) => {
-  const [data, setData] = useState<ClusterData[]>([]);
+const CategoryHistogram: React.FC<CategoryHistogramProps> = ({ selectedMarkout }) => {
+  const [data, setData] = useState<CategoryData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -37,7 +37,7 @@ const ClusterHistogram: React.FC<ClusterHistogramProps> = ({ selectedMarkout }) 
         
         const jsonData = await response.json();
         // Process the data to consolidate all buckets above $500 into a single $500+ bucket for each cluster
-        const processedClusters = jsonData.clusters.map((cluster: ClusterData) => {
+        const processedCategorys = jsonData.clusters.map((cluster: CategoryData) => {
           const consolidatedBuckets = cluster.buckets.reduce((acc: HistogramBucket[], bucket: HistogramBucket) => {
             if (bucket.range_start < 500) {
               acc.push(bucket);
@@ -63,7 +63,7 @@ const ClusterHistogram: React.FC<ClusterHistogramProps> = ({ selectedMarkout }) 
             buckets: consolidatedBuckets
           };
         });
-        setData(processedClusters);
+        setData(processedCategorys);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to fetch data');
       } finally {
@@ -185,7 +185,7 @@ const ClusterHistogram: React.FC<ClusterHistogramProps> = ({ selectedMarkout }) 
       data={traces}
       layout={{
         title: {
-          text: `Non-Zero Single-Block LVR Distribution by Cluster ${titleSuffix}`,
+          text: `Per-Block LVR Histogram by Category ${titleSuffix}`,
           font: { color: '#b4d838', size: 16 }
         },
         barmode: 'group',
@@ -257,4 +257,4 @@ const ClusterHistogram: React.FC<ClusterHistogramProps> = ({ selectedMarkout }) 
   );
 };
 
-export default ClusterHistogram;
+export default CategoryHistogram;

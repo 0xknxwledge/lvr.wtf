@@ -143,7 +143,7 @@ const HistogramChart: React.FC<HistogramChartProps> = ({ poolAddress, markoutTim
         ]}
         layout={{
           title: {
-            text: `Non-Zero Single-Block LVR Distribution for ${poolName} ${titleSuffix}`,
+            text: `Per-Block LVR Histogram for ${poolName} ${titleSuffix}`,
             font: { color: '#b4d838', size: 16 }
           },
           xaxis: {

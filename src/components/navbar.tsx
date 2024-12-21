@@ -1,9 +1,5 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import Overview from '../pages/overview';
-import Aggregate from '../pages/aggregate';
-import Group from '../pages/cluster';
-import Pair from '../pages/pool';
 
 function NavBar() {
     const location = useLocation();

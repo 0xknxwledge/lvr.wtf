@@ -108,7 +108,7 @@ const SoleRunningTotal: React.FC<SoleRunningTotalProps> = ({ poolAddress, markou
         ]}
         layout={{
           title: {
-            text: `Running Total LVR for ${poolName} ${titleSuffix}`,
+            text: `Cumulative LVR over Time for ${poolName} ${titleSuffix}`,
             font: { color: '#b4d838', size: 16 },
             x: 0.5,
             y: 0.95,

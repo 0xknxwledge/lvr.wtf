@@ -4,7 +4,7 @@ import NavBar from './components/navbar';
 import Footer from './components/footer';
 import Overview from './pages/overview';
 import Aggregate from './pages/aggregate';
-import Cluster from './pages/cluster';
+import Cluster from './pages/category';
 import Pool from './pages/pool';
 import DataLayout from './components/datalayout';
 

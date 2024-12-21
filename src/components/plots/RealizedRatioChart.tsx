@@ -157,7 +157,7 @@ const RealizedRatioChart: React.FC = () => {
         data={plotData}
         layout={{
           title: {
-            text: 'LVR Capture Efficiency',
+            text: 'Ratio between Total Realized/Maximal LVR by Markout Time',
             font: { color: '#b4d838', size: 16 },
             y: 0.95
           },
@@ -175,7 +175,7 @@ const RealizedRatioChart: React.FC = () => {
           },
           yaxis: {
             title: {
-              text: 'Observed/Theoretical Ratio',
+              text: 'Observed/Simulated Ratio',
               font: { color: '#b4d838', size: 14 },
               standoff: 20
             },

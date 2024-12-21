@@ -87,7 +87,7 @@ const NonZeroProportion: React.FC<NonZeroProportionProps> = ({ poolAddress, sele
     <div className="w-full bg-black rounded-lg border border-[#212121] p-6">
       <div className="mb-4">
         <h2 className="text-[#b4d838] text-base text-center">
-          Non-Zero Blocks for {names[data.pool_address] || data.pool_name} {titleSuffix}
+          Percentage of Blocks with Non-Zero LVR for {names[data.pool_address] || data.pool_name} {titleSuffix}
         </h2>
       </div>
       <div className="flex flex-col items-center justify-center">

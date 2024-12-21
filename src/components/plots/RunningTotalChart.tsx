@@ -123,7 +123,7 @@ const RunningTotalChart: React.FC = () => {
             rangemode: 'tozero',
           },
           title: {
-            text: 'Running Total LVR',
+            text: 'Cumulative LVR over Time',
             font: { color: '#b4d838', size: 16 },
             y: 0.95
           },

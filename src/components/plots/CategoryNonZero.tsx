@@ -1,17 +1,17 @@
 import React, { useState, useEffect } from 'react';
 
-interface ClusterNonZero {
+interface CategoryNonZero {
   name: string;
   total_observations: number;
   non_zero_observations: number;
   non_zero_proportion: number;
 }
 
-interface ClusterNonZeroResponse {
-  clusters: ClusterNonZero[];
+interface CategoryNonZeroResponse {
+  clusters: CategoryNonZero[];
 }
 
-interface ClusterNonZeroProps {
+interface CategoryNonZeroProps {
   selectedMarkout: string;
 }
 
@@ -25,8 +25,8 @@ const CLUSTER_DISPLAY_NAMES: { [key: string]: string } = {
   "altcoin_weth": "Altcoin-WETH"
 };
 
-const ClusterNonZero: React.FC<ClusterNonZeroProps> = ({ selectedMarkout }) => {
-  const [data, setData] = useState<ClusterNonZero[]>([]);
+const CategoryNonZero: React.FC<CategoryNonZeroProps> = ({ selectedMarkout }) => {
+  const [data, setData] = useState<CategoryNonZero[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -45,7 +45,7 @@ const ClusterNonZero: React.FC<ClusterNonZeroProps> = ({ selectedMarkout }) => {
           throw new Error(`HTTP error! status: ${response.status}`);
         }
         
-        const jsonData: ClusterNonZeroResponse = await response.json();
+        const jsonData: CategoryNonZeroResponse = await response.json();
         const sortedData = [...jsonData.clusters].sort((a, b) => b.non_zero_proportion - a.non_zero_proportion);
         setData(sortedData);
       } catch (err) {
@@ -86,7 +86,7 @@ const ClusterNonZero: React.FC<ClusterNonZeroProps> = ({ selectedMarkout }) => {
     <div className="w-full">
       <div className="mb-4">
         <h2 className="text-[#b4d838] text-base text-center">
-          Non-Zero Block Proportions by Cluster {titleSuffix}
+          Percentage of Blocks with Non-Zero LVR by Category {titleSuffix}
         </h2>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
@@ -111,4 +111,4 @@ const ClusterNonZero: React.FC<ClusterNonZeroProps> = ({ selectedMarkout }) => {
   );
 };
 
-export default ClusterNonZero;
+export default CategoryNonZero;

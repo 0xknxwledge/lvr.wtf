@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
 import { MarkoutSelect } from '../components/LabeledSelect';
-import ClusterHistogram from '../components/plots/ClusterHistogram';
-import ClusterStackedBar from '../components/plots/ClusterStackedBar';
-import ClusterNonZero from '../components/plots/ClusterNonZero';
-import ClusterPieChart from '../components/plots/ClusterPie';
+import CategoryHistogram from '../components/plots/CategoryHistogram';
+import CategoryStackedBar from '../components/plots/CategoryStackedBar';
+import CategoryNonZero from '../components/plots/CategoryNonZero';
+import CategoryPieChart from '../components/plots/CategoryPie';
 import PageLayout from '../components/pagelayout';
 
-const Cluster: React.FC = () => {
+const Category: React.FC = () => {
   const [selectedMarkout, setSelectedMarkout] = useState('0.0');
 
   const controls = (
@@ -17,24 +17,24 @@ const Cluster: React.FC = () => {
   );
 
   return (
-    <PageLayout title="Cluster Analysis" controls={controls}>
+    <PageLayout title="Category Analysis" controls={controls}>
       <div className="bg-black rounded-2xl border border-[#212121] p-8">
-        <ClusterPieChart selectedMarkout={selectedMarkout} />
+        <CategoryPieChart selectedMarkout={selectedMarkout} />
       </div>
 
       <div className="bg-black rounded-2xl border border-[#212121] p-8">
-        <ClusterStackedBar selectedMarkout={selectedMarkout} />
+        <CategoryStackedBar selectedMarkout={selectedMarkout} />
       </div>
 
       <div className="bg-black rounded-2xl border border-[#212121] p-8">
-        <ClusterHistogram selectedMarkout={selectedMarkout} />
+        <CategoryHistogram selectedMarkout={selectedMarkout} />
       </div>
 
       <div className="bg-black rounded-2xl border border-[#212121] p-8">
-        <ClusterNonZero selectedMarkout={selectedMarkout} />
+        <CategoryNonZero selectedMarkout={selectedMarkout} />
       </div>
     </PageLayout>
   );
 };
 
-export default Cluster;
+export default Category;

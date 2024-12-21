@@ -2,22 +2,22 @@ import React, { useState, useEffect } from 'react';
 import Plot from 'react-plotly.js';
 import { STABLE_POOLS, WBTC_WETH_POOLS, USDC_WETH_POOLS, USDT_WETH_POOLS, DAI_WETH_POOLS, USDC_WBTC_POOLS, ALTCOIN_WETH_POOLS } from '../../clusters';
 
-interface ClusterData {
+interface CategoryData {
   name: string;
   total_lvr_cents: number;
 }
 
-interface ClusterPieResponse {
-  clusters: ClusterData[];
+interface CategoryPieResponse {
+  clusters: CategoryData[];
   total_lvr_cents: number;
 }
 
-interface ClusterPieChartProps {
+interface CategoryPieChartProps {
   selectedMarkout: string;
 }
 
-const ClusterPieChart: React.FC<ClusterPieChartProps> = ({ selectedMarkout }) => {
-  const [data, setData] = useState<ClusterPieResponse | null>(null);
+const CategoryPieChart: React.FC<CategoryPieChartProps> = ({ selectedMarkout }) => {
+  const [data, setData] = useState<CategoryPieResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -113,7 +113,7 @@ const ClusterPieChart: React.FC<ClusterPieChartProps> = ({ selectedMarkout }) =>
         ]}
         layout={{
           title: {
-            text: `Total LVR by Cluster ${titleSuffix}`,
+            text: `Total LVR by Category ${titleSuffix}`,
             font: { color: '#b4d838', size: 16 }
           },
           showlegend: false,
@@ -132,4 +132,4 @@ const ClusterPieChart: React.FC<ClusterPieChartProps> = ({ selectedMarkout }) =>
   );
 };
 
-export default ClusterPieChart;
+export default CategoryPieChart;
