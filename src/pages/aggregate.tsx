@@ -19,6 +19,17 @@ const Aggregate: React.FC = () => {
 
   return (
     <PageLayout title="Aggregate Analysis" controls={controls}>
+        <p className="text-gray-300 text-lg mb-8 max-w-4xl mx-auto text-center">
+          View data aggregated across pools. The first two plots are aggregated across markout times. 
+          The last three plots are specific to the selected markout time.
+        </p>
+        <div className="mt-12 text-center">
+    <p className="text-sm text-gray-400">
+      *We exclude days (i.e, 7200-block-long chunks starting from the Merge block)
+      that had zero simulated LVR activity. Additionally, we excluded showing maximum daily total LVR for the sake of 
+      keeping the y-axis scale reasonable
+    </p>
+  </div>
       <div className="bg-black rounded-2xl border border-[#212121] p-8">
         <RunningTotalChart />
       </div>

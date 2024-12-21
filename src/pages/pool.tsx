@@ -27,6 +27,15 @@ const Pool: React.FC = () => {
 
   return (
     <PageLayout title="Pool Analysis" controls={controls}>
+        <p className="text-gray-300 text-lg mb-8 max-w-4xl mx-auto text-center">
+        View data for individual pool and markout time combinations
+        </p>
+        <div className="mt-12 text-center">
+    <p className="text-sm text-gray-400">
+      *We exclude days (i.e, 7200-block-long chunks starting from the Merge block)
+      that had zero simulated LVR activity
+    </p>
+  </div>
       <SoleRunningTotal 
         poolAddress={selectedPool}
         markoutTime={selectedMarkout}

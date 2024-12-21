@@ -182,7 +182,7 @@ const QuartilePlot: React.FC<QuartilePlotProps> = ({ selectedMarkout }) => {
       data={plotData}
       layout={{
         title: {
-          text: `Daily LVR Box Plots by Pool ${titleSuffix}`,
+          text: `Daily LVR Box Plots by Pool ${titleSuffix}*`,
           font: { color: '#b4d838', size: 16 }
         },
         xaxis: {

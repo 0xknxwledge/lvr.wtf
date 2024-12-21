@@ -189,7 +189,7 @@ const CategoryHistogram: React.FC<CategoryHistogramProps> = ({ selectedMarkout }
         data={traces}
         layout={{
           title: {
-            text: `Per-Block LVR Histogram by Category ${titleSuffix}`,
+            text: `Per-Block LVR Histogram Grouped by Category ${titleSuffix}`,
             font: { color: '#b4d838', size: 16 }
           },
           barmode: 'group',
