@@ -25,6 +25,11 @@ const HistogramChart: React.FC<HistogramChartProps> = ({ poolAddress, markoutTim
   const [data, setData] = useState<HistogramResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [selectedBucket, setSelectedBucket] = useState<{
+    label: string;
+    count: number;
+    percentage: number;
+  } | null>(null);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -41,12 +46,11 @@ const HistogramChart: React.FC<HistogramChartProps> = ({ poolAddress, markoutTim
         
         const jsonData: HistogramResponse = await response.json();
         
-        // Process the data to consolidate all buckets above $500 into a single $500+ bucket
+        // Process the data to consolidate all buckets above $500
         const consolidatedBuckets = jsonData.buckets.reduce((acc: HistogramBucket[], bucket: HistogramBucket) => {
           if (bucket.range_start < 500) {
             acc.push(bucket);
           } else {
-            // Find existing $500+ bucket or create it
             let consolidatedBucket = acc.find(b => b.label === '$500+');
             if (!consolidatedBucket) {
               consolidatedBucket = {
@@ -76,6 +80,26 @@ const HistogramChart: React.FC<HistogramChartProps> = ({ poolAddress, markoutTim
     fetchData();
   }, [poolAddress, markoutTime]);
 
+  const handleLabelClick = (label: string) => {
+    if (!data) return;
+
+    if (selectedBucket?.label === label) {
+      // If clicking the same label, clear the selection
+      setSelectedBucket(null);
+    } else {
+      // Find the bucket data and set the selection
+      const bucket = data.buckets.find(b => b.label === label);
+      if (bucket) {
+        const percentage = (bucket.count / data.total_observations) * 100;
+        setSelectedBucket({
+          label: bucket.label,
+          count: bucket.count,
+          percentage: percentage
+        });
+      }
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="w-full bg-black rounded-2xl border border-[#212121] p-6">
@@ -103,15 +127,12 @@ const HistogramChart: React.FC<HistogramChartProps> = ({ poolAddress, markoutTim
     '$500+'
   ];
 
-  // Sort buckets according to the predefined order
   const sortedBuckets = [...data.buckets].sort((a, b) => 
     bucketOrder.indexOf(a.label) - bucketOrder.indexOf(b.label)
   );
 
   const xValues = sortedBuckets.map(bucket => bucket.label);
   const yValues = sortedBuckets.map(bucket => bucket.count);
-  
-  // Calculate percentage of total observations for hover text
   const percentages = yValues.map(count => 
     ((count / data.total_observations) * 100).toFixed(2)
   );
@@ -120,6 +141,26 @@ const HistogramChart: React.FC<HistogramChartProps> = ({ poolAddress, markoutTim
   const titleSuffix = markoutTime === 'brontes' ? 
     '(Observed LVR)' : 
     `(Markout ${markoutTime}s)`;
+
+  // Create annotation for selected bucket
+  const annotations = selectedBucket ? [{
+    x: selectedBucket.label,
+    y: yValues[xValues.indexOf(selectedBucket.label)],
+    text: `Count: ${selectedBucket.count.toLocaleString()}<br>` +
+          `Percentage: ${selectedBucket.percentage.toFixed(2)}%`,
+    showarrow: true,
+    arrowhead: 2,
+    arrowsize: 1,
+    arrowwidth: 2,
+    arrowcolor: '#b4d838',
+    bgcolor: '#424242',
+    bordercolor: '#b4d838',
+    font: { color: '#ffffff', size: 12 },
+    borderwidth: 2,
+    borderpad: 4,
+    ay: -40,
+    ax: 0,
+  }] : [];
 
   return (
     <div className="w-full bg-black rounded-2xl border border-[#212121] p-6">
@@ -133,12 +174,7 @@ const HistogramChart: React.FC<HistogramChartProps> = ({ poolAddress, markoutTim
               color: '#b4d838',
               opacity: 0.8,
             },
-            hovertemplate: 
-              'Range: %{x}<br>' +
-              'Count: %{y:,}<br>' +
-              'Percentage: %{customdata}%' +
-              '<extra></extra>',
-            customdata: percentages,
+            hoverinfo: 'none',
           }
         ]}
         layout={{
@@ -175,13 +211,8 @@ const HistogramChart: React.FC<HistogramChartProps> = ({ poolAddress, markoutTim
           margin: { l: 80, r: 50, b: 100, t: 80, pad: 4 },
           paper_bgcolor: '#000000',
           plot_bgcolor: '#000000',
-          font: { color: '#ffffff' },
-          hovermode: 'closest',
-          hoverlabel: {
-            bgcolor: '#424242',
-            bordercolor: '#b4d838',
-            font: { color: '#ffffff' }
-          },
+          annotations: annotations,
+
           showlegend: false,
         }}
         config={{
@@ -190,6 +221,23 @@ const HistogramChart: React.FC<HistogramChartProps> = ({ poolAddress, markoutTim
         }}
         style={{ width: '100%', height: '100%' }}
       />
+      
+      {/* Clickable labels below the chart */}
+      <div className="flex justify-center mt-8 gap-4">
+        {xValues.map((label) => (
+          <button
+            key={label}
+            onClick={() => handleLabelClick(label)}
+            className={`px-4 py-2 rounded-lg transition-all duration-200 ${
+              selectedBucket?.label === label
+                ? 'bg-[#b4d838] text-black font-medium'
+                : 'bg-[#212121] text-white hover:bg-[#2a2a2a]'
+            }`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
     </div>
   );
 };

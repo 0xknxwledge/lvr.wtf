@@ -4,7 +4,7 @@ import NavBar from './components/navbar';
 import Footer from './components/footer';
 import Overview from './pages/overview';
 import Aggregate from './pages/aggregate';
-import Cluster from './pages/category';
+import Category from './pages/category';
 import Pool from './pages/pool';
 import DataLayout from './components/datalayout';
 
@@ -23,7 +23,7 @@ function App() {
             </>
           } />
           <Route path="/aggregate" element={<DataLayout><Aggregate /></DataLayout>} />
-          <Route path="/cluster" element={<DataLayout><Cluster /></DataLayout>} />
+          <Route path="/category" element={<DataLayout><Category /></DataLayout>} />
           <Route path="/pool" element={<DataLayout><Pool /></DataLayout>} />
         </Routes>
       </div>

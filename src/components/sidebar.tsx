@@ -7,7 +7,7 @@ const SidebarNavigation: React.FC = () => {
   const navItems = [
     { name: 'Aggegrate', path: '/aggregate' },
     { name: 'Pool', path: '/pool' },
-    { name: 'Cluster', path: '/cluster' },
+    { name: 'Category', path: '/category' },
   ];
 
   return (

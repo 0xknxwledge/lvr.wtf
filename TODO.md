@@ -1,6 +1,5 @@
 - Consistent styling and colors across graphs (change main color to sage green instead of lime too) #B2AC88
 - Write out "What is LVR?" and "Methodology"
-- Fix Histogram hover annotations + colors on Category Page
 - Non-zero Daily LVR Quartile -> Daily LVR Box-Plots
     - * add a clause saying we exclude days with zero LVR and we dont include maximum due to scale
 

@@ -193,6 +193,11 @@ const QuartilePlot: React.FC<QuartilePlotProps> = ({ selectedMarkout }) => {
           fixedrange: true,
         },
         yaxis: {
+          title: {
+            text: 'Daily Total LVR',
+            font: { color: '#b4d838', size: 14 },
+            standoff: 30
+          },
           tickformat: '$,.2f',
           tickfont: { color: '#ffffff' },
           fixedrange: true,
@@ -206,7 +211,7 @@ const QuartilePlot: React.FC<QuartilePlotProps> = ({ selectedMarkout }) => {
         showlegend: false,
         autosize: true,
         height: 600,
-        margin: { l: 100, r: 50, b: 160, t: 80 },
+        margin: { l: 120, r: 50, b: 160, t: 80 },
         paper_bgcolor: '#000000',
         plot_bgcolor: '#000000',
         hoverlabel: {

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import Plot from 'react-plotly.js';
-import { Data } from 'plotly.js';
+import { Data, PlotData } from 'plotly.js';
 
 interface HistogramBucket {
   range_start: number;
@@ -19,10 +19,23 @@ interface CategoryHistogramProps {
   selectedMarkout: string;
 }
 
+// Define ordered categories and their colors
+const CATEGORY_CONFIG = [
+  { name: "Stable Pairs",  label: "Stable Pairs",  color: '#b4d838' },
+  { name: "WBTC-WETH",     label: "WBTC-WETH",     color: '#9fc732' },
+  { name: "USDC-WETH",     label: "USDC-WETH",     color: '#8ab62c' },
+  { name: "USDT-WETH",     label: "USDT-WETH",     color: '#75a526' },
+  { name: "DAI-WETH",      label: "DAI-WETH",      color: '#609420' },
+  { name: "USDC-WBTC",     label: "USDC-WBTC",     color: '#4b831a' },
+  { name: "Altcoin-WETH",  label: "Altcoin-WETH",  color: '#367214' }
+] as const;
+
+
 const CategoryHistogram: React.FC<CategoryHistogramProps> = ({ selectedMarkout }) => {
   const [data, setData] = useState<CategoryData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [selectedLabel, setSelectedLabel] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -36,13 +49,12 @@ const CategoryHistogram: React.FC<CategoryHistogramProps> = ({ selectedMarkout }
         }
         
         const jsonData = await response.json();
-        // Process the data to consolidate all buckets above $500 into a single $500+ bucket for each cluster
-        const processedCategorys = jsonData.clusters.map((cluster: CategoryData) => {
+        console.log(jsonData)
+        const processedCategories = jsonData.clusters.map((cluster: CategoryData) => {
           const consolidatedBuckets = cluster.buckets.reduce((acc: HistogramBucket[], bucket: HistogramBucket) => {
             if (bucket.range_start < 500) {
               acc.push(bucket);
             } else {
-              // Find existing $500+ bucket or create it
               let consolidatedBucket = acc.find(b => b.label === '$500+');
               if (!consolidatedBucket) {
                 consolidatedBucket = {
@@ -63,7 +75,13 @@ const CategoryHistogram: React.FC<CategoryHistogramProps> = ({ selectedMarkout }
             buckets: consolidatedBuckets
           };
         });
-        setData(processedCategorys);
+
+        // Sort categories according to CATEGORY_CONFIG order
+        const sortedCategories = CATEGORY_CONFIG
+          .map(config => processedCategories.find((cat: CategoryData) => cat.name === config.name))
+          .filter((cat: CategoryData | undefined): cat is CategoryData => cat !== undefined);
+
+        setData(sortedCategories);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to fetch data');
       } finally {
@@ -73,6 +91,10 @@ const CategoryHistogram: React.FC<CategoryHistogramProps> = ({ selectedMarkout }
 
     fetchData();
   }, [selectedMarkout]);
+
+  const handleLabelClick = (label: string) => {
+    setSelectedLabel(selectedLabel === label ? null : label);
+  };
 
   if (isLoading) {
     return (
@@ -101,159 +123,139 @@ const CategoryHistogram: React.FC<CategoryHistogramProps> = ({ selectedMarkout }
     '(Observed LVR)' : 
     `(Markout ${selectedMarkout}s)`;
 
-  // Create traces for each cluster with improved hover information
-  const traces: Data[] = data.map((cluster) => {
+  const traces: Partial<PlotData>[] = data.map((cluster, index) => {
     const orderedBuckets = [...cluster.buckets].sort((a, b) => 
       bucketOrder.indexOf(a.label) - bucketOrder.indexOf(b.label)
     );
 
-    const percentages = orderedBuckets.map(bucket => 
-      (bucket.count / cluster.total_observations * 100).toFixed(2)
-    );
+    const categoryConfig = CATEGORY_CONFIG[index];
 
-    const smallBarThreshold = cluster.total_observations * 0.001;
-    const smallBars = orderedBuckets.filter(bucket => bucket.count < smallBarThreshold);
-    
-    const formatRangeText = (start: number, end: number | null) => {
-      if (end === null) {
-        return `$${start.toLocaleString()}+`;
-      }
-      return `$${start.toLocaleString()} to $${end.toLocaleString()}`;
-    };
-
-    const mainTrace: Data = {
-      name: cluster.name,
+    return {
+      name: categoryConfig.label,
       x: orderedBuckets.map(bucket => bucket.label),
       y: orderedBuckets.map(bucket => bucket.count),
       type: 'bar',
-      customdata: orderedBuckets.map((bucket, idx) => [
-        percentages[idx],
-        bucket.range_start,
-        bucket.range_end,
-        cluster.total_observations,
-        formatRangeText(bucket.range_start, bucket.range_end)
-      ]),
-      hovertemplate: 
-        '<b>%{fullData.name}</b><br><br>' +
-        'Count: %{y:,}<br>' +
-        'Percentage: %{customdata[0]}%<br>' +
-        'Range: %{customdata[4]}' +
-        '<extra></extra>',
-      hoverlabel: {
-        align: 'left' as const
-      },
-      hoverinfo: 'skip' as const,
-      hoveron: 'points' as const
-    };
+      marker: { color: categoryConfig.color },
+      hoverinfo: 'none'
+    } as const;
+  });
 
-    const smallBarTrace: Data | null = smallBars.length > 0 ? {
-      name: cluster.name,
-      x: smallBars.map(bucket => bucket.label),
-      y: smallBars.map(bucket => bucket.count),
-      type: 'scatter',
-      mode: 'markers',
-      marker: {
-        size: 10,
-        opacity: 0
-      },
-      customdata: smallBars.map((bucket, idx) => [
-        (bucket.count / cluster.total_observations * 100).toFixed(2),
-        bucket.range_start,
-        bucket.range_end,
-        cluster.total_observations,
-        formatRangeText(bucket.range_start, bucket.range_end)
-      ]),
-      hovertemplate: 
-        '<b>%{fullData.name}</b><br><br>' +
-        'Count: %{y:,}<br>' +
-        'Percentage: %{customdata[0]}%<br>' +
-        'Range: %{customdata[4]}' +
-        '<extra></extra>',
-      hoverlabel: {
-        align: 'left' as const
-      },
-      showlegend: false,
-      hoverinfo: 'skip' as const,
-      hoveron: 'points' as const
-    } : null;
+  // Create a single annotation containing all category data with color indicators
+  const annotations = selectedLabel ? [{
+    x: selectedLabel,
+    y: Math.max(...traces.map(trace => {
+      const bucketIndex = bucketOrder.indexOf(selectedLabel);
+      return (trace.y?.[bucketIndex] as number) || 0;
+    })),
+    text: traces
+      .map((trace, index) => {
+        const bucketIndex = bucketOrder.indexOf(selectedLabel);
+        const count = trace.y?.[bucketIndex] as number;
+        if (!count || count === 0) return null;
 
-    return smallBarTrace ? [mainTrace, smallBarTrace] : [mainTrace];
-  }).flat();
+        const cluster = data[index];
+        if (!cluster) return null;
+
+        const percentage = (count / cluster.total_observations) * 100;
+        const categoryConfig = CATEGORY_CONFIG[index];
+        
+        return `<span style="color:${categoryConfig.color}">■</span> <b>${trace.name}</b>: ${count.toLocaleString()} (${percentage.toFixed(2)}%)`;
+      })
+      .filter(Boolean)
+      .sort((a, b) => {
+        const countA = parseInt(a!.split(': ')[1]);
+        const countB = parseInt(b!.split(': ')[1]);
+        return countB - countA;
+      })
+      .join('<br>'),
+    showarrow: true,
+    arrowhead: 2,
+    arrowsize: 1,
+    arrowwidth: 2,
+    arrowcolor: '#b4d838',
+    bgcolor: '#424242',
+    bordercolor: '#b4d838',
+    font: { color: '#ffffff', size: 12 },
+    borderwidth: 2,
+    borderpad: 4,
+    ay: -40,
+    ax: 0,
+    align: 'left' as const
+  }] : [];
 
   return (
-    <Plot
-      data={traces}
-      layout={{
-        title: {
-          text: `Per-Block LVR Histogram by Category ${titleSuffix}`,
-          font: { color: '#b4d838', size: 16 }
-        },
-        barmode: 'group',
-        xaxis: {
+    <>
+      <Plot
+        data={traces}
+        layout={{
           title: {
-            text: 'LVR Range ($)',
-            font: { color: '#b4d838', size: 14 },
-            standoff: 20
+            text: `Per-Block LVR Histogram by Category ${titleSuffix}`,
+            font: { color: '#b4d838', size: 16 }
           },
-          tickfont: { color: '#ffffff', size: 10 },
-          tickangle: 45,
-          fixedrange: true,
-          automargin: true,
-          showgrid: false,
-          categoryorder: 'array' as const,
-          categoryarray: bucketOrder
-        },
-        yaxis: {
-          title: {
-            text: 'Number of Blocks',
-            font: { color: '#b4d838', size: 14 },
-            standoff: 20
+          barmode: 'group',
+          xaxis: {
+            title: {
+              text: 'LVR Range ($)',
+              font: { color: '#b4d838', size: 14 },
+              standoff: 20
+            },
+            tickfont: { color: '#ffffff', size: 10 },
+            tickangle: 45,
+            fixedrange: true,
+            automargin: true,
+            showgrid: false,
+            categoryorder: 'array' as const,
+            categoryarray: bucketOrder
           },
-          tickfont: { color: '#ffffff' },
-          fixedrange: true,
-          showgrid: true,
-          gridcolor: '#212121',
-          zeroline: true,
-          zerolinecolor: '#404040'
-        },
-        showlegend: true,
-        legend: {
-          font: { color: '#ffffff' },
-          bgcolor: '#000000',
-          bordercolor: '#212121',
-          x: 0.95,
-          y: 0.95,
-          xanchor: 'right',
-          yanchor: 'top'
-        },
-        autosize: true,
-        height: 500,
-        margin: { 
-          l: 80, 
-          r: 50, 
-          b: 160, 
-          t: 80,
-          pad: 10 
-        },
-        paper_bgcolor: '#000000',
-        plot_bgcolor: '#000000',
-        hovermode: 'closest',
-        hoverdistance: 100,
-        hoverlabel: {
-          bgcolor: '#424242',
-          bordercolor: '#b4d838',
-          font: { color: '#ffffff', size: 12 },
-          namelength: -1
-        },
-        bargap: 0.15,
-        bargroupgap: 0.1
-      }}
-      config={{
-        responsive: true,
-        displayModeBar: false,
-      }}
-      style={{ width: '100%', height: '100%' }}
-    />
+          yaxis: {
+            title: {
+              text: 'Number of Blocks',
+              font: { color: '#b4d838', size: 14 },
+              standoff: 20
+            },
+            tickfont: { color: '#ffffff' },
+            fixedrange: true,
+            showgrid: true,
+            gridcolor: '#212121'
+          },
+          showlegend: true,
+          legend: {
+            font: { color: '#ffffff' },
+            bgcolor: '#000000',
+            bordercolor: '#212121',
+            traceorder: 'normal'
+          },
+          autosize: true,
+          height: 500,
+          margin: { l: 80, r: 50, b: 160, t: 80 },
+          paper_bgcolor: '#000000',
+          plot_bgcolor: '#000000',
+          annotations: annotations
+        }}
+        config={{
+          responsive: true,
+          displayModeBar: false,
+        }}
+        style={{ width: '100%', height: '100%' }}
+      />
+      
+      {/* Clickable labels below the chart */}
+      <div className="flex justify-center mt-8 gap-4">
+        {bucketOrder.map((label) => (
+          <button
+            key={label}
+            onClick={() => handleLabelClick(label)}
+            className={`px-4 py-2 rounded-lg transition-all duration-200 ${
+              selectedLabel === label
+                ? 'bg-[#b4d838] text-black font-medium'
+                : 'bg-[#212121] text-white hover:bg-[#2a2a2a]'
+            }`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+    </>
   );
 };
 

@@ -74,30 +74,28 @@ const MaxLVRChart: React.FC<MaxLVRChartProps> = ({ selectedMarkout }) => {
 
   return (
     <Plot
-      data={[
-        {
-          x: sortedData.map(d => names[d.pool_address] || d.pool_name),
-          y: sortedData.map(d => d.lvr_cents / 100),
-          type: 'bar',
-          marker: {
-            color: '#b4d838',
-            opacity: 0.8,
-          },
-          hoverlabel: {
-            bgcolor: '#424242',
-            bordercolor: '#b4d838',
-            font: { color: '#ffffff' },
-            namelength: -1  // Show full pool name
-          },
-          hovertemplate: 
-            '<b>%{x}</b><br>' +
-            'Maximum LVR: $%{y:,.2f}<br>' +
-            'Block: %{customdata:,d}' +
-            '<extra></extra>',
-          customdata: sortedData.map(d => d.block_number),
-          width: 0.8  // Make bars wider
-        }
-      ]}
+    data={[
+      {
+        // Give the bar trace an empty name so Plotly won't show a label or color swatch
+        name: '<b>%{x}</b><br>',
+  
+        x: sortedData.map(d => names[d.pool_address] || d.pool_name),
+        y: sortedData.map(d => d.lvr_cents / 100),
+        type: 'bar',
+        marker: {
+          color: '#b4d838',
+          opacity: 0.8,
+        },
+        // Bold the pool name in your hover text
+        hovertemplate:
+          'Maximum LVR: $%{y:,.2f}<br>' +
+          'Block: %{customdata:,d}' +
+          '<extra></extra>',            // Remove default extra label
+        customdata: sortedData.map(d => d.block_number),
+        width: 0.8,
+        showlegend: false,
+      }
+    ]}
       layout={{
         title: {
           text: `Maximum Single-Block LVR by Pool ${titleSuffix}`,
@@ -132,8 +130,14 @@ const MaxLVRChart: React.FC<MaxLVRChartProps> = ({ selectedMarkout }) => {
         },
         paper_bgcolor: '#000000',
         plot_bgcolor: '#000000',
-        hovermode: 'closest',
-        hoverdistance: 50,  // Increased hover distance
+        hovermode: 'x unified',
+        hoverlabel: {
+          bgcolor: '#424242',
+          bordercolor: '#b4d838',
+          font: { color: '#ffffff' },
+          namelength: 0,
+        },
+        hoverdistance: 50, 
         bargap: 0.2,  // Added gap between bars
       }}
       config={{

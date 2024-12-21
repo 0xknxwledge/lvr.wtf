@@ -158,7 +158,7 @@ const PercentileBandChart: React.FC<PercentileBandChartProps> = ({ poolAddress, 
           showlegend: false,  // Hide legend completely since we don't want toggles
           autosize: true,
           height: 400,
-          margin: { l: 100, r: 50, b: 140, t: 80 },
+          margin: { l: 120, r: 50, b: 140, t: 80 },
           paper_bgcolor: '#000000',
           plot_bgcolor: '#000000',
           hovermode: 'x unified',
