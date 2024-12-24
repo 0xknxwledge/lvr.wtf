@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import Plot from 'react-plotly.js';
+import { plotColors, createBaseLayout, commonConfig } from '../plotUtils';
 
 interface MonthlyData {
   time_range: string;
@@ -20,6 +21,17 @@ const CategoryStackedBar: React.FC<CategoryStackedBarProps> = ({ selectedMarkout
   const [data, setData] = useState<CategoryStackedBarResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Updated color palette with more contrast between categories
+  const barColors = [
+    '#E2DFC9',  // Light cream - WBTC-WETH
+    '#738C3A',  // Medium olive - USDT-WETH
+    '#A4C27B',  // Sage green - USDC-WETH
+    '#2D3A15',  // Dark forest - USDC-WBTC
+    '#BAC7A7',  // Light sage - Stable Pairs
+    '#4A5D23',  // Deep forest - DAI-WETH
+    '#8B9556'   // Muted olive - Altcoin-WETH
+  ];
 
   useEffect(() => {
     const fetchData = async () => {
@@ -46,96 +58,100 @@ const CategoryStackedBar: React.FC<CategoryStackedBarProps> = ({ selectedMarkout
 
   if (isLoading) {
     return (
-      <div className="w-full bg-black rounded-2xl border border-[#212121] p-6">
-        <div className="flex items-center justify-center h-96">
-          <p className="text-white">Loading...</p>
-        </div>
+      <div className="flex items-center justify-center h-96">
+        <p className="text-white">Loading...</p>
       </div>
     );
   }
 
   if (error || !data) {
     return (
-      <div className="w-full bg-black rounded-2xl border border-[#212121] p-6">
-        <div className="flex items-center justify-center h-96">
-          <p className="text-red-500">{error || 'No data available'}</p>
-        </div>
+      <div className="flex items-center justify-center h-96">
+        <p className="text-red-500">{error || 'No data available'}</p>
       </div>
     );
   }
 
-  // Create traces for each cluster
-  const traces = data.clusters.map((cluster) => ({
+  const traces = data.clusters.map((cluster, index) => ({
     name: cluster,
     x: data.monthly_data.map(d => d.time_range),
     y: data.monthly_data.map(d => d.cluster_totals[cluster] / 100), // Convert cents to dollars
     type: 'bar' as const,
-    hovertemplate: '%{fullData.name}: $%{y:,.2f}<extra></extra>',
+    marker: {
+      color: barColors[index]
+    },
+    hovertemplate: 
+      '<b>%{fullData.name}</b><br>' +
+      '$%{y:,.2f}' +
+      '<extra></extra>'
   }));
 
   const titleSuffix = selectedMarkout === 'brontes' ? 
     '(Observed LVR)' : 
     `(Markout ${selectedMarkout}s)`;
 
+  const baseLayout = createBaseLayout(`Monthly Total LVR by Category ${titleSuffix}`);
+
   return (
-      <Plot
-        data={traces}
-        layout={{
+    <Plot
+      data={traces}
+      layout={{
+        ...baseLayout,
+        barmode: 'stack',
+        xaxis: {
+          ...baseLayout.xaxis,
           title: {
-            text: `Monthly Total LVR by Category ${titleSuffix}`,
-            font: { color: '#b4d838', size: 16 }
+            text: 'Date Range (UTC)',
+            font: { color: '#FFFFFF', size: 14 },
+            standoff: 20
           },
-          barmode: 'stack',
-          xaxis: {
-            title: {
-              text: 'Date Range (UTC)',
-              font: { color: '#b4d838', size: 14 },
-              standoff: 20
-            },
-            tickfont: { color: '#ffffff', size: 10 },
-            tickangle: 45,
-            fixedrange: true,
+          tickfont: { color: '#FFFFFF', size: 10 },
+          tickangle: 45,
+          fixedrange: true,
+        },
+        yaxis: {
+          ...baseLayout.yaxis,
+          title: {
+            text: 'Total LVR ($)',
+            font: { color: '#FFFFFF', size: 14 },
+            standoff: 100  // Increased standoff for more margin
           },
-          yaxis: {
-            title: {
-              text: 'Total LVR ($)',
-              font: { color: '#b4d838', size: 14 },
-              standoff: 70  // Increased standoff for more spacing
-            },
-            tickfont: { color: '#ffffff' },
-            tickformat: '$,.0f',
-            fixedrange: true,
-            showgrid: true,
-            gridcolor: '#212121',
-          },
-          showlegend: true,
-          legend: {
-            font: { color: '#ffffff' },
-            bgcolor: '#000000',
-            bordercolor: '#212121',
-            x: 1,
-            y: 1.1,
-            xanchor: 'right',
-            yanchor: 'top',
-          },
-          autosize: true,
-          height: 500,
-          margin: { l: 120, r: 50, b: 160, t: 80 }, // Increased left margin to accommodate y-axis
-          paper_bgcolor: '#000000',
-          plot_bgcolor: '#000000',
-          hovermode: 'x unified',
-          hoverlabel: {
-            bgcolor: '#424242',
-            bordercolor: '#b4d838',
-            font: { color: '#ffffff' }
-          }
-        }}
-        config={{
-          responsive: true,
-          displayModeBar: false,
-        }}
-        style={{ width: '100%', height: '100%' }}
-      />
+          tickfont: { color: '#FFFFFF' },
+          tickformat: '$,.0f',
+          fixedrange: true,
+          showgrid: true,
+          gridcolor: '#212121',
+        },
+        showlegend: true,
+        legend: {
+          font: { color: '#FFFFFF' },
+          bgcolor: '#000000',
+          bordercolor: '#212121',
+          x: 1,
+          y: 1.1,
+          xanchor: 'right',
+          yanchor: 'top',
+        },
+        autosize: true,
+        height: 500,
+        margin: { 
+          l: 150,  // Increased left margin
+          r: 50, 
+          b: 160, 
+          t: 80 
+        },
+        paper_bgcolor: '#000000',
+        plot_bgcolor: '#000000',
+        hovermode: 'x unified',
+        hoverlabel: {
+          bgcolor: '#424242',
+          bordercolor: '#b4d838',
+          font: { color: '#FFFFFF' }
+        }
+      }}
+      config={commonConfig}
+      style={{ width: '100%', height: '100%' }}
+    />
   );
 };
 

@@ -18,10 +18,10 @@ const SidebarNavigation: React.FC = () => {
             <li key={item.name} className="mb-4 relative">
               <Link
                 to={item.path}
-                className={`block py-2 px-4 text-lg ${
+                className={`block py-2 px-4 text-lg transition-all duration-200 ${
                   location.pathname === item.path
                     ? 'text-[#b4d838] font-semibold'
-                    : 'text-gray-300 hover:text-white'
+                    : 'text-[#B2AC88] hover:text-[#8B9556]'
                 }`}
               >
                 {item.name}

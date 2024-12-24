@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import Plot from 'react-plotly.js';
 import names from '../../names';
+import { plotColors, createBaseLayout, commonConfig } from '../plotUtils';
 
 interface PoolTotal {
   pool_name: string;
@@ -16,17 +17,21 @@ const PoolTotalsPieChart: React.FC<PoolTotalsPieChartProps> = ({ selectedMarkout
   const [data, setData] = useState<PoolTotal[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [selectedSegment, setSelectedSegment] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
         setIsLoading(true);
-        const params = new URLSearchParams();
-        params.append('markout_time', selectedMarkout);
+        const params = new URLSearchParams({
+          markout_time: selectedMarkout
+        });
+        
         const response = await fetch(`https://lvr-wtf-568975696472.us-central1.run.app/pool_totals?${params.toString()}`);
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
         }
+        
         const jsonData = await response.json();
         if (Array.isArray(jsonData.totals)) {
           setData(jsonData.totals);
@@ -35,7 +40,6 @@ const PoolTotalsPieChart: React.FC<PoolTotalsPieChartProps> = ({ selectedMarkout
         }
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to fetch data');
-        setData([]); // Reset data to empty array on error
       } finally {
         setIsLoading(false);
       }
@@ -47,23 +51,17 @@ const PoolTotalsPieChart: React.FC<PoolTotalsPieChartProps> = ({ selectedMarkout
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-[600px]">
-        <p className="text-white">Loading...</p>
+        <div className="text-white text-lg animate-pulse">Loading...</div>
       </div>
     );
   }
 
-  if (error) {
+  if (error || !data || data.length === 0) {
     return (
       <div className="flex items-center justify-center h-[600px]">
-        <p className="text-red-500">{error}</p>
-      </div>
-    );
-  }
-
-  if (data.length === 0) {
-    return (
-      <div className="flex items-center justify-center h-[600px]">
-        <p className="text-white">No data available</p>
+        <div className="text-red-500 bg-red-500/10 px-4 py-2 rounded-lg">
+          {error || 'No data available'}
+        </div>
       </div>
     );
   }
@@ -71,72 +69,95 @@ const PoolTotalsPieChart: React.FC<PoolTotalsPieChartProps> = ({ selectedMarkout
   // Sort data by total_lvr_cents in descending order
   const sortedData = [...data].sort((a, b) => b.total_lvr_cents - a.total_lvr_cents);
 
-  // Calculate percentages and format labels
+  // Calculate total and percentages
   const total = sortedData.reduce((sum, item) => sum + item.total_lvr_cents, 0);
   const values = sortedData.map(item => item.total_lvr_cents / 100); // Convert cents to dollars
+
+  // Format labels with pool names and percentages
   const labels = sortedData.map(item => {
-    const poolName = names[item.pool_address] || `${item.pool_address.slice(0, 6)}...${item.pool_address.slice(-4)}`;
+    const poolName = names[item.pool_address] || item.pool_name;
     const percentage = ((item.total_lvr_cents / total) * 100).toFixed(1);
     return `${poolName} (${percentage}%)`;
   });
+
+  // Create custom color array using plotColors
+  const customColors = plotColors.chartColors;
 
   const titleSuffix = selectedMarkout === 'brontes' ? 
     '(Observed)' : 
     `(Markout ${selectedMarkout}s)`;
 
+  // Get base layout and customize for pie chart
+  const baseLayout = createBaseLayout(`Total LVR by Pool ${titleSuffix}`);
+
   return (
-    <Plot
-      data={[
-        {
-          values,
-          labels,
-          type: 'pie',
-          textinfo: 'label',
-          textposition: 'outside',
-          automargin: true,
-          marker: {
-            colors: [
-              '#b4d838',
-              '#9fc732',
-              '#8ab62c',
-              '#75a526',
-              '#609420',
-              '#4b831a',
-              '#367214',
-              '#21610e',
-              '#0c5008',
-              '#003f02'
-            ],
-            line: {
-              color: '#000000',
-              width: 2
+    <div className="w-full bg-black rounded-lg">
+      <Plot
+        data={[
+          {
+            values,
+            labels,
+            type: 'pie',
+            textinfo: 'label',
+            textposition: 'outside',
+            automargin: true,
+            marker: {
+              colors: customColors,
+              line: {
+                color: '#000000',
+                width: 2
+              }
+            },
+            textfont: {
+              color: '#FFFFFF',
+              size: 12
+            },
+            hoverlabel: {
+              bgcolor: plotColors.secondary,
+              bordercolor: plotColors.accent,
+              font: { 
+                color: '#FFFFFF',
+                size: 12
+              }
+            },
+            hovertemplate: '<b>%{label}</b><br>$%{value:,.2f}<extra></extra>'
+          }
+        ]}
+        layout={{
+          ...baseLayout,
+          showlegend: false,
+          height: 600,
+          margin: { t: 80, b: 80, l: 80, r: 80 },
+          font: { color: '#FFFFFF' },
+          annotations: [{
+            text: '',
+            showarrow: false,
+            x: 0.5,
+            y: 1.1,
+            xref: 'paper',
+            yref: 'paper',
+            font: {
+              color: plotColors.accent,
+              size: 14
             }
-          },
-          hoverlabel: {
-            bgcolor: '#424242',
-            font: { color: '#ffffff' }
-          },
-          hovertemplate: '%{label}<br>$%{value:,.2f}<extra></extra>'
-        }
-      ]}
-      layout={{
-        title: {
-          text: `Total LVR by Pool ${titleSuffix}`,
-          font: { color: '#b4d838', size: 16 },
-        },
-        showlegend: false,
-        paper_bgcolor: '#000000',
-        plot_bgcolor: '#000000',
-        margin: { t: 50, b: 120, l: 50, r: 50 },
-        height: 600,
-        font: { color: '#ffffff' }
-      }}
-      config={{
-        responsive: true,
-        displayModeBar: false,
-      }}
-      style={{ width: '100%', height: '100%' }}
-    />
+          }]
+        }}
+        config={{
+          ...commonConfig,
+          responsive: true,
+          displayModeBar: false,
+        }}
+        style={{ width: '100%', height: '100%' }}
+        onClick={(event) => {
+          if (event.points && event.points[0]) {
+            const point = event.points[0];
+            const pointIndex = point.pointIndex as number;
+            const pointLabel = labels[pointIndex];
+            setSelectedSegment(selectedSegment === pointLabel ? null : pointLabel);
+          }
+        }}
+      />
+    </div>
   );
 };
 

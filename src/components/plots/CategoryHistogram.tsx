@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import Plot from 'react-plotly.js';
-import { Data, PlotData } from 'plotly.js';
+import { plotColors, createBaseLayout, commonConfig } from '../plotUtils';
 
 interface HistogramBucket {
   range_start: number;
@@ -19,17 +19,16 @@ interface CategoryHistogramProps {
   selectedMarkout: string;
 }
 
-// Define ordered categories and their colors
+// Updated color configuration
 const CATEGORY_CONFIG = [
-  { name: "Stable Pairs",  label: "Stable Pairs",  color: '#b4d838' },
-  { name: "WBTC-WETH",     label: "WBTC-WETH",     color: '#9fc732' },
-  { name: "USDC-WETH",     label: "USDC-WETH",     color: '#8ab62c' },
-  { name: "USDT-WETH",     label: "USDT-WETH",     color: '#75a526' },
-  { name: "DAI-WETH",      label: "DAI-WETH",      color: '#609420' },
-  { name: "USDC-WBTC",     label: "USDC-WBTC",     color: '#4b831a' },
-  { name: "Altcoin-WETH",  label: "Altcoin-WETH",  color: '#367214' }
+  { name: "Stable Pairs",   label: "Stable Pairs",   color: '#E2DFC9' },  // Light cream
+  { name: "WBTC-WETH",      label: "WBTC-WETH",      color: '#738C3A' },  // Medium olive
+  { name: "USDC-WETH",      label: "USDC-WETH",      color: '#A4C27B' },  // Sage green
+  { name: "USDT-WETH",      label: "USDT-WETH",      color: '#2D3A15' },  // Dark forest
+  { name: "DAI-WETH",       label: "DAI-WETH",       color: '#BAC7A7' },  // Light sage
+  { name: "USDC-WBTC",      label: "USDC-WBTC",      color: '#4A5D23' },  // Deep forest
+  { name: "Altcoin-WETH",   label: "Altcoin-WETH",   color: '#8B9556' }   // Muted olive
 ] as const;
-
 
 const CategoryHistogram: React.FC<CategoryHistogramProps> = ({ selectedMarkout }) => {
   const [data, setData] = useState<CategoryData[]>([]);
@@ -49,7 +48,6 @@ const CategoryHistogram: React.FC<CategoryHistogramProps> = ({ selectedMarkout }
         }
         
         const jsonData = await response.json();
-        console.log(jsonData)
         const processedCategories = jsonData.clusters.map((cluster: CategoryData) => {
           const consolidatedBuckets = cluster.buckets.reduce((acc: HistogramBucket[], bucket: HistogramBucket) => {
             if (bucket.range_start < 500) {
@@ -76,7 +74,6 @@ const CategoryHistogram: React.FC<CategoryHistogramProps> = ({ selectedMarkout }
           };
         });
 
-        // Sort categories according to CATEGORY_CONFIG order
         const sortedCategories = CATEGORY_CONFIG
           .map(config => processedCategories.find((cat: CategoryData) => cat.name === config.name))
           .filter((cat: CategoryData | undefined): cat is CategoryData => cat !== undefined);
@@ -123,7 +120,7 @@ const CategoryHistogram: React.FC<CategoryHistogramProps> = ({ selectedMarkout }
     '(Observed LVR)' : 
     `(Markout ${selectedMarkout}s)`;
 
-  const traces: Partial<PlotData>[] = data.map((cluster, index) => {
+  const traces = data.map((cluster, index) => {
     const orderedBuckets = [...cluster.buckets].sort((a, b) => 
       bucketOrder.indexOf(a.label) - bucketOrder.indexOf(b.label)
     );
@@ -140,7 +137,6 @@ const CategoryHistogram: React.FC<CategoryHistogramProps> = ({ selectedMarkout }
     } as const;
   });
 
-  // Create a single annotation containing all category data with color indicators
   const annotations = selectedLabel ? [{
     x: selectedLabel,
     y: Math.max(...traces.map(trace => {
@@ -183,63 +179,53 @@ const CategoryHistogram: React.FC<CategoryHistogramProps> = ({ selectedMarkout }
     align: 'left' as const
   }] : [];
 
+  const baseLayout = createBaseLayout(`Per-Block LVR Histogram Grouped by Category ${titleSuffix}`);
+
   return (
     <>
       <Plot
         data={traces}
         layout={{
-          title: {
-            text: `Per-Block LVR Histogram Grouped by Category ${titleSuffix}`,
-            font: { color: '#b4d838', size: 16 }
-          },
+          ...baseLayout,
           barmode: 'group',
           xaxis: {
+            ...baseLayout.xaxis,
             title: {
               text: 'LVR Range ($)',
-              font: { color: '#b4d838', size: 14 },
+              font: { color: '#FFFFFF', size: 14 },
               standoff: 20
             },
-            tickfont: { color: '#ffffff', size: 10 },
+            tickfont: { color: '#FFFFFF', size: 10 },
             tickangle: 45,
-            fixedrange: true,
-            automargin: true,
-            showgrid: false,
             categoryorder: 'array' as const,
             categoryarray: bucketOrder
           },
           yaxis: {
+            ...baseLayout.yaxis,
             title: {
               text: 'Number of Blocks',
-              font: { color: '#b4d838', size: 14 },
-              standoff: 20
+              font: { color: '#FFFFFF', size: 14 },
+              standoff: 100
             },
-            tickfont: { color: '#ffffff' },
-            fixedrange: true,
-            showgrid: true,
-            gridcolor: '#212121'
+            tickfont: { color: '#FFFFFF' },
           },
-          showlegend: true,
+          height: 500,
+          margin: { l: 150, r: 50, b: 160, t: 80 },
+          annotations: annotations,
           legend: {
-            font: { color: '#ffffff' },
+            font: { color: '#FFFFFF' },
             bgcolor: '#000000',
             bordercolor: '#212121',
-            traceorder: 'normal'
+            x: 1,
+            y: 1.1,
+            xanchor: 'right',
+            yanchor: 'top',
           },
-          autosize: true,
-          height: 500,
-          margin: { l: 80, r: 50, b: 160, t: 80 },
-          paper_bgcolor: '#000000',
-          plot_bgcolor: '#000000',
-          annotations: annotations
         }}
-        config={{
-          responsive: true,
-          displayModeBar: false,
-        }}
+        config={commonConfig}
         style={{ width: '100%', height: '100%' }}
       />
       
-      {/* Clickable labels below the chart */}
       <div className="flex justify-center mt-8 gap-4">
         {bucketOrder.map((label) => (
           <button

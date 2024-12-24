@@ -13,13 +13,19 @@ function NavBar() {
           <div className="h-5 flex justify-center items-center gap-10">
             <Link 
               to="/" 
-              className={`text-lg font-medium font-['General Sans'] leading-tight ${location.pathname === '/' ? 'text-[#b4d838]' : 'text-white'}`}
+              className={`text-lg font-medium font-['General Sans'] leading-tight transition-colors duration-200 
+                ${location.pathname === '/' 
+                  ? 'text-[#b4d838]' 
+                  : 'text-[#B2AC88] hover:text-[#8B9556]'}`}
             >
               Overview
             </Link>
             <Link 
               to="/aggregate" 
-              className={`text-lg font-medium font-['General Sans'] leading-tight ${location.pathname !== '/' ? 'text-[#b4d838]' : 'text-white'}`}
+              className={`text-lg font-medium font-['General Sans'] leading-tight transition-colors duration-200
+                ${location.pathname !== '/' 
+                  ? 'text-[#b4d838]' 
+                  : 'text-[#B2AC88] hover:text-[#8B9556]'}`}
             >
               Data
             </Link>
@@ -29,7 +35,7 @@ function NavBar() {
               href="https://fenbushi.vc"
               target="_blank"
               rel="noopener noreferrer"
-              className="h-16"
+              className="h-16 opacity-90 hover:opacity-100 transition-opacity duration-200"
             >
               <img src="/fenbushi_white.png" alt="Fenbushi Capital" className="h-full" />
             </a>
@@ -37,7 +43,7 @@ function NavBar() {
               href="https://sorellalabs.xyz"
               target="_blank"
               rel="noopener noreferrer"
-              className="h-16"
+              className="h-16 opacity-90 hover:opacity-100 transition-opacity duration-200"
             >
               <img src="/sorella.png" alt="Sorella Labs" className="h-full" />
             </a>

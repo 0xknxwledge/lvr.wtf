@@ -12,7 +12,7 @@ const Pool: React.FC = () => {
   const [selectedPool, setSelectedPool] = useState('0x88e6a0c2ddd26feeb64f039a2c41296fcb3f5640');
 
   const controls = (
-    <>
+    <div className="flex gap-6 bg-gradient-to-r from-[#0b0b0e] via-[#B2AC88]/5 to-[#0b0b0e] p-6 rounded-lg">
       <PoolSelect
         selectedPool={selectedPool}
         onChange={setSelectedPool}
@@ -22,39 +22,51 @@ const Pool: React.FC = () => {
         selectedMarkout={selectedMarkout} 
         onChange={setSelectedMarkout}
       />
-    </>
+    </div>
   );
 
   return (
     <PageLayout title="Pool Analysis" controls={controls}>
-        <p className="text-gray-300 text-lg mb-8 max-w-4xl mx-auto text-center">
+      <p className="text-[#B2AC88] text-lg mb-8 max-w-4xl mx-auto text-center">
         View data for individual pool and markout time combinations
+      </p>
+      
+      <div className="mt-12 text-center">
+        <p className="text-sm text-[#B2AC88]/80">
+          *We exclude days (i.e, 7200-block-long chunks starting from the Merge block)
+          that had zero simulated LVR activity
         </p>
-        <div className="mt-12 text-center">
-    <p className="text-sm text-gray-400">
-      *We exclude days (i.e, 7200-block-long chunks starting from the Merge block)
-      that had zero simulated LVR activity
-    </p>
-  </div>
-      <SoleRunningTotal 
-        poolAddress={selectedPool}
-        markoutTime={selectedMarkout}
-      />
+      </div>
 
-      <HistogramChart 
-        poolAddress={selectedPool}
-        markoutTime={selectedMarkout}
-      />
+      <div className="space-y-8">
+        <div className="bg-gradient-to-br from-[#0b0b0e] via-[#1a1a1a] to-[#B2AC88]/10 rounded-2xl border border-[#B2AC88]/20 p-8 hover:border-[#B2AC88]/30 transition-colors duration-300">
+          <SoleRunningTotal 
+            poolAddress={selectedPool}
+            markoutTime={selectedMarkout}
+          />
+        </div>
 
-      <PercentileBandChart 
-        poolAddress={selectedPool}
-        markoutTime={selectedMarkout}
-      />
+        <div className="bg-gradient-to-br from-[#0b0b0e] via-[#1a1a1a] to-[#B2AC88]/10 rounded-2xl border border-[#B2AC88]/20 p-8 hover:border-[#B2AC88]/30 transition-colors duration-300">
+          <HistogramChart 
+            poolAddress={selectedPool}
+            markoutTime={selectedMarkout}
+          />
+        </div>
 
-      <NonZeroProportion 
-        poolAddress={selectedPool}
-        selectedMarkout={selectedMarkout}
-      />
+        <div className="bg-gradient-to-br from-[#0b0b0e] via-[#1a1a1a] to-[#B2AC88]/10 rounded-2xl border border-[#B2AC88]/20 p-8 hover:border-[#B2AC88]/30 transition-colors duration-300">
+          <PercentileBandChart 
+            poolAddress={selectedPool}
+            markoutTime={selectedMarkout}
+          />
+        </div>
+
+        <div className="bg-gradient-to-br from-[#0b0b0e] via-[#1a1a1a] to-[#B2AC88]/10 rounded-2xl border border-[#B2AC88]/20 p-8 hover:border-[#B2AC88]/30 transition-colors duration-300">
+          <NonZeroProportion 
+            poolAddress={selectedPool}
+            selectedMarkout={selectedMarkout}
+          />
+        </div>
+      </div>
     </PageLayout>
   );
 };
