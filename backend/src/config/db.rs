@@ -5,7 +5,8 @@ use std::env;
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct AuroraConfig {
-    pub host: String,
+    pub gcp_host: String,
+    pub public_host: String,
     pub port: u16,
     pub user: String,
     pub password: String,
@@ -37,8 +38,10 @@ pub struct DatabaseConnectionConfig {
 impl AuroraConfig {
     pub fn from_env() -> Result<Self> {
         Ok(Self {
-            host: env::var("AURORA_HOST")
-                .map_err(|_| Error::Config("AURORA_HOST not set".to_string()))?,
+            gcp_host: env::var("AURORA_GCP_HOST")
+                .map_err(|_| Error::Config("AURORA_GCP_HOST not set".to_string()))?,
+            public_host: env::var("AURORA_PUBLIC_HOST")
+                .map_err(|_| Error::Config("AURORA_PUBLIC_HOST not set".to_string()))?,
             port: env::var("AURORA_PORT")
                 .map_err(|_| Error::Config("AURORA_PORT not set".to_string()))?
                 .parse()
@@ -59,8 +62,16 @@ impl AuroraConfig {
                 .unwrap_or(5),
         })
     }
+    
+    pub fn get_host_for_environment(&self) -> String {
+        // If running locally (determined by environment variable), use public host
+        if env::var("RUNNING_LOCALLY").unwrap_or_default() == "true" {
+            self.public_host.clone()
+        } else {
+            self.gcp_host.clone()
+        }
+    }
 }
-
 impl BrontesConfig {
     pub fn from_env() -> Result<Self> {
         Ok(Self {

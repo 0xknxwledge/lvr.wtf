@@ -33,7 +33,8 @@ const Category: React.FC = () => {
               'USDC/USDT (0.01% fee)',
               'USDC/USDT (0.05% fee)',
               'DAI/USDC (0.01% fee)',
-              'DAI/USDT (0.01% fee)'
+              'DAI/USDT (0.01% fee)',
+              'USDe/USDT (0.01% fee)'
             ]}
           />
           <CategorySection 
@@ -47,7 +48,8 @@ const Category: React.FC = () => {
             title="USDC-WETH Pairs" 
             items={[
               'USDC/WETH (0.05% fee)',
-              'USDC/WETH (0.30% fee)'
+              'USDC/WETH (0.30% fee)',
+              'WETH/USDC (Uniswap v2)'
             ]}
           />
         </div>
@@ -58,7 +60,8 @@ const Category: React.FC = () => {
             items={[
               'WETH/USDT (0.01% fee)',
               'WETH/USDT (0.05% fee)',
-              'WETH/USDT (0.30% fee)'
+              'WETH/USDT (0.30% fee)',
+              'USDT/WETH (Uniswap v2)'
             ]}
           />
           <CategorySection 
@@ -83,6 +86,7 @@ const Category: React.FC = () => {
             items={[
               'UNI/WETH (0.30% fee)',
               'PEPE/WETH (0.30% fee)',
+              'PEPE/WETH (Uniswap v2)',
               'LINK/WETH (0.30% fee)'
             ]}
           />

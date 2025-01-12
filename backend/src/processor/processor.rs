@@ -5,7 +5,7 @@ use crate::{
     writer::ParallelParquetWriter,
     models::{Checkpoint, IntervalData, MarkoutTime,UnifiedLVRData, CheckpointStats, DataSource, CheckpointUpdate},
     error::Error,
-    MARKOUT_TIMES, MARKOUT_TIME_MAPPING, POOL_ADDRESSES, POOL_NAMES, PEPE_DEPLOYMENT, USDeUSDT_DEPLOYMENT, WETH_USDT_100_DEPLOYMENT, BRONTES_ADDIES
+    MARKOUT_TIMES, MARKOUT_TIME_MAPPING, POOL_ADDRESSES, POOL_NAMES, PEPE_DEPLOYMENT_V2, PEPE_DEPLOYMENT_V3, USDeUSDT_DEPLOYMENT, WETH_USDT_100_DEPLOYMENT
 };
 use anyhow::Result;
 use dashmap::DashMap;
@@ -68,7 +68,8 @@ impl ParallelLVRProcessor {
 
     fn get_deployment_block(&self, pool_address: &str) -> u64 {
         match pool_address.to_lowercase().as_str() {
-            "0x11950d141ecb863f01007add7d1a342041227b58" => *PEPE_DEPLOYMENT,
+            "0x11950d141ecb863f01007add7d1a342041227b58" => *PEPE_DEPLOYMENT_V3,
+            "0xa43fe16908251ee70ef74718545e4fe6c5ccec9f" => *PEPE_DEPLOYMENT_V2,
             "0x435664008f38b0650fbc1c9fc971d0a3bc2f1e47" => *USDeUSDT_DEPLOYMENT,
             "0xc7bbec68d12a0d1830360f8ec58fa599ba1b0e9b" => *WETH_USDT_100_DEPLOYMENT,
             _ => 0, // Pre-merge pools
@@ -274,7 +275,7 @@ impl ParallelLVRProcessor {
         }
     
         // Process each Brontes pool
-        for pool_address in BRONTES_ADDIES.iter() {
+        for pool_address in POOL_ADDRESSES.iter() {
             // Get or create vector for this pool
             let mut pool_data = brontes_data
                 .remove(*pool_address)

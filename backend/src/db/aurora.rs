@@ -45,27 +45,27 @@ impl AuroraConnection {
     }
 
     async fn create_pool(&self) -> Result<Pool> {
+        let host = self.config.get_host_for_environment();
         info!("Creating connection pool with configuration:");
         info!(
             "Host: {}, Port: {}, Database: {}",
-            self.config.host, self.config.port, self.config.database
+            host, self.config.port, self.config.database
         );
-
+    
         let pool_constraints = PoolConstraints::new(0, 12).context("Failed to create pool constraints")?;
-
         let pool_opts = PoolOpts::default().with_constraints(pool_constraints);
-
+    
         let opts = mysql_async::OptsBuilder::default()
-            .ip_or_hostname(self.config.host.clone())
+            .ip_or_hostname(host)
             .tcp_port(self.config.port)
             .user(Some(self.config.user.clone()))
             .pass(Some(self.config.password.clone()))
             .db_name(Some(self.config.database.clone()))
             .ssl_opts(SslOpts::default().with_danger_accept_invalid_certs(true))
             .pool_opts(pool_opts);
-
+    
         let pool = Pool::new(opts);
-
+    
         match pool.get_conn().await {
             Ok(_) => {
                 info!("Successfully established test connection to database");
