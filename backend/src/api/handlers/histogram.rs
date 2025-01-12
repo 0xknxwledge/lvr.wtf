@@ -77,58 +77,43 @@ pub async fn get_lvr_histogram(
                 StatusCode::INTERNAL_SERVER_ERROR
             })?;
 
-            // Get all non-zero bucket values
-            let bucket_0_10 = get_bucket_value(&batch, "total_bucket_0_10")?;
-            let bucket_10_100 = get_bucket_value(&batch, "total_bucket_10_100")?;
-            let bucket_100_500 = get_bucket_value(&batch, "total_bucket_100_500")?;
-            let bucket_500_3000 = get_bucket_value(&batch, "total_bucket_500_3000")?;
-            let bucket_3000_10000 = get_bucket_value(&batch, "total_bucket_3000_10000")?;
-            let bucket_10000_30000 = get_bucket_value(&batch, "total_bucket_10000_30000")?;
-            let bucket_30000_plus = get_bucket_value(&batch, "total_bucket_30000_plus")?;
-
             // Create bucket objects
             let buckets = vec![
                 HistogramBucket {
                     range_start: 0.01, // Start just above 0
                     range_end: Some(10.0),
-                    count: bucket_0_10,
+                    count: get_bucket_value(&batch, "total_bucket_0_10")?,
                     label: "$0.01-$10".to_string(),
                 },
                 HistogramBucket {
                     range_start: 10.0,
                     range_end: Some(100.0),
-                    count: bucket_10_100,
+                    count: get_bucket_value(&batch, "total_bucket_10_100")?,
                     label: "$10-$100".to_string(),
                 },
                 HistogramBucket {
                     range_start: 100.0,
                     range_end: Some(500.0),
-                    count: bucket_100_500,
+                    count: get_bucket_value(&batch, "total_bucket_100_500")?,
                     label: "$100-$500".to_string(),
                 },
                 HistogramBucket {
                     range_start: 500.0,
-                    range_end: Some(3000.0),
-                    count: bucket_500_3000,
-                    label: "$500-$3K".to_string(),
+                    range_end: Some(1000.0),
+                    count: get_bucket_value(&batch, "total_bucket_500_1000")?,
+                    label: "$500-$1K".to_string(),
                 },
                 HistogramBucket {
-                    range_start: 3000.0,
+                    range_start: 1000.0,
                     range_end: Some(10000.0),
-                    count: bucket_3000_10000,
-                    label: "$3K-$10K".to_string(),
+                    count: get_bucket_value(&batch, "total_bucket_1000_10000")?,
+                    label: "$1K-$10K".to_string(),
                 },
                 HistogramBucket {
                     range_start: 10000.0,
-                    range_end: Some(30000.0),
-                    count: bucket_10000_30000,
-                    label: "$10K-$30K".to_string(),
-                },
-                HistogramBucket {
-                    range_start: 30000.0,
                     range_end: None,
-                    count: bucket_30000_plus,
-                    label: "$30K+".to_string(),
+                    count: get_bucket_value(&batch, "total_bucket_10000_plus")?,
+                    label: "$10K+".to_string(),
                 },
             ];
 

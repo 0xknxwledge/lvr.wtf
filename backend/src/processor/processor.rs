@@ -476,10 +476,9 @@ impl ParallelLVRProcessor {
                 &checkpoint.total_bucket_0_10,
                 &checkpoint.total_bucket_10_100,
                 &checkpoint.total_bucket_100_500,
-                &checkpoint.total_bucket_500_3000,
-                &checkpoint.total_bucket_3000_10000,
-                &checkpoint.total_bucket_10000_30000,
-                &checkpoint.total_bucket_30000_plus,
+                &checkpoint.total_bucket_500_1000,
+                &checkpoint.total_bucket_1000_10000,
+                &checkpoint.total_bucket_10000_plus,
             ];
      
             for (count, bucket) in stats.buckets.iter().zip(bucket_refs.iter()) {

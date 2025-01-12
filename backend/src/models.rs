@@ -104,14 +104,13 @@ pub struct Checkpoint {
     pub markout_time: MarkoutTime,
     pub max_lvr: Arc<Mutex<MaxLVRData>>,
     pub running_total: AtomicI64,
-    pub total_bucket_0: AtomicU64,      
-    pub total_bucket_0_10: AtomicU64,
-    pub total_bucket_10_100: AtomicU64,
-    pub total_bucket_100_500: AtomicU64,
-    pub total_bucket_500_3000: AtomicU64,
-    pub total_bucket_3000_10000: AtomicU64,
-    pub total_bucket_10000_30000: AtomicU64,
-    pub total_bucket_30000_plus: AtomicU64,
+    pub total_bucket_0: AtomicU64,        
+    pub total_bucket_0_10: AtomicU64,     
+    pub total_bucket_10_100: AtomicU64,   
+    pub total_bucket_100_500: AtomicU64,  
+    pub total_bucket_500_1000: AtomicU64, 
+    pub total_bucket_1000_10000: AtomicU64, 
+    pub total_bucket_10000_plus: AtomicU64, 
     pub last_updated_block: AtomicU64,
 }
 
@@ -123,15 +122,14 @@ pub struct CheckpointSnapshot {
     pub max_lvr_block: u64,
     pub running_total: u64,
     pub total_bucket_0: u64,           
-    pub total_bucket_0_10: u64,
-    pub total_bucket_10_100: u64,
-    pub total_bucket_100_500: u64,
-    pub total_bucket_500_3000: u64,
-    pub total_bucket_3000_10000: u64,
-    pub total_bucket_10000_30000: u64,
-    pub total_bucket_30000_plus: u64,
+    pub total_bucket_0_10: u64,       
+    pub total_bucket_10_100: u64,      
+    pub total_bucket_100_500: u64,     
+    pub total_bucket_500_1000: u64,   
+    pub total_bucket_1000_10000: u64,  
+    pub total_bucket_10000_plus: u64,  
     pub last_updated_block: u64,
-    pub non_zero_proportion: f64,      
+    pub non_zero_proportion: f64,
 }
 
 
@@ -155,14 +153,13 @@ impl Checkpoint {
                 block: 0,
             })),
             running_total: AtomicI64::new(0),
-            total_bucket_0: AtomicU64::new(0),    // Initialize zero bucket
+            total_bucket_0: AtomicU64::new(0),
             total_bucket_0_10: AtomicU64::new(0),
             total_bucket_10_100: AtomicU64::new(0),
             total_bucket_100_500: AtomicU64::new(0),
-            total_bucket_500_3000: AtomicU64::new(0),
-            total_bucket_3000_10000: AtomicU64::new(0),
-            total_bucket_10000_30000: AtomicU64::new(0),
-            total_bucket_30000_plus: AtomicU64::new(0),
+            total_bucket_500_1000: AtomicU64::new(0),
+            total_bucket_1000_10000: AtomicU64::new(0),
+            total_bucket_10000_plus: AtomicU64::new(0),
             last_updated_block: AtomicU64::new(0),
         }
     }
@@ -173,10 +170,9 @@ impl Checkpoint {
             self.total_bucket_0_10.load(Ordering::Acquire) +
             self.total_bucket_10_100.load(Ordering::Acquire) +
             self.total_bucket_100_500.load(Ordering::Acquire) +
-            self.total_bucket_500_3000.load(Ordering::Acquire) +
-            self.total_bucket_3000_10000.load(Ordering::Acquire) +
-            self.total_bucket_10000_30000.load(Ordering::Acquire) +
-            self.total_bucket_30000_plus.load(Ordering::Acquire);
+            self.total_bucket_500_1000.load(Ordering::Acquire) +
+            self.total_bucket_1000_10000.load(Ordering::Acquire) +
+            self.total_bucket_10000_plus.load(Ordering::Acquire);
 
         let non_zero_observations = total_observations - self.total_bucket_0.load(Ordering::Acquire);
         
@@ -196,10 +192,9 @@ impl Checkpoint {
             total_bucket_0_10: self.total_bucket_0_10.load(Ordering::Acquire),
             total_bucket_10_100: self.total_bucket_10_100.load(Ordering::Acquire),
             total_bucket_100_500: self.total_bucket_100_500.load(Ordering::Acquire),
-            total_bucket_500_3000: self.total_bucket_500_3000.load(Ordering::Acquire),
-            total_bucket_3000_10000: self.total_bucket_3000_10000.load(Ordering::Acquire),
-            total_bucket_10000_30000: self.total_bucket_10000_30000.load(Ordering::Acquire),
-            total_bucket_30000_plus: self.total_bucket_30000_plus.load(Ordering::Acquire),
+            total_bucket_500_1000: self.total_bucket_500_1000.load(Ordering::Acquire),
+            total_bucket_1000_10000: self.total_bucket_1000_10000.load(Ordering::Acquire),
+            total_bucket_10000_plus: self.total_bucket_10000_plus.load(Ordering::Acquire),
             last_updated_block: self.last_updated_block.load(Ordering::Acquire),
             non_zero_proportion,
         }
@@ -242,14 +237,15 @@ impl IntervalData {
     }
 }
 
-#[derive(Default)]
+#[derive(Debug, Default)]
 pub struct CheckpointStats {
     pub updates: u64,
     pub running_total: u64,
     pub max_lvr: u64,
     pub max_lvr_block: u64,
-    pub buckets: [u64; 8]
+    pub buckets: [u64; 7] 
 }
+
 
 
 impl CheckpointStats {
@@ -270,13 +266,13 @@ impl CheckpointStats {
 
         let abs_dollars = (data_point.lvr_cents as f64 / 100.0).abs();
         let bucket_idx = match abs_dollars {
-            x if x <= 10.0 => 1,
-            x if x <= 100.0 => 2,
-            x if x <= 500.0 => 3,
-            x if x <= 3000.0 => 4,
-            x if x <= 10000.0 => 5,
-            x if x <= 30000.0 => 6,
-            _ => 7,
+            x if x == 0.0 => 0,          // $0
+            x if x <= 10.0 => 1,         // $0-10
+            x if x <= 100.0 => 2,        // $10-100
+            x if x <= 500.0 => 3,        // $100-500
+            x if x <= 1000.0 => 4,       // $500-1000
+            x if x <= 10000.0 => 5,      // $1000-10000
+            _ => 6,                      // $10000+
         };
         self.buckets[bucket_idx] += 1;
     }

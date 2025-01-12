@@ -205,10 +205,9 @@ pub async fn get_cluster_histogram(
                 "total_bucket_0_10",
                 "total_bucket_10_100",
                 "total_bucket_100_500",
-                "total_bucket_500_3000",
-                "total_bucket_3000_10000",
-                "total_bucket_10000_30000",
-                "total_bucket_30000_plus",
+                "total_bucket_500_1000",
+                "total_bucket_1000_10000",
+                "total_bucket_10000_plus",
             ];
 
             let mut bucket_columns = Vec::new();
@@ -255,46 +254,46 @@ pub async fn get_cluster_histogram(
         .map(|(name, bucket_counts)| {
             let buckets = vec![
                 ClusterHistogramBucket {
-                    range_start: 0.01,
-                    range_end: Some(10.0),
+                    range_start: 0.0,
+                    range_end: Some(0.0),
                     count: bucket_counts[0],
-                    label: "$0.01-$10".to_string(),
+                    label: "$0".to_string(),
+                },
+                ClusterHistogramBucket {
+                    range_start: 0.0,
+                    range_end: Some(10.0),
+                    count: bucket_counts[1],
+                    label: "$0-$10".to_string(),
                 },
                 ClusterHistogramBucket {
                     range_start: 10.0,
                     range_end: Some(100.0),
-                    count: bucket_counts[1],
+                    count: bucket_counts[2],
                     label: "$10-$100".to_string(),
                 },
                 ClusterHistogramBucket {
                     range_start: 100.0,
                     range_end: Some(500.0),
-                    count: bucket_counts[2],
+                    count: bucket_counts[3],
                     label: "$100-$500".to_string(),
                 },
                 ClusterHistogramBucket {
                     range_start: 500.0,
-                    range_end: Some(3000.0),
-                    count: bucket_counts[3],
-                    label: "$500-$3K".to_string(),
+                    range_end: Some(1000.0),
+                    count: bucket_counts[4],
+                    label: "$500-$1K".to_string(),
                 },
                 ClusterHistogramBucket {
-                    range_start: 3000.0,
+                    range_start: 1000.0,
                     range_end: Some(10000.0),
-                    count: bucket_counts[4],
-                    label: "$3K-$10K".to_string(),
+                    count: bucket_counts[5],
+                    label: "$1K-$10K".to_string(),
                 },
                 ClusterHistogramBucket {
                     range_start: 10000.0,
-                    range_end: Some(30000.0),
-                    count: bucket_counts[5],
-                    label: "$10K-$30K".to_string(),
-                },
-                ClusterHistogramBucket {
-                    range_start: 30000.0,
                     range_end: None,
                     count: bucket_counts[6],
-                    label: "$30K+".to_string(),
+                    label: "$10K+".to_string(),
                 },
             ];
 
