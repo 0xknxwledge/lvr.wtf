@@ -1,7 +1,6 @@
-- REFACTOR BACKEND S.T
-    - Precomputes all the values needed as of rn
-    - Figure out the file system for storing ^
-    - Change 500-3000 bucket to 500-1000, add 1000-10000 and 10000+ buckets 
+- Refactor the API module to pull directly from the precomputed files 
+- Test and debug the precompute module
+- Once ^ is good, modify the dockerfile and GCP build so that the precompute filesystem is stored
 - Remove zoom-in for Category histogram
 - Change color palette for Category graphs (not enough contrast?)
 - Consistent title font (rn the Category non-zero is big and white, all others are small and lime green)

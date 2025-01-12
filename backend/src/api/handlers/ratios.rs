@@ -113,7 +113,7 @@ pub async fn get_lvr_ratios(
 }
 
 // calculate_lvr_ratios remains the same
-fn calculate_lvr_ratios(totals: LVRTotals) -> Vec<MarkoutRatio> {
+pub fn calculate_lvr_ratios(totals: LVRTotals) -> Vec<MarkoutRatio> {
     let mut ratios = Vec::new();
     
     // Only calculate ratios if we have realized LVR data

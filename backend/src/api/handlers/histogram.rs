@@ -136,7 +136,7 @@ pub async fn get_lvr_histogram(
     Err(StatusCode::NOT_FOUND)
 }
 
-fn get_bucket_value(batch: &arrow::record_batch::RecordBatch, column_name: &str) -> Result<u64, StatusCode> {
+pub fn get_bucket_value(batch: &arrow::record_batch::RecordBatch, column_name: &str) -> Result<u64, StatusCode> {
     let idx = batch.schema().index_of(column_name).map_err(|e| {
         error!("Failed to find {} column: {}", column_name, e);
         StatusCode::INTERNAL_SERVER_ERROR

@@ -1,9 +1,11 @@
 mod handlers;
 mod types;
 mod state;
+pub mod precompute;
 pub use handlers::*;
 pub use types::*;
 pub use state::*;
+pub use precompute::*;
 
 use tokio::net::TcpListener;
 use axum::{

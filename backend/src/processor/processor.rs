@@ -4,6 +4,7 @@ use crate::{
     config::{AuroraConfig, BrontesConfig},
     writer::ParallelParquetWriter,
     models::{Checkpoint, IntervalData, MarkoutTime,UnifiedLVRData, CheckpointStats, DataSource, CheckpointUpdate},
+    api::precompute::PrecomputedWriter,
     error::Error,
     MARKOUT_TIMES, MARKOUT_TIME_MAPPING, POOL_ADDRESSES, POOL_NAMES, PEPE_DEPLOYMENT_V2, PEPE_DEPLOYMENT_V3, USDeUSDT_DEPLOYMENT, WETH_USDT_100_DEPLOYMENT
 };
@@ -118,6 +119,16 @@ impl ParallelLVRProcessor {
             "Successfully completed processing all blocks from {} to {}", 
             self.start_block, self.end_block
         );
+
+        // Run precomputation after successful processing
+        info!("Starting precomputation phase...");
+        match self.run_precomputation().await {
+            Ok(_) => info!("Successfully completed precomputation phase"),
+            Err(e) => {
+                error!("Failed to run precomputation: {}", e);
+                return Err(e);
+            }
+        }
         
         Ok(())
     }
@@ -576,6 +587,52 @@ impl ParallelLVRProcessor {
             .collect();
     
         Ok(result)
+    }
+
+    async fn run_precomputation(&self) -> Result<()> {
+        info!("Starting precomputation of all metrics...");
+        
+        let precomputed_writer = PrecomputedWriter::new(self.object_store.clone());
+        
+        // Run all precomputation methods sequentially
+        precomputed_writer.write_running_totals().await?;
+        info!("Completed running totals precomputation");
+        
+        precomputed_writer.write_lvr_ratios().await?;
+        info!("Completed LVR ratios precomputation");
+        
+        precomputed_writer.write_pool_totals().await?;
+        info!("Completed pool totals precomputation");
+        
+        precomputed_writer.write_max_lvr().await?;
+        info!("Completed max LVR precomputation");
+        
+        precomputed_writer.write_non_zero_proportions().await?;
+        info!("Completed non-zero proportions precomputation");
+        
+        precomputed_writer.write_histograms().await?;
+        info!("Completed histograms precomputation");
+        
+        precomputed_writer.write_percentile_bands().await?;
+        info!("Completed percentile bands precomputation");
+        
+        precomputed_writer.write_quartile_plots().await?;
+        info!("Completed quartile plots precomputation");
+        
+        precomputed_writer.write_cluster_proportions().await?;
+        info!("Completed cluster proportions precomputation");
+        
+        precomputed_writer.write_cluster_histograms().await?;
+        info!("Completed cluster histograms precomputation");
+        
+        precomputed_writer.write_monthly_cluster_totals().await?;
+        info!("Completed monthly cluster totals precomputation");
+        
+        precomputed_writer.write_cluster_non_zero().await?;
+        info!("Completed cluster non-zero precomputation");
+    
+        info!("Successfully completed all metric precomputations");
+        Ok(())
     }
 
     fn calculate_percentile_cents(sorted_values: &[u64], percentile: f64) -> u64 {

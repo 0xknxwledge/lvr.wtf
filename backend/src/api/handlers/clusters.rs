@@ -19,7 +19,7 @@ use crate::{
 };
 
 
-fn get_cluster_name(pool_address: &str) -> Option<&'static str> {
+pub fn get_cluster_name(pool_address: &str) -> Option<&'static str> {
     let address = pool_address.to_lowercase();
     if STABLE_POOLS.contains_key(address.as_str()) {
         Some("Stable Pairs")
