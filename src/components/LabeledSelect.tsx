@@ -10,7 +10,7 @@ interface SelectWrapperProps {
 
 const SelectWrapper: React.FC<SelectWrapperProps> = ({ label, value, onChange, options, id }) => {
   return (
-    <div className="flex flex-col gap-2">
+    <div className="font-['Menlo'] flex flex-col gap-2">
       <label 
         htmlFor={id}
         className="text-[#b4d838] text-sm font-medium"

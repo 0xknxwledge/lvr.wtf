@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import Plot from 'react-plotly.js';
-import { Data, Layout } from 'plotly.js';
-import { plotColors } from '../plotUtils';
+import { Data } from 'plotly.js';
+import { createBaseLayout, plotColors, fontConfig, commonConfig, createAnnotationConfig } from '../plotUtils';
 
 interface MarkoutRatio {
   markout_time: string;
@@ -65,7 +65,7 @@ const RealizedRatioChart: React.FC = () => {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-96">
-        <p className="text-white">Loading...</p>
+        <p className="text-white font-['Menlo']">Loading...</p>
       </div>
     );
   }
@@ -73,7 +73,7 @@ const RealizedRatioChart: React.FC = () => {
   if (error) {
     return (
       <div className="flex items-center justify-center h-96">
-        <p className="text-red-500">{error}</p>
+        <p className="text-red-500 font-['Menlo']">{error}</p>
       </div>
     );
   }
@@ -83,6 +83,19 @@ const RealizedRatioChart: React.FC = () => {
     const bNum = parseFloat(b.markout_time);
     return aNum - bNum;
   });
+
+  // Calculate beta regression
+  const xValues = sortedData.map(d => parseFloat(d.markout_time));
+  const yValues = sortedData.map(d => d.ratio);
+  const [alpha, beta] = betaRegression(xValues, yValues);
+
+  const xRange = [...Array(100)].map((_, i) => {
+    const min = Math.min(...xValues);
+    const max = Math.max(...xValues);
+    return min + (i * (max - min) / 99);
+  });
+
+  const yPred = xRange.map(x => invLogit(alpha + beta * x) * 100);
 
   const mainTrace: Partial<Data> = {
     x: sortedData.map(d => parseFloat(d.markout_time)),
@@ -108,20 +121,8 @@ const RealizedRatioChart: React.FC = () => {
       d.realized_lvr_cents / 100,
       d.theoretical_lvr_cents / 100
     ]),
+    showlegend: false
   };
-
-  // Calculate beta regression
-  const xValues = sortedData.map(d => parseFloat(d.markout_time));
-  const yValues = sortedData.map(d => d.ratio);
-  const [alpha, beta] = betaRegression(xValues, yValues);
-
-  const xRange = [...Array(100)].map((_, i) => {
-    const min = Math.min(...xValues);
-    const max = Math.max(...xValues);
-    return min + (i * (max - min) / 99);
-  });
-
-  const yPred = xRange.map(x => invLogit(alpha + beta * x) * 100);
 
   const betaRegressionTrace: Partial<Data> = {
     x: xRange,
@@ -129,119 +130,91 @@ const RealizedRatioChart: React.FC = () => {
     type: 'scatter',
     mode: 'lines',
     name: 'Beta Regression',
-    showlegend: false,
     line: {
       color: plotColors.accent,
       width: 2,
       dash: 'dot',
     },
     hoverinfo: 'skip',
+    showlegend: false
   };
 
   const meanX = xValues.reduce((a, b) => a + b, 0) / xValues.length;
   const meanP = invLogit(alpha + beta * meanX);
   const marginalEffect = beta * meanP * (1 - meanP) * 100;
 
-  const layout: Partial<Layout> = {
-    title: {
-      text: 'Ratio between Total Realized/Maximal LVR by Markout Time',
-      font: { 
-        color: plotColors.accent,
-        size: 16 
-      },
-      x: 0.5,
-      y: 0.95
-    },
-    paper_bgcolor: '#000000',
-    plot_bgcolor: '#000000',
-    xaxis: {
-      title: {
-        text: 'Markout Time (seconds)',
-        font: { 
-          color: plotColors.accent,
-          size: 14 
-        },
-        standoff: 20
-      },
-      tickfont: { 
-        color: '#ffffff',
-        size: 10 
-      },
-      showgrid: false,
-      gridcolor: '#212121',
-      zeroline: true,
-      zerolinecolor: plotColors.secondary,
-    },
-    yaxis: {
-      title: {
-        text: 'Observed/Simulated Ratio',
-        font: { 
-          color: plotColors.accent,
-          size: 14 
-        },
-        standoff: 40
-      },
-      tickfont: { 
-        color: '#ffffff' 
-      },
-      tickformat: '.1f',
-      ticksuffix: '%',
-      showgrid: true,
-      gridcolor: '#212121',
-      range: [0, Math.max(...yValues) * 1.1],
-    },
-    height: 600,
-    margin: {
-      l: 120,
-      r: 50,
-      b: 80,
-      t: 100,
-      pad: 4
-    },
-    annotations: [{
-      x: 0,
-      y: invLogit(alpha) * 100,
-      xref: 'x',
-      yref: 'y',
-      text: `Avg. Marginal Effect: ${marginalEffect.toFixed(2)}pp/s`,
-      showarrow: false,
-      font: { color: plotColors.accent },
-      bgcolor: 'rgba(0,0,0,0.7)',
-      borderpad: 4,
-    }],
-    showlegend: false,
-    legend: {
-      x: 0.02,
-      y: 0.98,
-      xanchor: 'left',
-      yanchor: 'top',
-      font: { 
-        color: '#ffffff' 
-      },
-      bgcolor: '#000000',
-      bordercolor: '#212121'
-    },
-    hoverlabel: {
-      bgcolor: '#424242',
-      bordercolor: plotColors.accent,
-      font: { 
-        color: '#ffffff',
-        size: 12 
-      }
-    },
-    hovermode: 'closest'
-  };
+  const title = 'Ratio between Total Realized/Maximal LVR by Markout Time';
+  const baseLayout = createBaseLayout(title);
 
   return (
     <div className="w-full">
       <Plot
-        data={[mainTrace]}
-        layout={layout}
-        config={{
-          responsive: true,
-          displayModeBar: false,
-          scrollZoom: false
+        data={[mainTrace, betaRegressionTrace]}
+        layout={{
+          ...baseLayout,
+          xaxis: {
+            ...baseLayout.xaxis,
+            title: {
+              text: 'Markout Time (seconds)',
+              font: { color: plotColors.accent, size: fontConfig.sizes.axisTitle, family: fontConfig.family },
+              standoff: 20
+            },
+            tickfont: { color: '#ffffff', family: fontConfig.family },
+            showgrid: false,
+            gridcolor: '#212121',
+            zeroline: true,
+            zerolinecolor: plotColors.secondary,
+          },
+          yaxis: {
+            ...baseLayout.yaxis,
+            title: {
+              text: 'Observed/Simulated Ratio',
+              font: { color: plotColors.accent, size: fontConfig.sizes.axisTitle, family: fontConfig.family },
+              standoff: 40
+            },
+            tickfont: { color: '#ffffff', family: fontConfig.family },
+            tickformat: '.1f',
+            ticksuffix: '%',
+            showgrid: true,
+            gridcolor: '#212121',
+            range: [0, Math.max(...yValues) * 1.1],
+          },
+          height: 600,
+          margin: { l: 120, r: 50, b: 80, t: 100, pad: 4 },
+          annotations: [{
+            ...createAnnotationConfig({
+              x: 0,
+              y: invLogit(alpha) * 100,
+              xref: 'x',
+              yref: 'y',
+              text: `Avg. Marginal Effect: ${marginalEffect.toFixed(2)}pp/s`,
+              showarrow: false,
+              font: { 
+                color: plotColors.accent,
+                family: fontConfig.family,
+                size: fontConfig.sizes.annotation
+              },
+              bgcolor: 'rgba(0,0,0,0.7)',
+              borderpad: 4,
+            })
+          }],
+          showlegend: false,
+          hoverlabel: {
+            bgcolor: '#424242',
+            bordercolor: plotColors.accent,
+            font: { 
+              family: fontConfig.family,
+              color: '#ffffff',
+              size: fontConfig.sizes.hover
+            }
+          },
+          hovermode: 'closest'
         }}
+                  config={{
+            ...commonConfig,
+            scrollZoom: false,
+            modeBarButtonsToRemove: ['zoomIn2d', 'zoomOut2d', 'autoScale2d', 'resetScale2d']
+          }}
         style={{ width: '100%', height: '100%' }}
       />
     </div>

@@ -7,7 +7,7 @@ interface DataLayoutProps {
 
 function DataLayout({ children }: DataLayoutProps) {
   return (
-    <div className="flex bg-[#030304] min-h-screen">
+    <div className="font-['Menlo'] flex bg-[#030304] min-h-screen">
       {/* Fixed width sidebar */}
       <div className="fixed w-64">
         <SidebarNavigation />

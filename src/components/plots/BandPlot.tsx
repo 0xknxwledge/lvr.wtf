@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import Plot from 'react-plotly.js';
 import names from '../../names';
 import dates from '../../dates';
+import { createBaseLayout, plotColors, fontConfig, commonConfig } from '../plotUtils';
 
 interface PercentileDataPoint {
   block_number: number;
@@ -57,7 +58,7 @@ const PercentileBandChart: React.FC<PercentileBandChartProps> = ({
         const startIndex = Math.max(0, dates.length - numDataPoints);
         const filteredDates = dates.slice(startIndex);
         
-        // Attach the filtered dates to our JSON response object so we can use them below
+        // Attach the filtered dates to our JSON response object
         (jsonData as any).filteredDates = filteredDates;
 
         setData(jsonData);
@@ -74,7 +75,7 @@ const PercentileBandChart: React.FC<PercentileBandChartProps> = ({
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-96">
-        <p className="text-white">Loading...</p>
+        <p className="text-white font-['Menlo']">Loading...</p>
       </div>
     );
   }
@@ -82,7 +83,7 @@ const PercentileBandChart: React.FC<PercentileBandChartProps> = ({
   if (error || !data) {
     return (
       <div className="flex items-center justify-center h-96">
-        <p className="text-red-500">{error || 'No data available'}</p>
+        <p className="text-red-500 font-['Menlo']">{error || 'No data available'}</p>
       </div>
     );
   }
@@ -102,8 +103,11 @@ const PercentileBandChart: React.FC<PercentileBandChartProps> = ({
       ? `${names[poolAddress]} (Observed LVR)`
       : `${names[poolAddress]} (Markout ${markoutTime}s)`;
 
+  const title = `Monthly LVR Percentile Bandplot for ${titleSuffix}*`;
+  const baseLayout = createBaseLayout(title);
+
   // Create plotData
-  const plotData: Array<Partial<Plotly.Data>>  = [
+  const plotData: Array<Partial<Plotly.Data>> = [
     {
       x: [...filteredDates, ...filteredDates.slice().reverse()],
       y: [...percentile75Values, ...percentile25Values.slice().reverse()],
@@ -112,18 +116,18 @@ const PercentileBandChart: React.FC<PercentileBandChartProps> = ({
       line: { color: 'rgba(180, 216, 56, 0.5)' },
       name: '25th-75th Percentile',
       showlegend: false,
-      type: 'scatter' as const,
+      type: 'scatter',
       mode: 'none',
       hoverinfo: 'skip',
     },
     {
       x: filteredDates,
       y: medianValues,
-      type: 'scatter' as const,
+      type: 'scatter',
       mode: 'lines',
       name: 'Median',
       line: {
-        color: '#b4d838',
+        color: plotColors.accent,
         width: 2,
       },
       showlegend: false,
@@ -148,30 +152,29 @@ const PercentileBandChart: React.FC<PercentileBandChartProps> = ({
       <Plot
         data={plotData}
         layout={{
-          title: {
-            text: `Monthly LVR Percentile Bandplot for ${titleSuffix}*`,
-            font: { color: '#b4d838', size: 16 },
-          },
+          ...baseLayout,
           xaxis: {
+            ...baseLayout.xaxis,
             title: {
               text: 'Date Range (UTC)',
-              font: { color: '#b4d838', size: 14 },
+              font: { color: plotColors.accent, size: fontConfig.sizes.axisTitle, family: fontConfig.family },
               standoff: 30,
             },
-            tickfont: { color: '#ffffff', size: 10 },
+            tickfont: { color: '#ffffff', size: fontConfig.sizes.axisLabel, family: fontConfig.family },
             tickangle: 45,
             fixedrange: true,
             showgrid: false,
             automargin: true,
           },
           yaxis: {
+            ...baseLayout.yaxis,
             title: {
               text: 'Daily Total LVR',
-              font: { color: '#b4d838', size: 14 },
+              font: { color: plotColors.accent, size: fontConfig.sizes.axisTitle, family: fontConfig.family },
               standoff: 30,
             },
             tickformat: '$,.2f',
-            tickfont: { color: '#ffffff' },
+            tickfont: { color: '#ffffff', family: fontConfig.family },
             fixedrange: true,
             showgrid: true,
             gridcolor: '#212121',
@@ -180,19 +183,14 @@ const PercentileBandChart: React.FC<PercentileBandChartProps> = ({
           autosize: true,
           height: 400,
           margin: { l: 100, r: 50, b: 140, t: 80 },
-          paper_bgcolor: '#000000',
-          plot_bgcolor: '#000000',
-          hovermode: 'x unified',
           hoverlabel: {
             bgcolor: '#424242',
-            bordercolor: '#b4d838',
-            font: { color: '#ffffff', size: 12 },
+            bordercolor: plotColors.accent,
+            font: { color: '#ffffff', size: fontConfig.sizes.hover, family: fontConfig.family },
           },
+          hovermode: 'x unified',
         }}
-        config={{
-          responsive: true,
-          displayModeBar: false,
-        }}
+        config={commonConfig}
         style={{ width: '100%', height: '100%' }}
       />
     </div>

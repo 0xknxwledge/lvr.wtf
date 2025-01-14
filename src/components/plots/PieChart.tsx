@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import Plot from 'react-plotly.js';
 import names from '../../names';
-import { plotColors, createBaseLayout, commonConfig } from '../plotUtils';
+import { plotColors, createBaseLayout, commonConfig, fontConfig} from '../plotUtils';
 
 interface PoolTotal {
   pool_name: string;
@@ -128,7 +128,7 @@ const PoolTotalsPieChart: React.FC<PoolTotalsPieChartProps> = ({ selectedMarkout
           showlegend: false,
           height: 600,
           margin: { t: 80, b: 80, l: 80, r: 80 },
-          font: { color: '#FFFFFF' },
+          font: { color: '#FFFFFF', family: fontConfig.family },
           annotations: [{
             text: '',
             showarrow: false,
@@ -138,7 +138,8 @@ const PoolTotalsPieChart: React.FC<PoolTotalsPieChartProps> = ({ selectedMarkout
             yref: 'paper',
             font: {
               color: plotColors.accent,
-              size: 14
+              size: 14,
+              family: fontConfig.family
             }
           }]
         }}

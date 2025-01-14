@@ -5,7 +5,7 @@ function NavBar() {
     const location = useLocation();
   
     return (
-      <nav className="w-full h-24 px-20 py-6 bg-[#0b0b0e] border-b border-[#1a1a1a] flex justify-between items-center">
+      <nav className="font-['Menlo'] w-full h-24 px-20 py-6 bg-[#0b0b0e] border-b border-[#1a1a1a] flex justify-between items-center">
         <div className="text-white text-[26px] font-semibold font-['General Sans'] leading-tight">
           <Link to="/">lvr.wtf</Link>
         </div>

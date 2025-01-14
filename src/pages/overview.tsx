@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 
 function Overview() {
   return (
-    <div className="py-12">
+    <div className="py-12 font-['Menlo']">
       <h1 className="text-6xl font-bold text-center mb-12">Overview</h1>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
         {/* First card - subtle gradient from dark to sage */}

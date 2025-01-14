@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import Plot from 'react-plotly.js';
 import { Data } from 'plotly.js';
 import names from '../../names';
+import { createBaseLayout, plotColors, fontConfig, commonConfig } from '../plotUtils';
 
 interface PoolQuartileData {
   pool_name: string;
@@ -183,7 +184,7 @@ const QuartilePlot: React.FC<QuartilePlotProps> = ({ selectedMarkout }) => {
       layout={{
         title: {
           text: `Daily LVR Box Plots by Pool ${titleSuffix}*`,
-          font: { color: '#b4d838', size: 16 }
+          font: { color: '#b4d838', size: 16, family: fontConfig.family}
         },
         xaxis: {
           ticktext: sortedData.map(d => names[d.pool_address] || d.pool_name),
@@ -195,7 +196,7 @@ const QuartilePlot: React.FC<QuartilePlotProps> = ({ selectedMarkout }) => {
         yaxis: {
           title: {
             text: 'Daily Total LVR',
-            font: { color: '#b4d838', size: 14 },
+            font: { color: '#b4d838', size: 14, family: fontConfig.family},
             standoff: 30
           },
           tickformat: '$,.2f',
@@ -217,7 +218,7 @@ const QuartilePlot: React.FC<QuartilePlotProps> = ({ selectedMarkout }) => {
         hoverlabel: {
           bgcolor: '#424242',
           bordercolor: '#b4d838',
-          font: { color: '#ffffff' }
+          font: { color: '#ffffff', family: fontConfig.family }
         },
         hovermode: 'closest'
       }}

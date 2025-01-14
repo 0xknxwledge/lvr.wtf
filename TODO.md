@@ -3,6 +3,7 @@
 - Remove zoom-in for Category histogram
 - Change color palette for Category graphs (not enough contrast?)
 - Consistent title font (rn the Category non-zero is big and white, all others are small and lime green)
+- Make sure site works on mobile
 - Write out "What is LVR?" and "Methodology"
 
 

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import Plot from 'react-plotly.js';
 import names from '../../names';
+import { createBaseLayout, plotColors, fontConfig, commonConfig, createAnnotationConfig } from '../plotUtils';
 
 interface HistogramBucket {
   range_start: number;
@@ -104,7 +105,7 @@ const HistogramChart: React.FC<HistogramChartProps> = ({ poolAddress, markoutTim
     return (
       <div className="w-full bg-black rounded-2xl border border-[#212121] p-6">
         <div className="h-[400px] flex items-center justify-center">
-          <p className="text-white">Loading...</p>
+          <p className="text-white font-['Menlo']">Loading...</p>
         </div>
       </div>
     );
@@ -114,7 +115,7 @@ const HistogramChart: React.FC<HistogramChartProps> = ({ poolAddress, markoutTim
     return (
       <div className="w-full bg-black rounded-2xl border border-[#212121] p-6">
         <div className="h-[400px] flex items-center justify-center">
-          <p className="text-red-500">{error || 'No data available'}</p>
+          <p className="text-red-500 font-['Menlo']">{error || 'No data available'}</p>
         </div>
       </div>
     );
@@ -142,24 +143,24 @@ const HistogramChart: React.FC<HistogramChartProps> = ({ poolAddress, markoutTim
     '(Observed LVR)' : 
     `(Markout ${markoutTime}s)`;
 
+  const title = `Per-Block LVR Histogram for ${poolName} ${titleSuffix}`;
+  const baseLayout = createBaseLayout(title);
+
   // Create annotation for selected bucket
   const annotations = selectedBucket ? [{
-    x: selectedBucket.label,
-    y: yValues[xValues.indexOf(selectedBucket.label)],
-    text: `Count: ${selectedBucket.count.toLocaleString()}<br>` +
-          `Percentage: ${selectedBucket.percentage.toFixed(2)}%`,
-    showarrow: true,
-    arrowhead: 2,
-    arrowsize: 1,
-    arrowwidth: 2,
-    arrowcolor: '#b4d838',
-    bgcolor: '#424242',
-    bordercolor: '#b4d838',
-    font: { color: '#ffffff', size: 12 },
-    borderwidth: 2,
-    borderpad: 4,
-    ay: -40,
-    ax: 0,
+    ...createAnnotationConfig({
+      x: selectedBucket.label,
+      y: yValues[xValues.indexOf(selectedBucket.label)],
+      text: `Count: ${selectedBucket.count.toLocaleString()}<br>` +
+            `Percentage: ${selectedBucket.percentage.toFixed(2)}%`,
+      showarrow: true,
+      arrowhead: 2,
+      arrowsize: 1,
+      arrowwidth: 2,
+      arrowcolor: plotColors.accent,
+      ay: -40,
+      ax: 0,
+    })
   }] : [];
 
   return (
@@ -171,36 +172,36 @@ const HistogramChart: React.FC<HistogramChartProps> = ({ poolAddress, markoutTim
             x: xValues,
             y: yValues,
             marker: {
-              color: '#b4d838',
+              color: plotColors.accent,
               opacity: 0.8,
             },
             hoverinfo: 'none',
+            showlegend: false,
           }
         ]}
         layout={{
-          title: {
-            text: `Per-Block LVR Histogram for ${poolName} ${titleSuffix}`,
-            font: { color: '#b4d838', size: 16 }
-          },
+          ...baseLayout,
           xaxis: {
+            ...baseLayout.xaxis,
             title: {
               text: 'LVR Range ($)',
-              font: { color: '#b4d838', size: 14 },
+              font: { color: plotColors.accent, size: fontConfig.sizes.axisTitle, family: fontConfig.family },
               standoff: 20
             },
-            tickfont: { color: '#ffffff' },
+            tickfont: { color: '#ffffff', size: fontConfig.sizes.axisLabel, family: fontConfig.family },
             tickangle: 45,
             fixedrange: true,
             categoryorder: 'array' as const,
             categoryarray: bucketOrder
           },
           yaxis: {
+            ...baseLayout.yaxis,
             title: {
               text: 'Number of Blocks',
-              font: { color: '#b4d838', size: 14 },
+              font: { color: plotColors.accent, size: fontConfig.sizes.axisTitle, family: fontConfig.family },
               standoff: 20
             },
-            tickfont: { color: '#ffffff' },
+            tickfont: { color: '#ffffff', family: fontConfig.family },
             fixedrange: true,
             showgrid: true,
             gridcolor: '#212121',
@@ -209,16 +210,15 @@ const HistogramChart: React.FC<HistogramChartProps> = ({ poolAddress, markoutTim
           autosize: true,
           height: 400,
           margin: { l: 80, r: 50, b: 100, t: 80, pad: 4 },
-          paper_bgcolor: '#000000',
-          plot_bgcolor: '#000000',
           annotations: annotations,
-
-          showlegend: false,
+          hoverlabel: {
+            bgcolor: '#424242',
+            bordercolor: plotColors.accent,
+            font: { color: '#ffffff', size: fontConfig.sizes.hover, family: fontConfig.family },
+          },
+          hovermode: 'x unified'
         }}
-        config={{
-          responsive: true,
-          displayModeBar: false,
-        }}
+        config={commonConfig}
         style={{ width: '100%', height: '100%' }}
       />
       
@@ -228,7 +228,7 @@ const HistogramChart: React.FC<HistogramChartProps> = ({ poolAddress, markoutTim
           <button
             key={label}
             onClick={() => handleLabelClick(label)}
-            className={`px-4 py-2 rounded-lg transition-all duration-200 ${
+            className={`px-4 py-2 rounded-lg transition-all duration-200 font-['Menlo'] ${
               selectedBucket?.label === label
                 ? 'bg-[#b4d838] text-black font-medium'
                 : 'bg-[#212121] text-white hover:bg-[#2a2a2a]'

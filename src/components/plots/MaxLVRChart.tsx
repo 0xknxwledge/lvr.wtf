@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import Plot from 'react-plotly.js';
 import names from '../../names';
+import { createBaseLayout, plotColors, fontConfig, commonConfig } from '../plotUtils';
 
 interface PoolMaxLVR {
   pool_name: string;
@@ -46,7 +47,7 @@ const MaxLVRChart: React.FC<MaxLVRChartProps> = ({ selectedMarkout }) => {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-96">
-        <p className="text-white">Loading...</p>
+        <p className="text-white font-['Menlo']">Loading...</p>
       </div>
     );
   }
@@ -54,7 +55,7 @@ const MaxLVRChart: React.FC<MaxLVRChartProps> = ({ selectedMarkout }) => {
   if (error || !data || data.length === 0) {
     return (
       <div className="flex items-center justify-center h-96">
-        <p className="text-red-500">{error || 'No data available'}</p>
+        <p className="text-red-500 font-['Menlo']">{error || 'No data available'}</p>
       </div>
     );
   }
@@ -72,44 +73,50 @@ const MaxLVRChart: React.FC<MaxLVRChartProps> = ({ selectedMarkout }) => {
     '(Observed)' : 
     `(Markout ${selectedMarkout}s)`;
 
+  const title = `Maximum Single-Block LVR by Pool ${titleSuffix}`;
+  const baseLayout = createBaseLayout(title);
+
   return (
     <Plot
-    data={[
-      {
-        // Give the bar trace an empty name so Plotly won't show a label or color swatch
-        name: '<b>%{x}</b><br>',
-  
-        x: sortedData.map(d => names[d.pool_address] || d.pool_name),
-        y: sortedData.map(d => d.lvr_cents / 100),
-        type: 'bar',
-        marker: {
-          color: '#b4d838',
-          opacity: 0.8,
-        },
-        // Bold the pool name in your hover text
-        hovertemplate:
-          'Maximum LVR: $%{y:,.2f}<br>' +
-          'Block: %{customdata:,d}' +
-          '<extra></extra>',            // Remove default extra label
-        customdata: sortedData.map(d => d.block_number),
-        width: 0.8,
-        showlegend: false,
-      }
-    ]}
+      data={[
+        {
+          x: sortedData.map(d => names[d.pool_address] || d.pool_name),
+          y: sortedData.map(d => d.lvr_cents / 100),
+          type: 'bar',
+          marker: {
+            color: plotColors.accent,
+            opacity: 0.8,
+          },
+          hovertemplate:
+            '<b>%{x}</b><br>' +
+            'Maximum LVR: $%{y:,.2f}<br>' +
+            'Block: %{customdata:,d}' +
+            '<extra></extra>',
+          customdata: sortedData.map(d => d.block_number),
+          width: 0.8,
+          showlegend: false,
+        }
+      ]}
       layout={{
-        title: {
-          text: `Maximum Single-Block LVR by Pool ${titleSuffix}`,
-          font: { color: '#b4d838', size: 16 }
-        },
+        ...baseLayout,
         xaxis: {
-          tickfont: { color: '#ffffff', size: 10 },
+          ...baseLayout.xaxis,
+          tickfont: { 
+            color: '#ffffff', 
+            size: fontConfig.sizes.axisLabel,
+            family: fontConfig.family 
+          },
           tickangle: 45,
           fixedrange: true,
-          automargin: true,  // Ensure labels don't get cut off
+          automargin: true,
         },
         yaxis: {
+          ...baseLayout.yaxis,
           tickformat: '$,.2f',
-          tickfont: { color: '#ffffff' },
+          tickfont: { 
+            color: '#ffffff',
+            family: fontConfig.family 
+          },
           fixedrange: true,
           showgrid: true,
           gridcolor: '#212121',
@@ -120,31 +127,29 @@ const MaxLVRChart: React.FC<MaxLVRChartProps> = ({ selectedMarkout }) => {
         },
         showlegend: false,
         autosize: true,
-        height: 500,  // Increased height for better visibility
+        height: 500,
         margin: { 
           l: 100,
           r: 50,
           b: 160,
           t: 80,
-          pad: 10  // Added padding
+          pad: 10
         },
-        paper_bgcolor: '#000000',
-        plot_bgcolor: '#000000',
-        hovermode: 'x unified',
         hoverlabel: {
           bgcolor: '#424242',
-          bordercolor: '#b4d838',
-          font: { color: '#ffffff' },
-          namelength: 0,
+          bordercolor: plotColors.accent,
+          font: { 
+            color: '#ffffff',
+            size: fontConfig.sizes.hover,
+            family: fontConfig.family 
+          },
+          namelength: 0
         },
-        hoverdistance: 50, 
-        bargap: 0.2,  // Added gap between bars
+        hovermode: 'x unified',
+        hoverdistance: 50,
+        bargap: 0.2,
       }}
-      config={{
-        responsive: true,
-        displayModeBar: false,
-        scrollZoom: false,
-      }}
+      config={commonConfig}
       style={{ width: '100%', height: '100%' }}
     />
   );

@@ -1,11 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import Plot from 'react-plotly.js';
 import type { Dash } from 'plotly.js';
+import { createBaseLayout, plotColors, fontConfig, commonConfig } from '../plotUtils';
 
 interface RunningTotal {
   block_number: number;
   markout: string;
   running_total_cents: number;
+}
+
+interface LVRRatioResponse {
+  ratios: RunningTotal[];
 }
 
 const RunningTotalChart: React.FC = () => {
@@ -15,7 +20,7 @@ const RunningTotalChart: React.FC = () => {
 
   // Color scheme for different markout times
   const markoutColors = {
-    'brontes': '#b4d838',  // Bright lime green for observed
+    'brontes': plotColors.accent,  // Bright lime green for observed
     '-2.0': '#FF6B6B',     // Red
     '-1.5': '#4ECDC4',     // Turquoise
     '-1.0': '#45B7D1',     // Light blue
@@ -50,7 +55,7 @@ const RunningTotalChart: React.FC = () => {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-[600px] bg-[#000000] rounded-lg border border-[#212121]">
-        <div className="text-white text-lg">Loading...</div>
+        <div className="text-white text-lg font-['Menlo']">Loading...</div>
       </div>
     );
   }
@@ -58,7 +63,7 @@ const RunningTotalChart: React.FC = () => {
   if (error) {
     return (
       <div className="flex items-center justify-center h-[600px] bg-[#000000] rounded-lg border border-[#212121]">
-        <div className="text-white bg-red-600 p-4 rounded">{error}</div>
+        <div className="text-white bg-red-600 p-4 rounded font-['Menlo']">{error}</div>
       </div>
     );
   }
@@ -73,7 +78,7 @@ const RunningTotalChart: React.FC = () => {
       };
     }
     acc[item.markout].x.push(item.block_number);
-    acc[item.markout].y.push(item.running_total_cents / 100); // Convert cents to dollars
+    acc[item.markout].y.push(item.running_total_cents / 100);
     return acc;
   }, {} as Record<string, { x: number[]; y: number[]; markout: string }>);
 
@@ -96,55 +101,62 @@ const RunningTotalChart: React.FC = () => {
       hoverlabel: {
         bgcolor: '#424242',
         bordercolor: markoutColors[series.markout as keyof typeof markoutColors],
-        font: { color: '#ffffff' }
+        font: { color: '#ffffff', family: fontConfig.family, size: fontConfig.sizes.hover }
       }
     };
   });
+
+  const title = 'Cumulative LVR over Time';
+  const baseLayout = createBaseLayout(title);
 
   return (
     <div className="w-full">
       <Plot
         data={plotData}
         layout={{
+          ...baseLayout,
           xaxis: {
+            ...baseLayout.xaxis,
             title: {
               text: 'Block Number',
-              font: { color: '#b4d838', size: 14 },
+              font: { color: plotColors.accent, size: fontConfig.sizes.axisTitle, family: fontConfig.family },
               standoff: 20
             },
             tickformat: ',d',
-            tickfont: { color: '#ffffff' },
+            tickfont: { color: '#ffffff', family: fontConfig.family },
           },
           yaxis: {
+            ...baseLayout.yaxis,
             tickformat: '$,.0f',
-            tickfont: { color: '#ffffff' },
+            tickfont: { color: '#ffffff', family: fontConfig.family },
             side: 'right',
             showgrid: false,
             rangemode: 'tozero',
           },
-          title: {
-            text: 'Cumulative LVR over Time',
-            font: { color: '#b4d838', size: 16 },
-            y: 0.95
-          },
-          autosize: true,
-          height: 600,
-          margin: { l: 80, r: 100, b: 100, t: 80, pad: 4 },
-          paper_bgcolor: '#000000',
-          plot_bgcolor: '#000000',
-          font: { color: '#ffffff' },
-          hovermode: 'closest',
           showlegend: true,
           legend: {
             x: 0,
             y: 1,
             bgcolor: '#000000',
             bordercolor: '#212121',
-            font: { color: '#ffffff' }
+            font: { 
+              color: '#ffffff', 
+              size: fontConfig.sizes.legend,
+              family: fontConfig.family
+            }
           },
+          height: 600,
+          margin: { l: 80, r: 100, b: 100, t: 80, pad: 4 },
+          hoverlabel: {
+            font: { 
+              family: fontConfig.family,
+              size: fontConfig.sizes.hover 
+            }
+          },
+          hovermode: 'closest'
         }}
         config={{
-          responsive: true,
+          ...commonConfig,
           displayModeBar: true,
           displaylogo: false,
           modeBarButtonsToAdd: ['zoomIn2d', 'zoomOut2d', 'autoScale2d'],

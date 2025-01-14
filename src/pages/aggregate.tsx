@@ -6,6 +6,7 @@ import MaxLVRChart from '../components/plots/MaxLVRChart';
 import QuartilePlot from '../components/plots/QuartilePlot';
 import { MarkoutSelect } from '../components/LabeledSelect';
 import PageLayout from '../components/pagelayout';
+import PlotContainer from '../components/PlotContainer';
 
 const Aggregate: React.FC = () => {
   const [selectedMarkout, setSelectedMarkout] = useState('0.0');
@@ -21,38 +22,40 @@ const Aggregate: React.FC = () => {
 
   return (
     <PageLayout title="Aggregate Analysis" controls={controls}>
-      <p className="text-[#B2AC88] text-lg mb-8 max-w-4xl mx-auto text-center">
-        View data aggregated across pools. The first two plots are aggregated across markout times. 
-        The last three plots are specific to the selected markout time.
-      </p>
-      
-      <div className="mt-12 text-center">
-        <p className="text-sm text-[#B2AC88]/80">
-          *We exclude days (i.e, 7200-block-long chunks starting from the Merge block)
-          that had zero simulated LVR activity. Additionally, we excluded showing maximum daily total LVR for the sake of 
-          keeping the y-axis scale reasonable
+      <div className="max-w-7xl mx-auto">
+        <p className="font-['Menlo'] text-[#B2AC88] text-lg mb-8 text-center">
+          View data aggregated across pools. The first two plots are aggregated across markout times. 
+          The last three plots are specific to the selected markout time.
         </p>
-      </div>
-
-      <div className="space-y-8">
-        <div className="bg-gradient-to-br from-[#0b0b0e] via-[#1a1a1a] to-[#B2AC88]/10 rounded-2xl border border-[#B2AC88]/20 p-8 hover:border-[#B2AC88]/30 transition-colors duration-300">
-          <RunningTotalChart />
+        
+        <div className="font-['Menlo'] mt-4 mb-12 text-center">
+          <p className="text-sm text-[#B2AC88]/80">
+            *We exclude days (i.e, 7200-block-long chunks starting from the Merge block)
+            that had zero simulated LVR activity. Additionally, we excluded showing maximum daily total LVR for the sake of 
+            keeping the y-axis scale reasonable
+          </p>
         </div>
 
-        <div className="bg-gradient-to-br from-[#0b0b0e] via-[#1a1a1a] to-[#B2AC88]/10 rounded-2xl border border-[#B2AC88]/20 p-8 hover:border-[#B2AC88]/30 transition-colors duration-300">
-          <EfficiencyRatioChart />
-        </div>
+        <div className="flex flex-col">
+          <PlotContainer>
+            <RunningTotalChart />
+          </PlotContainer>
 
-        <div className="bg-gradient-to-br from-[#0b0b0e] via-[#1a1a1a] to-[#B2AC88]/10 rounded-2xl border border-[#B2AC88]/20 p-8 hover:border-[#B2AC88]/30 transition-colors duration-300">
-          <PoolTotalsPieChart selectedMarkout={selectedMarkout} />
-        </div>
+          <PlotContainer>
+            <EfficiencyRatioChart />
+          </PlotContainer>
 
-        <div className="bg-gradient-to-br from-[#0b0b0e] via-[#1a1a1a] to-[#B2AC88]/10 rounded-2xl border border-[#B2AC88]/20 p-8 hover:border-[#B2AC88]/30 transition-colors duration-300">
-          <QuartilePlot selectedMarkout={selectedMarkout} />
-        </div>
+          <PlotContainer>
+            <PoolTotalsPieChart selectedMarkout={selectedMarkout} />
+          </PlotContainer>
 
-        <div className="bg-gradient-to-br from-[#0b0b0e] via-[#1a1a1a] to-[#B2AC88]/10 rounded-2xl border border-[#B2AC88]/20 p-8 hover:border-[#B2AC88]/30 transition-colors duration-300">
-          <MaxLVRChart selectedMarkout={selectedMarkout} />
+          <PlotContainer>
+            <QuartilePlot selectedMarkout={selectedMarkout} />
+          </PlotContainer>
+
+          <PlotContainer>
+            <MaxLVRChart selectedMarkout={selectedMarkout} />
+          </PlotContainer>
         </div>
       </div>
     </PageLayout>

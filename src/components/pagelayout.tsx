@@ -10,7 +10,7 @@ const PageLayout = ({
   children: React.ReactNode;
 }) => {
   return (
-    <div className="px-8 py-8 bg-[#030304] min-h-screen">
+    <div className="font-['Menlo'] px-8 py-8 bg-[#030304] min-h-screen">
       <div className="max-w-7xl mx-auto">
         {/* Header section with centered title */}
         <div className="flex flex-col items-center mb-8">

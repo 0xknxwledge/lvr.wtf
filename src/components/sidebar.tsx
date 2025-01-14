@@ -11,7 +11,7 @@ const SidebarNavigation: React.FC = () => {
   ];
 
   return (
-    <nav className="bg-[#030304] w-64 h-screen">
+    <nav className="font-['Menlo'] bg-[#030304] w-64 h-screen">
       <div className="p-4">
         <ul>
           {navItems.map((item) => (

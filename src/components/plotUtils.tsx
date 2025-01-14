@@ -25,31 +25,50 @@ export const plotColors = {
   }
 };
 
+// Font configuration
+export const fontConfig = {
+  family: 'Menlo',
+  sizes: {
+    title: 16,
+    axisTitle: 14,
+    axisLabel: 10,
+    legend: 12,
+    annotation: 12,
+    hover: 12
+  }
+};
+
 // Helper function to create base layout
 export function createBaseLayout(title: string): Partial<Layout> {
   return {
     title: {
       text: title,
       font: { 
+        family: fontConfig.family,
         color: plotColors.accent,
-        size: 16 
+        size: fontConfig.sizes.title 
       },
       x: 0.5,
       y: 0.95
     },
     paper_bgcolor: '#000000',
     plot_bgcolor: '#000000',
+    font: {
+      family: fontConfig.family
+    },
     xaxis: {
       title: {
         font: { 
+          family: fontConfig.family,
           color: plotColors.accent,
-          size: 14 
+          size: fontConfig.sizes.axisTitle 
         },
         standoff: 20
       },
       tickfont: { 
+        family: fontConfig.family,
         color: '#ffffff',
-        size: 10 
+        size: fontConfig.sizes.axisLabel 
       },
       showgrid: false,
       gridcolor: '#212121',
@@ -58,13 +77,16 @@ export function createBaseLayout(title: string): Partial<Layout> {
     yaxis: {
       title: {
         font: { 
+          family: fontConfig.family,
           color: plotColors.accent,
-          size: 14 
+          size: fontConfig.sizes.axisTitle 
         },
         standoff: 40
       },
       tickfont: { 
-        color: '#ffffff' 
+        family: fontConfig.family,
+        color: '#ffffff',
+        size: fontConfig.sizes.axisLabel
       },
       showgrid: true,
       gridcolor: '#212121',
@@ -73,7 +95,9 @@ export function createBaseLayout(title: string): Partial<Layout> {
     showlegend: true,
     legend: {
       font: { 
-        color: '#ffffff' 
+        family: fontConfig.family,
+        color: '#ffffff',
+        size: fontConfig.sizes.legend
       },
       bgcolor: '#000000',
       bordercolor: '#212121'
@@ -89,24 +113,81 @@ export function createBaseLayout(title: string): Partial<Layout> {
       bgcolor: '#424242',
       bordercolor: plotColors.accent,
       font: { 
+        family: fontConfig.family,
         color: '#ffffff',
-        size: 12 
+        size: fontConfig.sizes.hover
       }
     },
     hovermode: 'closest'
   };
 }
 
-// Helper function for common hover template settings
+// Helper function for creating annotation configurations
+export function createAnnotationConfig(overrides = {}) {
+  return {
+    font: {
+      family: fontConfig.family,
+      color: '#ffffff',
+      size: fontConfig.sizes.annotation
+    },
+    bgcolor: '#424242',
+    bordercolor: plotColors.accent,
+    borderwidth: 2,
+    borderpad: 4,
+    ...overrides
+  };
+}
+
+// Helper function for creating hover template configurations
 export function createHoverTemplate(includeFields: string[] = []): string {
   const baseTemplate = '<b>%{x}</b><br>';
   const fields = includeFields.map(field => `${field}: %{${field}:,.2f}<br>`).join('');
   return baseTemplate + fields + '<extra></extra>';
 }
 
-// Helper function for setting up common chart configurations
+// Helper function for creating common chart configurations
 export const commonConfig = {
   responsive: true,
   displayModeBar: false,
   scrollZoom: false
 } as const;
+
+// Helper function for creating pie chart configurations
+export function createPieChartLayout(title: string): Partial<Layout> {
+  const baseLayout = createBaseLayout(title);
+  return {
+    ...baseLayout,
+    showlegend: false,
+    height: 500,
+    margin: { t: 50, b: 50, l: 50, r: 50 },
+    annotations: [{
+      text: '',
+      showarrow: false,
+      x: 0.5,
+      y: 1.1,
+      xref: 'paper',
+      yref: 'paper',
+      font: {
+        family: fontConfig.family,
+        color: '#FFFFFF',
+        size: fontConfig.sizes.title
+      }
+    }]
+  };
+}
+
+// Helper function for creating bar chart configurations
+export function createBarChartLayout(title: string, withLegend = true): Partial<Layout> {
+  const baseLayout = createBaseLayout(title);
+  return {
+    ...baseLayout,
+    barmode: 'group',
+    showlegend: withLegend,
+    height: 500,
+    margin: { l: 120, r: 50, b: 160, t: 80 },
+    xaxis: {
+      ...baseLayout.xaxis,
+      tickangle: 45
+    }
+  };
+}
