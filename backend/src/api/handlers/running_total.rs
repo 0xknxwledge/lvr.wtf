@@ -7,12 +7,10 @@ use crate::{AppState,
     TimeRangeQuery, RunningTotal, IntervalAPIData, 
     MERGE_BLOCK, POOL_NAMES, api::handlers::common::{get_uint64_column, get_valid_pools, 
     BLOCKS_PER_INTERVAL, FINAL_INTERVAL_FILE, FINAL_PARTIAL_BLOCKS,
-    calculate_block_number, get_string_column}};
+    get_string_column}};
 use tracing::{error, debug, info, warn};
-use futures::StreamExt;
 use std::{sync::Arc, collections::HashMap};
 use parquet::arrow::arrow_reader::ParquetRecordBatchReader;
-use arrow::array::Array;
 
 
 pub async fn get_running_total(
@@ -44,142 +42,86 @@ pub async fn get_running_total(
         end_block,
         params.pool.as_ref().map_or(String::new(), |p| format!(", pool: {}", p))
     );
-    
-    let valid_pools = get_valid_pools();
-    let mut interval_totals: HashMap<(u64, u64, String, Option<String>), IntervalAPIData> = HashMap::new();
-    let intervals_path = object_store::path::Path::from("intervals");
-    
-    info!("Reading interval data from: {:?}", intervals_path);
-    let mut interval_files = state.store.list(Some(&intervals_path));
 
-    while let Some(meta_result) = interval_files.next().await {
-        let meta = meta_result.map_err(|e| {
-            error!("Failed to get file metadata: {}", e);
+    // Read from precomputed file
+    let precomputed_path = object_store::path::Path::from("precomputed/running_totals/totals.parquet");
+    
+    let bytes = state.store.get(&precomputed_path)
+        .await
+        .map_err(|e| {
+            error!("Failed to read precomputed running totals: {}", e);
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?
+        .bytes()
+        .await
+        .map_err(|e| {
+            error!("Failed to get bytes from precomputed running totals: {}", e);
             StatusCode::INTERNAL_SERVER_ERROR
         })?;
 
-        let file_path = meta.location.to_string();
-        
-        // Skip files outside our range
-        if let Some(file_name) = file_path.split('/').last() {
-            let parts: Vec<&str> = file_name.split('_').collect();
-            if parts.len() == 2 {
-                if let (Ok(file_start), Ok(file_end)) = (
-                    parts[0].parse::<u64>(),
-                    parts[1].trim_end_matches(".parquet").parse::<u64>()
-                ) {
-                    if file_start > end_block || file_end < start_block {
-                        continue;
-                    }
-                }
-            }
-        }
+    let reader = ParquetRecordBatchReader::try_new(bytes, 1024)
+        .map_err(|e| {
+            error!("Failed to create Parquet reader: {}", e);
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?;
 
-        debug!("Processing file: {}", file_path);
+    let mut results = Vec::new();
 
-        let bytes = state.store.get(&meta.location)
-            .await
-            .map_err(|e| {
-                error!("Failed to read file content: {}", e);
-                StatusCode::INTERNAL_SERVER_ERROR
-            })?
-            .bytes()
-            .await
-            .map_err(|e| {
-                error!("Failed to get file bytes: {}", e);
-                StatusCode::INTERNAL_SERVER_ERROR
-            })?;
+    for batch_result in reader {
+        let batch = batch_result.map_err(|e| {
+            error!("Failed to read batch: {}", e);
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?;
 
-        let record_reader = ParquetRecordBatchReader::try_new(bytes, 1024)
-            .map_err(|e| {
-                error!("Failed to create Parquet reader: {}", e);
-                StatusCode::INTERNAL_SERVER_ERROR
-            })?;
+        let block_numbers = get_uint64_column(&batch, "block_number")?;
+        let markout_times = get_string_column(&batch, "markout_time")?;
+        let pool_addresses = get_string_column(&batch, "pool_address")?;
+        let running_totals = get_uint64_column(&batch, "running_total_cents")?;
 
-        for batch_result in record_reader {
-            let batch = batch_result.map_err(|e| {
-                error!("Failed to read batch: {}", e);
-                StatusCode::INTERNAL_SERVER_ERROR
-            })?;
-
-            let interval_ids = get_uint64_column(&batch, "interval_id")?;
-            let markout_times = get_string_column(&batch, "markout_time")?;
-            let pool_addresses = get_string_column(&batch, "pair_address")?;
-            let total_lvr_cents = get_uint64_column(&batch, "total_lvr_cents")?;
-            let non_zero_counts = get_uint64_column(&batch, "non_zero_count")?;
+        for i in 0..batch.num_rows() {
+            let block_number = block_numbers.value(i);
             
-            for i in 0..batch.num_rows() {
-                if total_lvr_cents.is_null(i) || non_zero_counts.value(i) == 0 {
-                    continue;
-                }
+            // Skip if outside requested range
+            if block_number < start_block || block_number > end_block {
+                continue;
+            }
 
-                let pool_address = pool_addresses.value(i).to_lowercase();
-                
-                // Skip if not matching the specified pool (when not aggregating)
-                if !is_aggregate && params.pool.as_ref().map_or(false, |p| p.to_lowercase() != pool_address) {
-                    continue;
-                }
-                
-                if !valid_pools.contains(&pool_address) {
-                    continue;
-                }
-
-                let interval_id = interval_ids.value(i);
-                let markout_time = markout_times.value(i).to_string();
-                let lvr_cents = total_lvr_cents.value(i);
-                // Apply markout time filter if specified
-                if let Some(ref filter) = params.markout_time {
-                    if &markout_time != filter {
+            let pool_address = pool_addresses.value(i).to_lowercase();
+            
+            // Filter by pool if specified
+            if !is_aggregate {
+                if let Some(ref requested_pool) = params.pool {
+                    if requested_pool.to_lowercase() != pool_address {
                         continue;
                     }
                 }
+            }
 
-                let block_number = calculate_block_number(start_block, interval_id, &file_path);
-
-                if block_number >= start_block && block_number <= end_block {
-                    let file_start = file_path
-                        .split("intervals/")
-                        .nth(1)
-                        .and_then(|name| name.trim_end_matches(".parquet").split('_').next())
-                        .and_then(|num| num.parse::<u64>().ok())
-                        .unwrap_or(start_block);
-
-                    let key = if is_aggregate {
-                        (file_start, interval_id, markout_time, None)
-                    } else {
-                        (file_start, interval_id, markout_time.clone(), Some(pool_address))
-                    };
-
-                    interval_totals
-                        .entry(key)
-                        .and_modify(|data| data.total = data.total.saturating_add(lvr_cents))
-                        .or_insert(IntervalAPIData {
-                            total: lvr_cents,
-                            file_path: file_path.clone(),
-                        });
+            // Apply markout time filter if specified
+            if let Some(ref filter) = params.markout_time {
+                if filter != &markout_times.value(i) {
+                    continue;
                 }
             }
+
+            results.push(RunningTotal {
+                block_number,
+                markout: markout_times.value(i).to_string(),
+                pool_name: None, // We can add pool name lookup if needed
+                pool_address: Some(pool_address),
+                running_total_cents: running_totals.value(i),
+            });
         }
     }
 
-    let results = process_interval_totals(interval_totals, start_block, end_block, is_aggregate);
-    // Filter results for specific pool if needed
-    let results = if !is_aggregate {
-        results.into_iter()
-            .filter(|r| {
-                if let (Some(requested_pool), Some(result_address)) = (
-                    params.pool.as_ref(),
-                    r.pool_address.as_ref()
-                ) {
-                    requested_pool.to_lowercase() == result_address.to_lowercase()
-                } else {
-                    false
-                }
-            })
-            .collect()
-    } else {
-        results
-    };
+    // Sort by block number and markout time
+    results.sort_by(|a, b| {
+        a.block_number
+            .cmp(&b.block_number)
+            .then_with(|| a.markout.to_lowercase().cmp(&b.markout.to_lowercase()))
+            .then(a.pool_name.cmp(&b.pool_name))
+    });
+
     info!("Returning {} running total data points", results.len());
     Ok(Json(results))
 }

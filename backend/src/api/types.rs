@@ -102,7 +102,7 @@ pub struct HistogramQuery {
     pub markout_time: String,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Clone)]
 pub struct HistogramBucket {
     pub range_start: f64,
     pub range_end: Option<f64>,
@@ -188,7 +188,7 @@ pub struct ClusterHistogramQuery {
     pub markout_time: Option<String>,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Clone)]
 pub struct ClusterHistogramBucket {
     pub range_start: f64,
     pub range_end: Option<f64>,

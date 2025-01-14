@@ -456,34 +456,34 @@ impl PrecomputedWriter {
             arrow::datatypes::Field::new("block_number", arrow::datatypes::DataType::UInt64, false),
             arrow::datatypes::Field::new("max_lvr_cents", arrow::datatypes::DataType::UInt64, false),
         ]);
-
+    
         let mut pool_addresses = Vec::new();
         let mut pool_names = Vec::new();
         let mut markout_times = Vec::new();
         let mut block_numbers = Vec::new();
         let mut max_lvr_cents = Vec::new();
-
+    
         let valid_pools = get_valid_pools();
         let mut theoretical_maximums: HashMap<String, HashMap<String, u64>> = HashMap::new();
-
+    
         // First, get theoretical maximums for brontes validation
         for pool_address in &valid_pools {
             let mut pool_maximums = HashMap::new();
             let checkpoints_path = object_store::path::Path::from("checkpoints");
             let mut checkpoint_files = self.object_store.list(Some(&checkpoints_path));
-
+    
             while let Some(meta_result) = checkpoint_files.next().await {
                 let meta = meta_result.context("Failed to get file metadata")?;
                 let file_path = meta.location.to_string();
-
+    
                 if !file_path.to_lowercase().contains(&pool_address.to_lowercase()) 
                    || file_path.to_lowercase().ends_with("_brontes.parquet") {
                     continue;
                 }
-
+    
                 let bytes = self.object_store.get(&meta.location).await?.bytes().await?;
                 let record_reader = ParquetRecordBatchReader::try_new(bytes, 1)?;
-
+    
                 for batch_result in record_reader {
                     let batch = batch_result?;
                     let value = get_column_value::<UInt64Array>(&batch, "max_lvr_value")
@@ -500,16 +500,16 @@ impl PrecomputedWriter {
                     }
                 }
             }
-
+    
             if !pool_maximums.is_empty() {
                 theoretical_maximums.insert(pool_address.to_string(), pool_maximums);
             }
         }
-
+    
         // Process regular markout times
         let checkpoints_path = object_store::path::Path::from("checkpoints");
         let mut checkpoint_files = self.object_store.list(Some(&checkpoints_path));
-
+    
         while let Some(meta_result) = checkpoint_files.next().await {
             let meta = meta_result.context("Failed to get file metadata")?;
             let file_path = meta.location.to_string();
@@ -520,27 +520,27 @@ impl PrecomputedWriter {
                 .and_then(|s| s.split('_').next())
                 .context("Failed to extract pool address")?
                 .to_lowercase();
-
+    
             if !valid_pools.contains(&pool_address) {
                 continue;
             }
-
+    
             let markout_time = file_path
                 .split('_')
                 .last()
                 .and_then(|s| s.strip_suffix(".parquet"))
                 .context("Failed to extract markout time")?;
-
+    
             let bytes = self.object_store.get(&meta.location).await?.bytes().await?;
             let record_reader = ParquetRecordBatchReader::try_new(bytes, 1)?;
-
+    
             for batch_result in record_reader {
                 let batch = batch_result?;
                 let value = get_column_value::<UInt64Array>(&batch, "max_lvr_value")
                     .map_err(|e| anyhow::anyhow!("Failed to get max_lvr_value: {}", e))?;
                 let block = get_column_value::<UInt64Array>(&batch, "max_lvr_block")
                     .map_err(|e| anyhow::anyhow!("Failed to get max_lvr_block: {}", e))?;
-
+    
                 if value > 0 {
                     // For brontes, validate against theoretical maximums
                     if markout_time == "brontes" {
@@ -549,17 +549,25 @@ impl PrecomputedWriter {
                                 .context("No theoretical maximum found")?;
                             
                             if value > *min_theoretical_max {
+                                // Search through intervals for valid maximum
+                                if let Some((valid_block, valid_value)) = max::find_valid_max_from_intervals(
+                                    &self.object_store,
+                                    &pool_address,
+                                    *min_theoretical_max
+                                ).await.map_err(|e| anyhow::anyhow!("Error finding valid max: {}", e))? {
+                                    let pool_name = get_pool_name(&pool_address);
+                                    pool_addresses.push(pool_address.clone());
+                                    pool_names.push(pool_name);
+                                    markout_times.push(markout_time.to_string());
+                                    block_numbers.push(valid_block);
+                                    max_lvr_cents.push(valid_value);
+                                }
                                 continue;
                             }
                         }
                     }
-
-                    let pool_name = POOL_NAMES
-                        .iter()
-                        .find(|(addr, _)| addr.to_lowercase() == pool_address)
-                        .map(|(_, name)| name.to_string())
-                        .unwrap_or_else(|| pool_address.clone());
-
+    
+                    let pool_name = get_pool_name(&pool_address);
                     pool_addresses.push(pool_address.clone());
                     pool_names.push(pool_name);
                     markout_times.push(markout_time.to_string());
@@ -568,7 +576,7 @@ impl PrecomputedWriter {
                 }
             }
         }
-
+    
         // Create record batch
         let batch = RecordBatch::try_new(
             Arc::new(schema),
@@ -580,11 +588,11 @@ impl PrecomputedWriter {
                 Arc::new(UInt64Array::from(max_lvr_cents)),
             ],
         )?;
-
+    
         // Write to output file
         let output_path = Path::from("precomputed/pool_metrics/max_lvr.parquet");
         self.write_batch_to_store(output_path, batch).await?;
-
+    
         info!("Successfully wrote precomputed max LVR values");
         Ok(())
     }

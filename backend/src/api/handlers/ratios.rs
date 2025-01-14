@@ -5,113 +5,67 @@ use axum::{
 };
 use crate::{AppState, 
     LVRRatioQuery, LVRRatioResponse, LVRTotals, MarkoutRatio,
-    api::handlers::common::{get_uint64_column, get_valid_pools,
+    api::handlers::common::{get_uint64_column, get_float64_column,
     get_string_column}};
 use tracing::{error, debug, info};
-use futures::StreamExt;
-use std::{sync::Arc, collections::HashMap};
+use std::sync::Arc;
 use parquet::arrow::arrow_reader::ParquetRecordBatchReader;
-use arrow::array::Array;
 
 
 pub async fn get_lvr_ratios(
     State(state): State<Arc<AppState>>,
-    Query(params): Query<LVRRatioQuery>,
+    Query(_params): Query<LVRRatioQuery>,
 ) -> Result<Json<LVRRatioResponse>, StatusCode> {
-    info!("Fetching LVR ratios with params: {:?}", params);
+    info!("Fetching precomputed LVR ratios");
+
+    // Read from precomputed file
+    let precomputed_path = object_store::path::Path::from("precomputed/ratios/lvr_ratios.parquet");
     
-    let valid_pools = get_valid_pools();
-    let mut totals = LVRTotals {
-        realized: 0,
-        theoretical: HashMap::new(),
-    };
-
-    let mut files_processed = 0;
-    let intervals_path = object_store::path::Path::from("intervals");
-    let mut interval_files = state.store.list(Some(&intervals_path));
-
-    while let Some(meta_result) = interval_files.next().await {
-        files_processed += 1;
-        let meta = meta_result.map_err(|e| {
-            error!("Failed to get file metadata: {}", e);
+    let bytes = state.store.get(&precomputed_path)
+        .await
+        .map_err(|e| {
+            error!("Failed to read precomputed LVR ratios: {}", e);
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?
+        .bytes()
+        .await
+        .map_err(|e| {
+            error!("Failed to get bytes from precomputed LVR ratios: {}", e);
             StatusCode::INTERNAL_SERVER_ERROR
         })?;
 
-        debug!("Processing interval file {}: {}", files_processed, meta.location);
+    let reader = ParquetRecordBatchReader::try_new(bytes, 1024)
+        .map_err(|e| {
+            error!("Failed to create Parquet reader: {}", e);
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?;
 
-        let bytes = state.store.get(&meta.location)
-            .await
-            .map_err(|e| {
-                error!("Failed to read file: {}", e);
-                StatusCode::INTERNAL_SERVER_ERROR
-            })?
-            .bytes()
-            .await
-            .map_err(|e| {
-                error!("Failed to get bytes: {}", e);
-                StatusCode::INTERNAL_SERVER_ERROR
-            })?;
+    let mut ratios = Vec::new();
 
-        let record_reader = ParquetRecordBatchReader::try_new(bytes, 1024)
-            .map_err(|e| {
-                error!("Failed to create Parquet reader: {}", e);
-                StatusCode::INTERNAL_SERVER_ERROR
-            })?;
+    for batch_result in reader {
+        let batch = batch_result.map_err(|e| {
+            error!("Failed to read batch: {}", e);
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?;
 
-        for batch_result in record_reader {
-            let batch = batch_result.map_err(|e| {
-                error!("Failed to read batch: {}", e);
-                StatusCode::INTERNAL_SERVER_ERROR
-            })?;
+        let markout_times = get_string_column(&batch, "markout_time")?;
+        let ratio_values = get_float64_column(&batch, "ratio")?;
+        let realized_cents = get_uint64_column(&batch, "realized_lvr_cents")?;
+        let theoretical_cents = get_uint64_column(&batch, "theoretical_lvr_cents")?;
 
-            let markout_times = get_string_column(&batch, "markout_time")?;
-            let pool_addresses = get_string_column(&batch, "pair_address")?;
-            let total_lvr_cents = get_uint64_column(&batch, "total_lvr_cents")?;
-            let non_zero_counts = get_uint64_column(&batch, "non_zero_count")?;
-
-            for i in 0..batch.num_rows() {
-                if total_lvr_cents.is_null(i) || non_zero_counts.value(i) == 0 {
-                    continue;
-                }
-
-                let pool_address = pool_addresses.value(i).to_lowercase();
-                if !valid_pools.contains(&pool_address) {
-                    continue;
-                }
-
-                let markout_time = markout_times.value(i);
-                let lvr_cents = total_lvr_cents.value(i);
-
-                // Only include intervals that had actual activity
-                if lvr_cents > 0 {
-                    if markout_time == "brontes" {
-                        totals.realized = totals.realized.saturating_add(lvr_cents);
-                        debug!("Added {} cents to realized total", lvr_cents);
-                    } else {
-                        totals.theoretical
-                            .entry(markout_time.to_string())
-                            .and_modify(|e| *e = e.saturating_add(lvr_cents))
-                            .or_insert(lvr_cents);
-                        debug!("Added {} cents to theoretical total for markout {}", lvr_cents, markout_time);
-                    }
-                }
-            }
+        for i in 0..batch.num_rows() {
+            ratios.push(MarkoutRatio {
+                markout_time: markout_times.value(i).to_string(),
+                ratio: ratio_values.value(i),
+                realized_lvr_cents: realized_cents.value(i),
+                theoretical_lvr_cents: theoretical_cents.value(i),
+            });
         }
     }
-
-    info!(
-        "Processed {} files. Found realized total of {} cents and {} theoretical markout times",
-        files_processed,
-        totals.realized,
-        totals.theoretical.len()
-    );
-
-    let ratios = calculate_lvr_ratios(totals);
     
-    info!("Calculated {} LVR ratios", ratios.len());
+    info!("Retrieved {} LVR ratios from precomputed data", ratios.len());
     Ok(Json(LVRRatioResponse { ratios }))
 }
-
 // calculate_lvr_ratios remains the same
 pub fn calculate_lvr_ratios(totals: LVRTotals) -> Vec<MarkoutRatio> {
     let mut ratios = Vec::new();

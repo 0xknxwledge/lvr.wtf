@@ -1,4 +1,3 @@
-- Refactor the API module to pull directly from the precomputed files 
 - Test and debug the precompute module
 - Once ^ is good, modify the dockerfile and GCP build so that the precompute filesystem is stored
 - Remove zoom-in for Category histogram
