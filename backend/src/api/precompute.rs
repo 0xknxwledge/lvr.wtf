@@ -377,10 +377,9 @@ impl PrecomputedWriter {
                     "total_bucket_0_10",
                     "total_bucket_10_100",
                     "total_bucket_100_500",
-                    "total_bucket_500_3000",
-                    "total_bucket_3000_10000",
-                    "total_bucket_10000_30000",
-                    "total_bucket_30000_plus",
+                    "total_bucket_500_1000",
+                    "total_bucket_1000_10000",
+                    "total_bucket_10000_plus",
                 ];
 
                 if batch.num_rows() > 0 {
@@ -776,10 +775,9 @@ impl PrecomputedWriter {
                     (0.01, Some(10.0), "total_bucket_0_10", "$0.01-$10"),
                     (10.0, Some(100.0), "total_bucket_10_100", "$10-$100"),
                     (100.0, Some(500.0), "total_bucket_100_500", "$100-$500"),
-                    (500.0, Some(3000.0), "total_bucket_500_3000", "$500-$3K"),
-                    (3000.0, Some(10000.0), "total_bucket_3000_10000", "$3K-$10K"),
-                    (10000.0, Some(30000.0), "total_bucket_10000_30000", "$10K-$30K"),
-                    (30000.0, None, "total_bucket_30000_plus", "$30K+"),
+                    (500.0, Some(1000.0), "total_bucket_500_1000", "$500-$1K"),
+                    (1000.0, Some(10000.0), "total_bucket_1000_10000", "$1K-$10K"),
+                    (10000.0, None, "total_bucket_10000_plus", "$10K+"),
                 ];
 
                 let mut has_data = false;
@@ -1222,10 +1220,9 @@ impl PrecomputedWriter {
                     "total_bucket_0_10",
                     "total_bucket_10_100",
                     "total_bucket_100_500",
-                    "total_bucket_500_3000",
-                    "total_bucket_3000_10000",
-                    "total_bucket_10000_30000",
-                    "total_bucket_30000_plus",
+                    "total_bucket_500_1000",
+                    "total_bucket_1000_10000",
+                    "total_bucket_10000_plus",
                 ];
 
                 let mut bucket_columns = Vec::new();

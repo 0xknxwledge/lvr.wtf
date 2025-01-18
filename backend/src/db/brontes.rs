@@ -125,7 +125,7 @@ impl BrontesConnection {
     }
 
     async fn try_fetch_lvr_analysis_batch(&self, client: &Client, batch_start: u64, batch_end: u64) -> Result<Vec<LVRAnalysis>> {    
-        let pools: Vec<_> = POOL_ADDRESSES.iter().map(|&s| s.to_string()).collect();
+        let pools: Vec<_> = POOL_ADDRESSES.iter().map(|&s| s.to_lowercase()).collect();
         let mut cursor = client
             .query(
                 r#"

@@ -1,5 +1,5 @@
 use anyhow::Result;
-use backend::{init_logging, processor::ParallelLVRProcessor, serve, Validator};
+use backend::{init_logging, processor::ParallelLVRProcessor, serve, Validator, PrecomputedWriter};
 use clap::{Parser, Subcommand};
 use futures::future::BoxFuture;
 use object_store::local::LocalFileSystem;
@@ -50,6 +50,9 @@ enum Commands {
         #[arg(short = 'b', long, default_value = "127.0.0.1")]
         host: String,
     },
+
+    /// Precompute analytical data
+    Precompute,
 }
 
 fn ensure_directories() -> Result<PathBuf> {
@@ -178,6 +181,48 @@ async fn main() -> Result<()> {
 
             info!("Starting API server using data from smeed/");
             serve(host, port, store).await?;
+        }
+        Commands::Precompute => {
+            info!("Starting precomputation of analytical data");
+            let writer = PrecomputedWriter::new(store);
+            
+            info!("Computing running totals...");
+            writer.write_running_totals().await?;
+            
+            info!("Computing LVR ratios...");
+            writer.write_lvr_ratios().await?;
+            
+            info!("Computing pool totals...");
+            writer.write_pool_totals().await?;
+            
+            info!("Computing max LVR values...");
+            writer.write_max_lvr().await?;
+            
+            info!("Computing non-zero proportions...");
+            writer.write_non_zero_proportions().await?;
+            
+            info!("Computing histograms...");
+            writer.write_histograms().await?;
+            
+            info!("Computing percentile bands...");
+            writer.write_percentile_bands().await?;
+            
+            info!("Computing quartile plots...");
+            writer.write_quartile_plots().await?;
+            
+            info!("Computing cluster proportions...");
+            writer.write_cluster_proportions().await?;
+            
+            info!("Computing cluster histograms...");
+            writer.write_cluster_histograms().await?;
+            
+            info!("Computing monthly cluster totals...");
+            writer.write_monthly_cluster_totals().await?;
+            
+            info!("Computing cluster non-zero metrics...");
+            writer.write_cluster_non_zero().await?;
+            
+            info!("Successfully completed all precomputation tasks");
         }
     }
 
