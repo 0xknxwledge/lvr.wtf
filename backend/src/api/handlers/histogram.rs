@@ -11,6 +11,7 @@ use std::sync::Arc;
 use parquet::arrow::arrow_reader::ParquetRecordBatchReader;
 use arrow::array::{Int64Array,UInt64Array, Array};
 use arrow::datatypes::DataType;
+use object_store::path::Path;
 
 pub async fn get_lvr_histogram(
     State(state): State<Arc<AppState>>,
@@ -19,22 +20,20 @@ pub async fn get_lvr_histogram(
     let pool_address = params.pool_address.to_lowercase();
     let markout_time = params.markout_time;
     
-    info!(
-        "Fetching precomputed histogram data - Pool: {}, Markout Time: {}", 
-        pool_address, markout_time
-    );
-
-    // Check if pool is valid
+    // Validate pool address early
     let valid_pools = get_valid_pools();
     if !valid_pools.contains(&pool_address) {
         warn!("Invalid pool address requested: {}", pool_address);
         return Err(StatusCode::BAD_REQUEST);
     }
 
+    info!(
+        "Fetching LVR distribution data for pool: {} (markout_time: {})", 
+        pool_address, markout_time
+    );
+
     // Read from precomputed file
-    let precomputed_path = object_store::path::Path::from("precomputed/distributions/histograms.parquet");
-    
-    let bytes = state.store.get(&precomputed_path)
+    let bytes = state.store.get(&Path::from("precomputed/distributions/histograms.parquet"))
         .await
         .map_err(|e| {
             error!("Failed to read precomputed histogram data: {}", e);
@@ -56,6 +55,8 @@ pub async fn get_lvr_histogram(
     let mut buckets = Vec::new();
     let mut total_observations = 0u64;
     let mut pool_name = String::new();
+    let mut highest_bucket_count = 0u64;
+    let mut mode_bucket = String::new();
 
     for batch_result in reader {
         let batch = batch_result.map_err(|e| {
@@ -72,41 +73,55 @@ pub async fn get_lvr_histogram(
         let labels = get_string_column(&batch, "label")?;
 
         for i in 0..batch.num_rows() {
-            // Filter by pool and markout time
+            // Early filtering
             if pool_addresses.value(i).to_lowercase() != pool_address ||
                markout_times.value(i) != markout_time {
                 continue;
             }
 
-            // Store pool name on first match
+            // Get or set pool name
             if pool_name.is_empty() {
                 pool_name = pool_names.value(i).to_string();
             }
 
             let count = counts.value(i);
+            let label = labels.value(i);
+            
+            // Track the mode (most frequent) bucket
+            if count > highest_bucket_count {
+                highest_bucket_count = count;
+                mode_bucket = label.to_string();
+            }
+
             total_observations += count;
 
             buckets.push(HistogramBucket {
                 range_start: bucket_starts.value(i),
                 range_end: if bucket_ends.is_null(i) { None } else { Some(bucket_ends.value(i)) },
                 count,
-                label: labels.value(i).to_string(),
+                label: label.to_string(),
             });
         }
     }
 
     if buckets.is_empty() {
         warn!(
-            "No histogram data found for pool {} with markout time {}",
+            "No distribution data found for pool {} with markout time {}",
             pool_address,
             markout_time
         );
         return Err(StatusCode::NOT_FOUND);
     }
 
+    // Sort buckets by range start for consistent ordering
+    buckets.sort_by(|a, b| a.range_start.partial_cmp(&b.range_start).unwrap_or(std::cmp::Ordering::Equal));
+
     info!(
-        "Retrieved histogram data with {} buckets and {} total observations", 
+        "Retrieved distribution with {} buckets for {}. Most frequent range: {} ({:.2}% of {} total observations)", 
         buckets.len(),
+        pool_name,
+        mode_bucket,
+        (highest_bucket_count as f64 / total_observations as f64) * 100.0,
         total_observations
     );
 

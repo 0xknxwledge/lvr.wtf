@@ -10,6 +10,7 @@ use crate::{AppState,
 use tracing::{error, info, warn};
 use std::sync::Arc;
 use parquet::arrow::arrow_reader::ParquetRecordBatchReader;
+use object_store::path::Path;
 
 pub async fn get_percentile_band(
     State(state): State<Arc<AppState>>,
@@ -18,38 +19,35 @@ pub async fn get_percentile_band(
     let start_block = params.start_block.unwrap_or(*MERGE_BLOCK);
     let end_block = params.end_block.unwrap_or(20_000_000);
     let markout_time = params.markout_time.unwrap_or_else(|| String::from("brontes"));
-    
-    info!(
-        "Fetching precomputed percentile bands - Blocks {} to {}, Markout Time: {}", 
-        start_block, end_block, markout_time
-    );
-    
-    // Validate pool address if provided
-    let pool_filter = if let Some(pool_address) = params.pool_address {
+
+    // Determine pool to analyze
+    let pool_filter = if let Some(pool_address) = params.pool_address.clone() {
         let pool_address = pool_address.to_lowercase();
         if !get_valid_pools().contains(&pool_address) {
-            warn!("Invalid pool address requested: {}", pool_address);
+            warn!("Invalid pool address provided: {}", pool_address);
             return Err(StatusCode::BAD_REQUEST);
         }
-        Some(pool_address)
+        pool_address
     } else {
-        // Default to first valid pool if none specified
-        Some(POOL_ADDRESSES[0].to_lowercase())
+        POOL_ADDRESSES[0].to_lowercase()
     };
 
+    info!(
+        "Analyzing percentile distribution for pool {} (Blocks {} to {}, Markout: {})", 
+        pool_filter, start_block, end_block, markout_time
+    );
+
     // Read from precomputed file
-    let precomputed_path = object_store::path::Path::from("precomputed/distributions/percentile_bands.parquet");
-    
-    let bytes = state.store.get(&precomputed_path)
+    let bytes = state.store.get(&Path::from("precomputed/distributions/percentile_bands.parquet"))
         .await
         .map_err(|e| {
-            error!("Failed to read precomputed percentile bands: {}", e);
+            error!("Failed to read precomputed percentile distribution data: {}", e);
             StatusCode::INTERNAL_SERVER_ERROR
         })?
         .bytes()
         .await
         .map_err(|e| {
-            error!("Failed to get bytes from precomputed percentile bands: {}", e);
+            error!("Failed to get bytes from precomputed percentile data: {}", e);
             StatusCode::INTERNAL_SERVER_ERROR
         })?;
 
@@ -61,7 +59,8 @@ pub async fn get_percentile_band(
 
     let mut data_points = Vec::new();
     let mut pool_name = String::new();
-    let mut pool_address = String::new();
+    let mut max_median = 0u64;
+    let mut min_median = u64::MAX;
 
     for batch_result in reader {
         let batch = batch_result.map_err(|e| {
@@ -78,31 +77,30 @@ pub async fn get_percentile_band(
         let percentile_75 = get_uint64_column(&batch, "percentile_75_cents")?;
 
         for i in 0..batch.num_rows() {
-            // Apply filters
+            // Apply all filters
             let current_pool = pool_addresses.value(i).to_lowercase();
-            if pool_filter.as_ref().map_or(true, |p| &current_pool != p) {
-                continue;
-            }
-
-            if markout_times.value(i) != markout_time {
-                continue;
-            }
-
             let block_number = block_numbers.value(i);
-            if block_number < start_block || block_number > end_block {
+            
+            if current_pool != pool_filter ||
+               markout_times.value(i) != markout_time ||
+               block_number < start_block || 
+               block_number > end_block {
                 continue;
             }
 
-            // Store pool info on first match
+            // Store pool name on first match
             if pool_name.is_empty() {
                 pool_name = pool_names.value(i).to_string();
-                pool_address = current_pool.clone();
             }
+
+            let median_value = median.value(i);
+            max_median = max_median.max(median_value);
+            min_median = min_median.min(median_value);
 
             data_points.push(PercentileDataPoint {
                 block_number,
                 percentile_25_cents: percentile_25.value(i),
-                median_cents: median.value(i),
+                median_cents: median_value,
                 percentile_75_cents: percentile_75.value(i),
             });
         }
@@ -110,26 +108,27 @@ pub async fn get_percentile_band(
 
     if data_points.is_empty() {
         warn!(
-            "No percentile band data found for pool {} with markout time {}",
-            pool_filter.as_ref().unwrap_or(&"any".to_string()),
+            "No percentile distribution data found for pool {} with markout time {}",
+            pool_filter,
             markout_time
         );
         return Err(StatusCode::NOT_FOUND);
     }
 
-    // Sort by block number
+    // Sort chronologically by block number
     data_points.sort_by_key(|point| point.block_number);
 
     info!(
-        "Returning {} percentile band data points for pool {} with markout time {}",
+        "Retrieved {} distribution points for {}. Median range: ${:.2} to ${:.2}",
         data_points.len(),
         pool_name,
-        markout_time
+        min_median as f64 / 100.0,
+        max_median as f64 / 100.0
     );
 
     Ok(Json(PercentileBandResponse {
         pool_name,
-        pool_address,
+        pool_address: pool_filter,
         markout_time,
         data_points,
     }))

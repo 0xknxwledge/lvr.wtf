@@ -5,13 +5,13 @@ use axum::{
 };
 use crate::{AppState, 
     TimeRangeQuery, RunningTotal, IntervalAPIData, 
-    MERGE_BLOCK, POOL_NAMES, api::handlers::common::{get_uint64_column, get_valid_pools, 
+    MERGE_BLOCK, POOL_NAMES, api::handlers::common::{get_uint64_column, get_valid_pools, get_pool_name,
     BLOCKS_PER_INTERVAL, FINAL_INTERVAL_FILE, FINAL_PARTIAL_BLOCKS,
     get_string_column}};
 use tracing::{error, debug, info, warn};
 use std::{sync::Arc, collections::HashMap};
 use parquet::arrow::arrow_reader::ParquetRecordBatchReader;
-
+use object_store::path::Path;
 
 pub async fn get_running_total(
     State(state): State<Arc<AppState>>,
@@ -21,16 +21,17 @@ pub async fn get_running_total(
     let end_block = params.end_block.unwrap_or(20_000_000);
     let is_aggregate = params.aggregate.unwrap_or(false);
     
-    // Validate pool parameter when not aggregating
-    if !is_aggregate {
-        if let Some(ref pool) = params.pool {
-            let valid_pools = get_valid_pools();
-            if !valid_pools.contains(&pool.to_lowercase()) {
-                warn!("Invalid pool address provided: {}", pool);
-                return Err(StatusCode::BAD_REQUEST);
-            }
-        } else {
-            warn!("Pool parameter required when not aggregating");
+    // Early validation
+    if !is_aggregate && params.pool.is_none() {
+        warn!("Pool parameter required when not aggregating");
+        return Err(StatusCode::BAD_REQUEST);
+    }
+
+    // Pool validation when specified
+    if let Some(ref pool) = params.pool {
+        let valid_pools = get_valid_pools();
+        if !valid_pools.contains(&pool.to_lowercase()) {
+            warn!("Invalid pool address provided: {}", pool);
             return Err(StatusCode::BAD_REQUEST);
         }
     }
@@ -44,9 +45,7 @@ pub async fn get_running_total(
     );
 
     // Read from precomputed file
-    let precomputed_path = object_store::path::Path::from("precomputed/running_totals/totals.parquet");
-    
-    let bytes = state.store.get(&precomputed_path)
+    let bytes = state.store.get(&Path::from("precomputed/running_totals/totals.parquet"))
         .await
         .map_err(|e| {
             error!("Failed to read precomputed running totals: {}", e);
@@ -66,7 +65,9 @@ pub async fn get_running_total(
         })?;
 
     let mut results = Vec::new();
+    let mut aggregated_data: HashMap<(u64, String), u64> = HashMap::new();
 
+    // Process each batch
     for batch_result in reader {
         let batch = batch_result.map_err(|e| {
             error!("Failed to read batch: {}", e);
@@ -86,35 +87,57 @@ pub async fn get_running_total(
                 continue;
             }
 
+            let markout_time = markout_times.value(i).to_string();
             let pool_address = pool_addresses.value(i).to_lowercase();
-            
-            // Filter by pool if specified
+            let total = running_totals.value(i);
+
+            // Apply filters
+            if let Some(ref filter) = params.markout_time {
+                if filter != &markout_time {
+                    continue;
+                }
+            }
+
             if !is_aggregate {
                 if let Some(ref requested_pool) = params.pool {
                     if requested_pool.to_lowercase() != pool_address {
                         continue;
                     }
                 }
+                
+                // Individual pool data
+                results.push(RunningTotal {
+                    block_number,
+                    markout: markout_time,
+                    pool_name: Some(get_pool_name(&pool_address)),
+                    pool_address: Some(pool_address),
+                    running_total_cents: total,
+                });
+            } else {
+                // Aggregate data by block and markout time
+                aggregated_data
+                    .entry((block_number, markout_time))
+                    .and_modify(|sum| *sum = sum.saturating_add(total))
+                    .or_insert(total);
             }
-
-            // Apply markout time filter if specified
-            if let Some(ref filter) = params.markout_time {
-                if filter != &markout_times.value(i) {
-                    continue;
-                }
-            }
-
-            results.push(RunningTotal {
-                block_number,
-                markout: markout_times.value(i).to_string(),
-                pool_name: None, // We can add pool name lookup if needed
-                pool_address: Some(pool_address),
-                running_total_cents: running_totals.value(i),
-            });
         }
     }
 
-    // Sort by block number and markout time
+    // Convert aggregated data if needed
+    if is_aggregate {
+        results = aggregated_data
+            .into_iter()
+            .map(|((block_number, markout), total)| RunningTotal {
+                block_number,
+                markout,
+                pool_name: None,
+                pool_address: None,
+                running_total_cents: total,
+            })
+            .collect();
+    }
+
+    // Sort results
     results.sort_by(|a, b| {
         a.block_number
             .cmp(&b.block_number)

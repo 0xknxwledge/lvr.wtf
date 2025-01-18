@@ -17,6 +17,7 @@ use crate::{
     MonthlyClusterQuery, MonthlyData, ClusterMonthlyResponse,
     ClusterNonZero, ClusterNonZeroQuery, ClusterNonZeroResponse
 };
+use object_store::path::Path;
 
 
 pub fn get_cluster_name(pool_address: &str) -> Option<&'static str> {
@@ -47,23 +48,21 @@ pub async fn get_cluster_proportion(
     let markout_time = params.markout_time.unwrap_or_else(|| String::from("brontes"));
     
     info!(
-        "Fetching precomputed cluster proportion data for markout_time: {}", 
+        "Analyzing cluster distribution metrics for markout time: {}", 
         markout_time
     );
 
     // Read from precomputed file
-    let precomputed_path = object_store::path::Path::from("precomputed/clusters/proportions.parquet");
-    
-    let bytes = state.store.get(&precomputed_path)
+    let bytes = state.store.get(&Path::from("precomputed/clusters/proportions.parquet"))
         .await
         .map_err(|e| {
-            error!("Failed to read precomputed cluster proportion data: {}", e);
+            error!("Failed to read precomputed cluster distribution data: {}", e);
             StatusCode::INTERNAL_SERVER_ERROR
         })?
         .bytes()
         .await
         .map_err(|e| {
-            error!("Failed to get bytes from precomputed cluster proportion data: {}", e);
+            error!("Failed to get bytes from precomputed cluster data: {}", e);
             StatusCode::INTERNAL_SERVER_ERROR
         })?;
 
@@ -75,6 +74,8 @@ pub async fn get_cluster_proportion(
 
     let mut clusters = Vec::new();
     let mut total_lvr_cents = 0u64;
+    let mut largest_cluster_name = String::new();
+    let mut largest_cluster_amount = 0u64;
 
     for batch_result in reader {
         let batch = batch_result.map_err(|e| {
@@ -87,34 +88,56 @@ pub async fn get_cluster_proportion(
         let lvr_cents = get_uint64_column(&batch, "total_lvr_cents")?;
 
         for i in 0..batch.num_rows() {
-            // Filter by markout time
+            // Early filter by markout time
             if markout_times.value(i) != markout_time {
                 continue;
             }
 
+            let cluster_name = cluster_names.value(i).to_string();
             let cluster_total = lvr_cents.value(i);
+            
+            // Track largest cluster
+            if cluster_total > largest_cluster_amount {
+                largest_cluster_amount = cluster_total;
+                largest_cluster_name = cluster_name.clone();
+            }
+
             total_lvr_cents = total_lvr_cents.saturating_add(cluster_total);
 
             clusters.push(ClusterTotal {
-                name: cluster_names.value(i).to_string(),
+                name: cluster_name,
                 total_lvr_cents: cluster_total,
             });
         }
     }
 
-    info!(
-        "Found {} clusters with total LVR of {} cents for markout time {}", 
-        clusters.len(),
-        total_lvr_cents,
-        markout_time
-    );
-
     if clusters.is_empty() {
         warn!(
-            "No cluster proportion data found for markout_time: {}", 
+            "No cluster distribution data found for markout time: {}", 
             markout_time
         );
+        return Ok(Json(ClusterPieResponse {
+            clusters: Vec::new(),
+            total_lvr_cents: 0,
+        }));
     }
+
+    // Sort clusters by total for consistent presentation
+    clusters.sort_by(|a, b| b.total_lvr_cents.cmp(&a.total_lvr_cents));
+
+    let largest_proportion = if total_lvr_cents > 0 {
+        (largest_cluster_amount as f64 / total_lvr_cents as f64) * 100.0
+    } else {
+        0.0
+    };
+
+    info!(
+        "Analyzed {} clusters. Total volume: ${:.2}. Largest cluster: {} ({:.1}%)", 
+        clusters.len(),
+        total_lvr_cents as f64 / 100.0,
+        largest_cluster_name,
+        largest_proportion
+    );
 
     Ok(Json(ClusterPieResponse {
         clusters,
@@ -129,23 +152,21 @@ pub async fn get_cluster_histogram(
     let markout_time = params.markout_time.unwrap_or_else(|| String::from("brontes"));
     
     info!(
-        "Fetching precomputed cluster histogram data for markout_time: {}", 
+        "Analyzing transaction size distribution by cluster for markout time: {}", 
         markout_time
     );
 
     // Read from precomputed file
-    let precomputed_path = object_store::path::Path::from("precomputed/clusters/histograms.parquet");
-    
-    let bytes = state.store.get(&precomputed_path)
+    let bytes = state.store.get(&Path::from("precomputed/clusters/histograms.parquet"))
         .await
         .map_err(|e| {
-            error!("Failed to read precomputed cluster histogram data: {}", e);
+            error!("Failed to read precomputed cluster distribution data: {}", e);
             StatusCode::INTERNAL_SERVER_ERROR
         })?
         .bytes()
         .await
         .map_err(|e| {
-            error!("Failed to get bytes from precomputed cluster histogram data: {}", e);
+            error!("Failed to get bytes from precomputed distribution data: {}", e);
             StatusCode::INTERNAL_SERVER_ERROR
         })?;
 
@@ -155,7 +176,6 @@ pub async fn get_cluster_histogram(
             StatusCode::INTERNAL_SERVER_ERROR
         })?;
 
-    // Map to collect buckets for each cluster
     let mut cluster_data: HashMap<String, (Vec<ClusterHistogramBucket>, u64)> = HashMap::new();
 
     for batch_result in reader {
@@ -172,16 +192,18 @@ pub async fn get_cluster_histogram(
         let labels = get_string_column(&batch, "label")?;
 
         for i in 0..batch.num_rows() {
-            // Filter by markout time
+            // Early filter by markout time
             if markout_times.value(i) != markout_time {
                 continue;
             }
 
             let cluster_name = cluster_names.value(i).to_string();
+            let count = counts.value(i);
+
             let bucket = ClusterHistogramBucket {
                 range_start: bucket_starts.value(i),
                 range_end: if bucket_ends.is_null(i) { None } else { Some(bucket_ends.value(i)) },
-                count: counts.value(i),
+                count,
                 label: labels.value(i).to_string(),
             };
 
@@ -189,34 +211,43 @@ pub async fn get_cluster_histogram(
                 .entry(cluster_name)
                 .and_modify(|(buckets, total)| {
                     buckets.push(bucket.clone());
-                    *total = total.saturating_add(bucket.count);
+                    *total = total.saturating_add(count);
                 })
-                .or_insert_with(|| (vec![bucket], counts.value(i)));
+                .or_insert_with(|| (vec![bucket], count));
         }
     }
 
-    // Convert to response format
-    let clusters: Vec<ClusterHistogramData> = cluster_data
+    if cluster_data.is_empty() {
+        warn!(
+            "No distribution data found for markout time: {}", 
+            markout_time
+        );
+        return Ok(Json(ClusterHistogramResponse { clusters: Vec::new() }));
+    }
+
+    // Convert to response format and sort buckets
+    let mut clusters: Vec<ClusterHistogramData> = cluster_data
         .into_iter()
-        .map(|(name, (buckets, total_observations))| ClusterHistogramData {
-            name,
-            buckets,
-            total_observations,
+        .map(|(name, (mut buckets, total_observations))| {
+            // Sort buckets by range start for consistent presentation
+            buckets.sort_by(|a, b| a.range_start.partial_cmp(&b.range_start)
+                .unwrap_or(std::cmp::Ordering::Equal));
+            ClusterHistogramData {
+                name,
+                buckets,
+                total_observations,
+            }
         })
         .collect();
 
+    // Sort clusters by total observations for consistent ordering
+    clusters.sort_by(|a, b| b.total_observations.cmp(&a.total_observations));
+
     info!(
-        "Returning histogram data for {} clusters with markout time {}",
+        "Retrieved distribution data for {} clusters for markout time {}", 
         clusters.len(),
         markout_time
     );
-
-    if clusters.is_empty() {
-        warn!(
-            "No cluster histogram data found for markout_time: {}", 
-            markout_time
-        );
-    }
 
     Ok(Json(ClusterHistogramResponse { clusters }))
 }
@@ -228,23 +259,21 @@ pub async fn get_monthly_cluster_totals(
     let markout_time = params.markout_time.unwrap_or_else(|| String::from("brontes"));
     
     info!(
-        "Fetching precomputed monthly cluster totals for markout_time: {}", 
+        "Analyzing monthly volume distribution across clusters for markout time: {}", 
         markout_time
     );
 
     // Read from precomputed file
-    let precomputed_path = object_store::path::Path::from("precomputed/clusters/monthly_totals.parquet");
-    
-    let bytes = state.store.get(&precomputed_path)
+    let bytes = state.store.get(&Path::from("precomputed/clusters/monthly_totals.parquet"))
         .await
         .map_err(|e| {
-            error!("Failed to read precomputed monthly cluster totals: {}", e);
+            error!("Failed to read precomputed monthly distribution data: {}", e);
             StatusCode::INTERNAL_SERVER_ERROR
         })?
         .bytes()
         .await
         .map_err(|e| {
-            error!("Failed to get bytes from precomputed monthly cluster totals: {}", e);
+            error!("Failed to get bytes from precomputed monthly data: {}", e);
             StatusCode::INTERNAL_SERVER_ERROR
         })?;
 
@@ -254,8 +283,8 @@ pub async fn get_monthly_cluster_totals(
             StatusCode::INTERNAL_SERVER_ERROR
         })?;
 
-    let mut monthly_result = Vec::new();
-    let mut all_clusters = std::collections::HashSet::new();
+    let mut time_range_data: HashMap<String, (HashMap<String, u64>, u64)> = HashMap::new();
+    let mut unique_clusters = std::collections::HashSet::new();
 
     for batch_result in reader {
         let batch = batch_result.map_err(|e| {
@@ -268,11 +297,8 @@ pub async fn get_monthly_cluster_totals(
         let markout_times = get_string_column(&batch, "markout_time")?;
         let total_lvr = get_uint64_column(&batch, "total_lvr_cents")?;
 
-        // Keep track of totals for each time range
-        let mut time_range_data: HashMap<String, (HashMap<String, u64>, u64)> = HashMap::new();
-
         for i in 0..batch.num_rows() {
-            // Filter by markout time
+            // Early filter by markout time
             if markout_times.value(i) != markout_time {
                 continue;
             }
@@ -281,6 +307,8 @@ pub async fn get_monthly_cluster_totals(
             let cluster_name = cluster_names.value(i).to_string();
             let lvr_cents = total_lvr.value(i);
 
+            unique_clusters.insert(cluster_name.clone());
+            
             time_range_data
                 .entry(time_range)
                 .and_modify(|(totals, sum)| {
@@ -289,24 +317,33 @@ pub async fn get_monthly_cluster_totals(
                 })
                 .or_insert_with(|| {
                     let mut totals = HashMap::new();
-                    totals.insert(cluster_name.clone(), lvr_cents);
+                    totals.insert(cluster_name, lvr_cents);
                     (totals, lvr_cents)
                 });
-
-            all_clusters.insert(cluster_name);
-        }
-
-        // Convert time range data to MonthlyData
-        for (time_range, (cluster_totals, total_lvr_cents)) in time_range_data {
-            monthly_result.push(MonthlyData {
-                time_range,
-                cluster_totals,
-                total_lvr_cents,
-            });
         }
     }
 
-    // Sort monthly data chronologically by time range
+    if time_range_data.is_empty() {
+        warn!(
+            "No monthly distribution data found for markout time: {}", 
+            markout_time
+        );
+        return Ok(Json(ClusterMonthlyResponse {
+            monthly_data: Vec::new(),
+            clusters: Vec::new(),
+        }));
+    }
+
+    // Convert map data to chronologically sorted monthly results
+    let mut monthly_result: Vec<MonthlyData> = time_range_data
+        .into_iter()
+        .map(|(time_range, (cluster_totals, total_lvr_cents))| MonthlyData {
+            time_range,
+            cluster_totals,
+            total_lvr_cents,
+        })
+        .collect();
+
     monthly_result.sort_by_key(|data| {
         INTERVAL_RANGES
             .iter()
@@ -315,22 +352,15 @@ pub async fn get_monthly_cluster_totals(
             .unwrap_or(0)
     });
 
-    // Convert all_clusters to sorted Vec
-    let mut clusters: Vec<String> = all_clusters.into_iter().collect();
+    // Convert clusters to sorted Vec for consistent presentation
+    let mut clusters: Vec<String> = unique_clusters.into_iter().collect();
     clusters.sort();
 
     info!(
-        "Returning monthly data for {} intervals across {} clusters", 
-        monthly_result.len(),
-        clusters.len()
+        "Processed volume distribution across {} clusters over {} months", 
+        clusters.len(),
+        monthly_result.len()
     );
-
-    if monthly_result.is_empty() {
-        warn!(
-            "No monthly cluster data found for markout_time: {}", 
-            markout_time
-        );
-    }
 
     Ok(Json(ClusterMonthlyResponse {
         monthly_data: monthly_result,
@@ -345,23 +375,21 @@ pub async fn get_cluster_non_zero(
     let markout_time = params.markout_time.unwrap_or_else(|| String::from("brontes"));
     
     info!(
-        "Fetching precomputed cluster non-zero proportions for markout_time: {}", 
+        "Analyzing activity patterns across clusters for markout time: {}", 
         markout_time
     );
 
     // Read from precomputed file
-    let precomputed_path = object_store::path::Path::from("precomputed/clusters/non_zero.parquet");
-    
-    let bytes = state.store.get(&precomputed_path)
+    let bytes = state.store.get(&Path::from("precomputed/clusters/non_zero.parquet"))
         .await
         .map_err(|e| {
-            error!("Failed to read precomputed cluster non-zero data: {}", e);
+            error!("Failed to read precomputed cluster activity data: {}", e);
             StatusCode::INTERNAL_SERVER_ERROR
         })?
         .bytes()
         .await
         .map_err(|e| {
-            error!("Failed to get bytes from precomputed cluster non-zero data: {}", e);
+            error!("Failed to get bytes from precomputed activity data: {}", e);
             StatusCode::INTERNAL_SERVER_ERROR
         })?;
 
@@ -386,7 +414,7 @@ pub async fn get_cluster_non_zero(
         let non_zero_proportions = get_float64_column(&batch, "non_zero_proportion")?;
 
         for i in 0..batch.num_rows() {
-            // Filter by markout time
+            // Early filter by markout time
             if markout_times.value(i) != markout_time {
                 continue;
             }
@@ -400,18 +428,23 @@ pub async fn get_cluster_non_zero(
         }
     }
 
+    if clusters.is_empty() {
+        warn!(
+            "No activity data found for markout time: {}", 
+            markout_time
+        );
+        return Ok(Json(ClusterNonZeroResponse { clusters: Vec::new() }));
+    }
+
+    // Sort clusters by activity proportion for consistent presentation
+    clusters.sort_by(|a, b| b.non_zero_proportion.partial_cmp(&a.non_zero_proportion)
+        .unwrap_or(std::cmp::Ordering::Equal));
+
     info!(
-        "Returning non-zero proportions for {} clusters with markout time {}", 
+        "Retrieved activity patterns for {} clusters with markout time {}", 
         clusters.len(), 
         markout_time
     );
-
-    if clusters.is_empty() {
-        warn!(
-            "No cluster non-zero proportion data found for markout_time: {}", 
-            markout_time
-        );
-    }
 
     Ok(Json(ClusterNonZeroResponse { clusters }))
 }

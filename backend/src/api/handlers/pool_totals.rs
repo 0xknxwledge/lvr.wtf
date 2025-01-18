@@ -9,6 +9,7 @@ use crate::{AppState,
 use tracing::{error, info, warn};
 use std::sync::Arc;
 use parquet::arrow::arrow_reader::ParquetRecordBatchReader;
+use object_store::path::Path;
 
 pub async fn get_pool_totals(
     State(state): State<Arc<AppState>>,
@@ -16,12 +17,10 @@ pub async fn get_pool_totals(
 ) -> Result<Json<PoolTotalsResponse>, StatusCode> {
     let markout_time = params.markout_time.unwrap_or_else(|| String::from("brontes"));
     
-    info!("Fetching precomputed pool totals for markout_time: {}", markout_time);
+    info!("Fetching pool performance metrics for markout_time: {}", markout_time);
 
     // Read from precomputed file
-    let precomputed_path = object_store::path::Path::from("precomputed/pool_metrics/totals.parquet");
-    
-    let bytes = state.store.get(&precomputed_path)
+    let bytes = state.store.get(&Path::from("precomputed/pool_metrics/totals.parquet"))
         .await
         .map_err(|e| {
             error!("Failed to read precomputed pool totals: {}", e);
@@ -41,6 +40,7 @@ pub async fn get_pool_totals(
         })?;
 
     let mut pool_totals = Vec::new();
+    let mut total_lvr = 0u64;
 
     for batch_result in reader {
         let batch = batch_result.map_err(|e| {
@@ -55,35 +55,39 @@ pub async fn get_pool_totals(
         let non_zero_blocks = get_uint64_column(&batch, "non_zero_blocks")?;
 
         for i in 0..batch.num_rows() {
-            // Filter by markout time
+            // Skip if markout time doesn't match
             if markout_times.value(i) != markout_time {
                 continue;
             }
+
+            let lvr = total_lvr_cents.value(i);
+            total_lvr = total_lvr.saturating_add(lvr);
 
             // Only include pools with activity
             if non_zero_blocks.value(i) > 0 {
                 pool_totals.push(PoolTotal {
                     pool_name: pool_names.value(i).to_string(),
                     pool_address: pool_addresses.value(i).to_string(),
-                    total_lvr_cents: total_lvr_cents.value(i),
+                    total_lvr_cents: lvr,
                 });
             }
         }
     }
 
-    // Sort by total_lvr_cents descending
+    // Sort by total LVR cents descending for consistent ordering
     pool_totals.sort_by(|a, b| b.total_lvr_cents.cmp(&a.total_lvr_cents));
-
-    info!(
-        "Found {} active pools with data for markout time {}", 
-        pool_totals.len(),
-        markout_time
-    );
 
     if pool_totals.is_empty() {
         warn!(
-            "No pool totals found for markout_time: {}. This might indicate missing data or no activity.", 
+            "No active pools found for markout_time: {}. This might indicate missing data or no activity.", 
             markout_time
+        );
+    } else {
+        info!(
+            "Found {} active pools for markout time {}. Total LVR: ${:.2}", 
+            pool_totals.len(),
+            markout_time,
+            total_lvr as f64 / 100.0
         );
     }
 
