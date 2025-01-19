@@ -125,7 +125,7 @@ impl BrontesConnection {
     }
 
     async fn try_fetch_lvr_analysis_batch(&self, client: &Client, batch_start: u64, batch_end: u64) -> Result<Vec<LVRAnalysis>> {    
-        let pools: Vec<_> = POOL_ADDRESSES.iter().map(|&s| s.to_lowercase()).collect();
+        let pools: Vec<_> = POOL_ADDRESSES.iter().map(|&s| s).collect();
         let mut cursor = client
             .query(
                 r#"
@@ -135,7 +135,7 @@ impl BrontesConnection {
                     SUM(p.profit_amt + p.revenue_amt) AS lvr
                 FROM brontes.block_analysis
                 ARRAY JOIN cex_dex_arbed_pool_all AS p
-                WHERE lowerUTF8(p.profit) in (?)
+                WHERE p.profit in (?)
                     AND run_id = 1000
                     AND p.profit != '0x0000000000000000000000000000000000000000'
                     AND p.revenue != '0x0000000000000000000000000000000000000000'

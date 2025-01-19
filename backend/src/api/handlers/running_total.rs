@@ -64,8 +64,10 @@ pub async fn get_running_total(
             StatusCode::INTERNAL_SERVER_ERROR
         })?;
 
-    let mut results = Vec::new();
-    let mut aggregated_data: HashMap<(u64, String), u64> = HashMap::new();
+    // Track running totals for each markout time and pool combination
+    let mut running_totals: HashMap<(String, Option<String>), u64> = HashMap::new();
+    // Store results with block numbers
+    let mut time_series_data: Vec<(u64, String, Option<String>, Option<String>, u64)> = Vec::new();
 
     // Process each batch
     for batch_result in reader {
@@ -77,7 +79,7 @@ pub async fn get_running_total(
         let block_numbers = get_uint64_column(&batch, "block_number")?;
         let markout_times = get_string_column(&batch, "markout_time")?;
         let pool_addresses = get_string_column(&batch, "pool_address")?;
-        let running_totals = get_uint64_column(&batch, "running_total_cents")?;
+        let running_totals_batch = get_uint64_column(&batch, "running_total_cents")?;
 
         for i in 0..batch.num_rows() {
             let block_number = block_numbers.value(i);
@@ -89,9 +91,9 @@ pub async fn get_running_total(
 
             let markout_time = markout_times.value(i).to_string();
             let pool_address = pool_addresses.value(i).to_lowercase();
-            let total = running_totals.value(i);
+            let total = running_totals_batch.value(i);
 
-            // Apply filters
+            // Apply markout time filter if specified
             if let Some(ref filter) = params.markout_time {
                 if filter != &markout_time {
                     continue;
@@ -99,51 +101,78 @@ pub async fn get_running_total(
             }
 
             if !is_aggregate {
+                // Individual pool data - check pool filter
                 if let Some(ref requested_pool) = params.pool {
                     if requested_pool.to_lowercase() != pool_address {
                         continue;
                     }
                 }
-                
-                // Individual pool data
-                results.push(RunningTotal {
+
+                let pool_name = get_pool_name(&pool_address);
+                // Maintain running total for this pool/markout combination
+                let current_total = running_totals
+                    .entry((markout_time.clone(), Some(pool_address.clone())))
+                    .and_modify(|total| *total = total.saturating_add(*total))
+                    .or_insert(total);
+
+                time_series_data.push((
                     block_number,
-                    markout: markout_time,
-                    pool_name: Some(get_pool_name(&pool_address)),
-                    pool_address: Some(pool_address),
-                    running_total_cents: total,
-                });
+                    markout_time,
+                    Some(pool_name),
+                    Some(pool_address.clone()),
+                    *current_total
+                ));
             } else {
-                // Aggregate data by block and markout time
-                aggregated_data
-                    .entry((block_number, markout_time))
+                // Aggregate data - maintain running total for each markout time
+                let current_total = running_totals
+                    .entry((markout_time.clone(), None))
                     .and_modify(|sum| *sum = sum.saturating_add(total))
                     .or_insert(total);
+
+                time_series_data.push((
+                    block_number,
+                    markout_time,
+                    None,
+                    None,
+                    *current_total
+                ));
             }
         }
     }
 
-    // Convert aggregated data if needed
-    if is_aggregate {
-        results = aggregated_data
-            .into_iter()
-            .map(|((block_number, markout), total)| RunningTotal {
+    // Sort by block number and markout time
+    time_series_data.sort_by(|a, b| {
+        a.0.cmp(&b.0)
+            .then_with(|| a.1.cmp(&b.1))
+            .then(a.2.cmp(&b.2))
+    });
+
+    // Convert to final format while maintaining monotonicity
+    let mut results = Vec::new();
+    let mut last_totals: HashMap<(String, Option<String>), u64> = HashMap::new();
+
+    for (block_number, markout, pool_name, pool_address, total) in time_series_data {
+        let key = (markout.clone(), pool_address.clone());
+        let current_total = last_totals
+            .entry(key.clone())
+            .and_modify(|last| *last = (*last).max(total))
+            .or_insert(total);
+
+        // Only add to results if the total has changed
+        if results.last().map_or(true, |last: &RunningTotal| {
+            last.markout != markout || 
+            last.pool_name != pool_name ||
+            last.running_total_cents != *current_total
+        }) {
+            results.push(RunningTotal {
                 block_number,
                 markout,
-                pool_name: None,
-                pool_address: None,
-                running_total_cents: total,
-            })
-            .collect();
+                pool_name,
+                pool_address,
+                running_total_cents: *current_total,
+            });
+        }
     }
-
-    // Sort results
-    results.sort_by(|a, b| {
-        a.block_number
-            .cmp(&b.block_number)
-            .then_with(|| a.markout.to_lowercase().cmp(&b.markout.to_lowercase()))
-            .then(a.pool_name.cmp(&b.pool_name))
-    });
 
     info!("Returning {} running total data points", results.len());
     Ok(Json(results))
