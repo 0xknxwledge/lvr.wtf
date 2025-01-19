@@ -143,10 +143,12 @@ pub struct PercentileBandQuery {
 
 #[derive(Debug, Serialize)]
 pub struct PercentileDataPoint {
-    pub block_number: u64,
-    pub percentile_25_cents: f64,
-    pub median_cents: f64,
-    pub percentile_75_cents: f64
+    pub start_block: u64,
+    pub end_block: u64,
+    pub total_lvr_dollars: f64,
+    pub percentile_25_dollars: f64,
+    pub median_dollars: f64,
+    pub percentile_75_dollars: f64
 }
 
 #[derive(Debug, Serialize)]

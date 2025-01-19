@@ -903,105 +903,126 @@ impl PrecomputedWriter {
             arrow::datatypes::Field::new("pool_address", arrow::datatypes::DataType::Utf8, false),
             arrow::datatypes::Field::new("pool_name", arrow::datatypes::DataType::Utf8, false),
             arrow::datatypes::Field::new("markout_time", arrow::datatypes::DataType::Utf8, false),
-            arrow::datatypes::Field::new("block_number", arrow::datatypes::DataType::UInt64, false),
+            arrow::datatypes::Field::new("start_block", arrow::datatypes::DataType::UInt64, false),
+            arrow::datatypes::Field::new("end_block", arrow::datatypes::DataType::UInt64, false),
+            arrow::datatypes::Field::new("total_lvr_cents", arrow::datatypes::DataType::UInt64, false),
             arrow::datatypes::Field::new("percentile_25_cents", arrow::datatypes::DataType::UInt64, false),
             arrow::datatypes::Field::new("median_cents", arrow::datatypes::DataType::UInt64, false),
             arrow::datatypes::Field::new("percentile_75_cents", arrow::datatypes::DataType::UInt64, false),
         ]);
-
+    
         let mut pool_addresses = Vec::new();
         let mut pool_names = Vec::new();
         let mut markout_times = Vec::new();
-        let mut block_numbers = Vec::new();
+        let mut start_blocks = Vec::new();
+        let mut end_blocks = Vec::new();
+        let mut total_lvr_values = Vec::new();
         let mut percentile_25_values = Vec::new();
         let mut median_values = Vec::new();
         let mut percentile_75_values = Vec::new();
-
+    
         let valid_pools = get_valid_pools();
         let start_block = *MERGE_BLOCK;
         let end_block = 20_000_000;
-
-        // Process data for each pool and markout time combination
-        for pool_address in valid_pools {
-            let pool_name = get_pool_name(&pool_address);
-            
-            // Create map to collect LVR values per interval file
-            let mut file_lvr_values: HashMap<u64, Vec<u64>> = HashMap::new();
-            let intervals_path = object_store::path::Path::from("intervals");
-            let mut interval_files = self.object_store.list(Some(&intervals_path));
-
-            while let Some(meta_result) = interval_files.next().await {
-                let meta = meta_result.context("Failed to get file metadata")?;
-                let file_path = meta.location.to_string();
-
-                // Extract block range from file name
-                let (file_start, file_end) = if let Some(file_name) = file_path.split('/').last() {
-                    let parts: Vec<&str> = file_name.split('_').collect();
-                    if parts.len() == 2 {
-                        let start = parts[0].parse::<u64>().context("Failed to parse start block")?;
-                        let end = parts[1].trim_end_matches(".parquet").parse::<u64>()
-                            .context("Failed to parse end block")?;
-                        (start, end)
-                    } else {
-                        continue;
-                    }
+    
+        // Process all interval files
+        let intervals_path = object_store::path::Path::from("intervals");
+        let mut interval_files = self.object_store.list(Some(&intervals_path));
+        
+        while let Some(meta_result) = interval_files.next().await {
+            let meta = meta_result.context("Failed to get file metadata")?;
+            let file_path = meta.location.to_string();
+    
+            // Extract block range from file name
+            let (file_start, file_end) = if let Some(file_name) = file_path.split('/').last() {
+                let parts: Vec<&str> = file_name.split('_').collect();
+                if parts.len() == 2 {
+                    let start = parts[0].parse::<u64>().context("Failed to parse start block")?;
+                    let end = parts[1].trim_end_matches(".parquet").parse::<u64>()
+                        .context("Failed to parse end block")?;
+                    (start, end)
                 } else {
                     continue;
-                };
-
-                // Skip files outside our range
-                if file_start > end_block || file_end < start_block {
-                    continue;
                 }
-
-                let bytes = self.object_store.get(&meta.location).await?.bytes().await?;
-                let record_reader = ParquetRecordBatchReader::try_new(bytes, 1024)?;
-
-                for batch_result in record_reader {
-                    let batch = batch_result?;
-
-                    let markout_times_col = get_string_column(&batch, "markout_time")
-                        .map_err(|e| anyhow::anyhow!("Failed to get markout_time column: {}", e))?;
-                    let pool_addresses_col = get_string_column(&batch, "pair_address")
-                        .map_err(|e| anyhow::anyhow!("Failed to get pair_address column: {}", e))?;
-                    let total_lvr_cents = get_uint64_column(&batch, "total_lvr_cents")
-                        .map_err(|e| anyhow::anyhow!("Failed to get total_lvr_cents column: {}", e))?;
-                    let non_zero_counts = get_uint64_column(&batch, "non_zero_count")
-                        .map_err(|e| anyhow::anyhow!("Failed to get non_zero_count column: {}", e))?;
-
-                    for i in 0..batch.num_rows() {
-                        let current_pool = pool_addresses_col.value(i).to_lowercase();
-                        let markout = markout_times_col.value(i);
+            } else {
+                continue;
+            };
+    
+            // Skip files outside our range
+            if file_start > end_block || file_end < start_block {
+                continue;
+            }
+    
+            let bytes = self.object_store.get(&meta.location).await?.bytes().await?;
+            let record_reader = ParquetRecordBatchReader::try_new(bytes, 1024)?;
+    
+            for batch_result in record_reader {
+                let batch = batch_result?;
+    
+                let markout_times_col = get_string_column(&batch, "markout_time")
+                    .map_err(|e| anyhow::anyhow!("Failed to get markout_time column: {}", e))?;
+                let pool_addresses_col = get_string_column(&batch, "pair_address")
+                    .map_err(|e| anyhow::anyhow!("Failed to get pair_address column: {}", e))?;
+                let total_lvr_cents = get_uint64_column(&batch, "total_lvr_cents")
+                    .map_err(|e| anyhow::anyhow!("Failed to get total_lvr_cents column: {}", e))?;
+                let interval_ids = get_uint64_column(&batch, "interval_id")
+                    .map_err(|e| anyhow::anyhow!("Failed to get interval_id column: {}", e))?;
+    
+                // Group data by pool and markout time within this interval
+                let mut interval_data: HashMap<(String, String), Vec<u64>> = HashMap::new();
+    
+                for i in 0..batch.num_rows() {
+                    let pool_address = pool_addresses_col.value(i).to_lowercase();
+                    if !valid_pools.contains(&pool_address) {
+                        continue;
+                    }
+    
+                    let markout_time = markout_times_col.value(i).to_string();
+                    let lvr_cents = total_lvr_cents.value(i);
+    
+                    if lvr_cents > 0 {
+                        interval_data
+                            .entry((pool_address, markout_time))
+                            .or_default()
+                            .push(lvr_cents);
+                    }
+                }
+    
+                // Calculate percentiles for each pool/markout combination in this interval
+                for ((pool_address, markout_time), mut values) in interval_data {
+                    if !values.is_empty() {
+                        values.sort_unstable();
+                        let total_lvr: u64 = values.iter().sum();
+                        let pool_name = get_pool_name(&pool_address);
                         
-                        if current_pool != pool_address {
-                            continue;
-                        }
-
-                        // Only include intervals with activity
-                        if non_zero_counts.value(i) > 0 {
-                            file_lvr_values
-                                .entry(file_start)
-                                .or_default()
-                                .push(total_lvr_cents.value(i));
-                        }
-
-                        // Calculate percentiles for this interval
-                        if let Some(values) = file_lvr_values.get_mut(&file_start) {
-                            values.sort_unstable();
-                            
-                            pool_addresses.push(pool_address.clone());
-                            pool_names.push(pool_name.clone());
-                            markout_times.push(markout.to_string());
-                            block_numbers.push(file_start);
-                            percentile_25_values.push(calculate_percentile(&values, 0.25));
-                            median_values.push(calculate_percentile(&values, 0.5));
-                            percentile_75_values.push(calculate_percentile(&values, 0.75));
-                        }
+                        // Calculate percentiles
+                        let p25 = calculate_percentile(&values, 0.25);
+                        let p50 = calculate_percentile(&values, 0.50);
+                        let p75 = calculate_percentile(&values, 0.75);
+    
+                        // Calculate interval boundaries
+                        let interval_id = interval_ids.value(0); // Same for all rows in this batch
+                        let interval_start = file_start + (interval_id * BLOCKS_PER_INTERVAL);
+                        let interval_end = if file_path.ends_with(FINAL_INTERVAL_FILE) && interval_id == 19 {
+                            interval_start + FINAL_PARTIAL_BLOCKS
+                        } else {
+                            interval_start + BLOCKS_PER_INTERVAL
+                        };
+    
+                        pool_addresses.push(pool_address);
+                        pool_names.push(pool_name);
+                        markout_times.push(markout_time);
+                        start_blocks.push(interval_start);
+                        end_blocks.push(interval_end);
+                        total_lvr_values.push(total_lvr);
+                        percentile_25_values.push(p25);
+                        median_values.push(p50);
+                        percentile_75_values.push(p75);
                     }
                 }
             }
         }
-
+    
         // Create record batch
         let batch = RecordBatch::try_new(
             Arc::new(schema),
@@ -1009,17 +1030,19 @@ impl PrecomputedWriter {
                 Arc::new(StringArray::from(pool_addresses)),
                 Arc::new(StringArray::from(pool_names)),
                 Arc::new(StringArray::from(markout_times)),
-                Arc::new(UInt64Array::from(block_numbers)),
+                Arc::new(UInt64Array::from(start_blocks)),
+                Arc::new(UInt64Array::from(end_blocks)),
+                Arc::new(UInt64Array::from(total_lvr_values)),
                 Arc::new(UInt64Array::from(percentile_25_values)),
                 Arc::new(UInt64Array::from(median_values)),
                 Arc::new(UInt64Array::from(percentile_75_values)),
             ],
         )?;
-
+    
         // Write to output file
         let output_path = Path::from("precomputed/distributions/percentile_bands.parquet");
         self.write_batch_to_store(output_path, batch).await?;
-
+    
         info!("Successfully wrote precomputed percentile band distributions");
         Ok(())
     }

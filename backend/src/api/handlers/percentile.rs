@@ -71,20 +71,25 @@ pub async fn get_percentile_band(
         let pool_addresses = get_string_column(&batch, "pool_address")?;
         let pool_names = get_string_column(&batch, "pool_name")?;
         let markout_times = get_string_column(&batch, "markout_time")?;
-        let block_numbers = get_uint64_column(&batch, "block_number")?;
+        let start_blocks = get_uint64_column(&batch, "start_block")?;
+        let end_blocks = get_uint64_column(&batch, "end_block")?;
+        let total_lvr = get_uint64_column(&batch, "total_lvr_cents")?;
         let percentile_25 = get_uint64_column(&batch, "percentile_25_cents")?;
         let median = get_uint64_column(&batch, "median_cents")?;
         let percentile_75 = get_uint64_column(&batch, "percentile_75_cents")?;
 
         for i in 0..batch.num_rows() {
-            // Apply all filters
             let current_pool = pool_addresses.value(i).to_lowercase();
-            let block_number = block_numbers.value(i);
+            let interval_start = start_blocks.value(i);
+            let interval_end = end_blocks.value(i);
             
-            if current_pool != pool_filter ||
-               markout_times.value(i) != markout_time ||
-               block_number < start_block || 
-               block_number > end_block {
+            // Skip if interval is entirely outside requested range
+            if interval_end < start_block || interval_start > end_block {
+                continue;
+            }
+
+            // Apply remaining filters
+            if current_pool != pool_filter || markout_times.value(i) != markout_time {
                 continue;
             }
 
@@ -98,10 +103,12 @@ pub async fn get_percentile_band(
             min_median = min_median.min(median_value);
 
             data_points.push(PercentileDataPoint {
-                block_number,
-                percentile_25_cents: percentile_25.value(i) as f64 / 100.0,
-                median_cents: median_value as f64 / 100.0,
-                percentile_75_cents: percentile_75.value(i) as f64 / 100.0,
+                start_block: interval_start,
+                end_block: interval_end,
+                total_lvr_dollars: total_lvr.value(i) as f64 / 100.0,
+                percentile_25_dollars: percentile_25.value(i) as f64 / 100.0,
+                median_dollars: median_value as f64 / 100.0,
+                percentile_75_dollars: percentile_75.value(i) as f64 / 100.0,
             });
         }
     }
@@ -115,8 +122,8 @@ pub async fn get_percentile_band(
         return Err(StatusCode::NOT_FOUND);
     }
 
-    // Sort chronologically by block number
-    data_points.sort_by_key(|point| point.block_number);
+    // Sort chronologically by start block
+    data_points.sort_by_key(|point| point.start_block);
 
     info!(
         "Retrieved {} distribution points for {}. Median range: ${:.2} to ${:.2}",

@@ -5,10 +5,12 @@ import dates from '../../dates';
 import { createBaseLayout, plotColors, fontConfig, commonConfig } from '../plotUtils';
 
 interface PercentileDataPoint {
-  block_number: number;
-  percentile_25: number;
-  median: number;
-  percentile_75: number;
+  start_block: number;
+  end_block: number;
+  total_lvr_dollars: number;
+  percentile_25_dollars: number;
+  median_dollars: number;
+  percentile_75_dollars: number;
 }
 
 interface PercentileBandResponse {
@@ -50,6 +52,7 @@ const PercentileBandChart: React.FC<PercentileBandChartProps> = ({
         }
 
         const jsonData: PercentileBandResponse = await response.json();
+        console.log(jsonData);
         const numDataPoints = jsonData.data_points.length;
         
         // We'll slice from the end rather than the beginning
@@ -87,13 +90,12 @@ const PercentileBandChart: React.FC<PercentileBandChartProps> = ({
   }
 
   const { data_points } = data;
-  // Pull back out our filteredDates
   const filteredDates: string[] = (data as any).filteredDates || [];
 
-  // Values are already in dollars, no need for conversion
-  const medianValues = data_points.map((d) => d.median);
-  const percentile25Values = data_points.map((d) => d.percentile_25);
-  const percentile75Values = data_points.map((d) => d.percentile_75);
+  // Use the new field names for values (already in dollars)
+  const medianValues = data_points.map((d) => d.median_dollars);
+  const percentile25Values = data_points.map((d) => d.percentile_25_dollars);
+  const percentile75Values = data_points.map((d) => d.percentile_75_dollars);
 
   // Build the title
   const titleSuffix =
@@ -104,7 +106,7 @@ const PercentileBandChart: React.FC<PercentileBandChartProps> = ({
   const title = `Monthly LVR Percentile Bandplot for ${titleSuffix}*`;
   const baseLayout = createBaseLayout(title);
 
-  // Create plotData
+  // Create plotData with updated customdata to include block ranges
   const plotData: Array<Partial<Plotly.Data>> = [
     {
       x: [...filteredDates, ...filteredDates.slice().reverse()],
@@ -130,14 +132,16 @@ const PercentileBandChart: React.FC<PercentileBandChartProps> = ({
       },
       showlegend: false,
       customdata: data_points.map((d) => [
-        d.percentile_25,
-        d.median,
-        d.percentile_75,
-        d.block_number + 216000,
-        d.block_number,
+        d.percentile_25_dollars,
+        d.median_dollars,
+        d.percentile_75_dollars,
+        d.start_block,
+        d.end_block,
+        d.total_lvr_dollars,
       ]),
       hovertemplate:
-        '<b>Blocks %{customdata[4]} - %{customdata[3]}</b><br>' +
+        '<b>Blocks %{customdata[3]} - %{customdata[4]}</b><br>' +
+        'Total LVR: $%{customdata[5]:,.2f}<br>' +
         '75th Percentile: $%{customdata[2]:,.2f}<br>' +
         'Median: $%{customdata[1]:,.2f}<br>' +
         '25th Percentile: $%{customdata[0]:,.2f}' +
