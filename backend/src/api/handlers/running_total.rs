@@ -44,17 +44,33 @@ pub async fn get_running_total(
         params.pool.as_ref().map_or(String::new(), |p| format!(", pool: {}", p))
     );
 
-    // Read from precomputed file
-    let bytes = state.store.get(&Path::from("precomputed/running_totals/totals.parquet"))
+    let results = if is_aggregate {
+        read_aggregate_running_totals(&state, start_block, end_block, params.markout_time).await?
+    } else {
+        read_individual_running_totals(&state, start_block, end_block, &params).await?
+    };
+
+    info!("Returning {} running total data points", results.len());
+    Ok(Json(results))
+}
+
+async fn read_aggregate_running_totals(
+    state: &Arc<AppState>,
+    start_block: u64,
+    end_block: u64,
+    markout_filter: Option<String>,
+) -> Result<Vec<RunningTotal>, StatusCode> {
+    // Read from precomputed aggregate file
+    let bytes = state.store.get(&Path::from("precomputed/running_totals/aggregate.parquet"))
         .await
         .map_err(|e| {
-            error!("Failed to read precomputed running totals: {}", e);
+            error!("Failed to read precomputed aggregate running totals: {}", e);
             StatusCode::INTERNAL_SERVER_ERROR
         })?
         .bytes()
         .await
         .map_err(|e| {
-            error!("Failed to get bytes from precomputed running totals: {}", e);
+            error!("Failed to get bytes from precomputed aggregate data: {}", e);
             StatusCode::INTERNAL_SERVER_ERROR
         })?;
 
@@ -64,11 +80,83 @@ pub async fn get_running_total(
             StatusCode::INTERNAL_SERVER_ERROR
         })?;
 
-    // For aggregate queries, track totals by block and markout time
-    let mut aggregated_data: HashMap<(u64, String), u64> = HashMap::new();
     let mut results = Vec::new();
 
-    // Process each batch
+    for batch_result in reader {
+        let batch = batch_result.map_err(|e| {
+            error!("Failed to read batch: {}", e);
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?;
+
+        let block_numbers = get_uint64_column(&batch, "block_number")?;
+        let markout_times = get_string_column(&batch, "markout_time")?;
+        let running_totals = get_uint64_column(&batch, "running_total_cents")?;
+
+        for i in 0..batch.num_rows() {
+            let block_number = block_numbers.value(i);
+            
+            // Skip if outside requested range
+            if block_number < start_block || block_number > end_block {
+                continue;
+            }
+
+            let markout_time = markout_times.value(i).to_string();
+            
+            // Apply markout time filter if specified
+            if let Some(ref filter) = markout_filter {
+                if filter != &markout_time {
+                    continue;
+                }
+            }
+
+            results.push(RunningTotal {
+                block_number,
+                markout: markout_time,
+                pool_name: None,
+                pool_address: None,
+                running_total_cents: running_totals.value(i),
+            });
+        }
+    }
+
+    // Sort results by block number and markout time
+    results.sort_by(|a, b| {
+        a.block_number
+            .cmp(&b.block_number)
+            .then_with(|| a.markout.to_lowercase().cmp(&b.markout.to_lowercase()))
+    });
+
+    Ok(results)
+}
+
+async fn read_individual_running_totals(
+    state: &Arc<AppState>,
+    start_block: u64,
+    end_block: u64,
+    params: &TimeRangeQuery,
+) -> Result<Vec<RunningTotal>, StatusCode> {
+    // Read from precomputed individual file
+    let bytes = state.store.get(&Path::from("precomputed/running_totals/individual.parquet"))
+        .await
+        .map_err(|e| {
+            error!("Failed to read precomputed individual running totals: {}", e);
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?
+        .bytes()
+        .await
+        .map_err(|e| {
+            error!("Failed to get bytes from precomputed individual data: {}", e);
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?;
+
+    let reader = ParquetRecordBatchReader::try_new(bytes, 1024)
+        .map_err(|e| {
+            error!("Failed to create Parquet reader: {}", e);
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?;
+
+    let mut results = Vec::new();
+
     for batch_result in reader {
         let batch = batch_result.map_err(|e| {
             error!("Failed to read batch: {}", e);
@@ -90,7 +178,6 @@ pub async fn get_running_total(
 
             let markout_time = markout_times.value(i).to_string();
             let pool_address = pool_addresses.value(i).to_lowercase();
-            let running_total = running_totals.value(i);
 
             // Apply markout time filter if specified
             if let Some(ref filter) = params.markout_time {
@@ -99,46 +186,24 @@ pub async fn get_running_total(
                 }
             }
 
-            if is_aggregate {
-                // For aggregate queries, sum the running totals for each block/markout combination
-                aggregated_data
-                    .entry((block_number, markout_time))
-                    .and_modify(|total| *total = total.saturating_add(running_total))
-                    .or_insert(running_total);
-            } else {
-                // For individual pool queries, filter and add data points directly
-                if let Some(ref requested_pool) = params.pool {
-                    if requested_pool.to_lowercase() != pool_address {
-                        continue;
-                    }
+            // Apply pool filter
+            if let Some(ref requested_pool) = params.pool {
+                if requested_pool.to_lowercase() != pool_address {
+                    continue;
                 }
-
-                results.push(RunningTotal {
-                    block_number,
-                    markout: markout_time,
-                    pool_name: Some(get_pool_name(&pool_address)),
-                    pool_address: Some(pool_address),
-                    running_total_cents: running_total,
-                });
             }
+
+            results.push(RunningTotal {
+                block_number,
+                markout: markout_time,
+                pool_name: Some(get_pool_name(&pool_address)),
+                pool_address: Some(pool_address),
+                running_total_cents: running_totals.value(i),
+            });
         }
     }
 
-    // For aggregate queries, convert the hashmap into results
-    if is_aggregate {
-        results = aggregated_data
-            .into_iter()
-            .map(|((block_number, markout), total)| RunningTotal {
-                block_number,
-                markout,
-                pool_name: None,
-                pool_address: None,
-                running_total_cents: total,
-            })
-            .collect();
-    }
-
-    // Sort results by block number and markout time
+    // Sort results by block number, markout time, and pool name
     results.sort_by(|a, b| {
         a.block_number
             .cmp(&b.block_number)
@@ -146,8 +211,7 @@ pub async fn get_running_total(
             .then(a.pool_name.cmp(&b.pool_name))
     });
 
-    info!("Returning {} running total data points", results.len());
-    Ok(Json(results))
+    Ok(results)
 }
 
 fn process_interval_totals(

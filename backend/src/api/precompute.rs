@@ -76,46 +76,41 @@ impl PrecomputedWriter {
     }
 
     pub async fn write_running_totals(&self) -> Result<(), anyhow::Error> {
-        info!("Starting precomputation of running totals");
+        info!("Starting precomputation of running totals (individual and aggregate)");
         
-        // Create output schema for the running totals
-        let schema = arrow::datatypes::Schema::new(vec![
-            arrow::datatypes::Field::new("block_number", arrow::datatypes::DataType::UInt64, false),
-            arrow::datatypes::Field::new("markout_time", arrow::datatypes::DataType::Utf8, false),
-            arrow::datatypes::Field::new("pool_address", arrow::datatypes::DataType::Utf8, false),
-            arrow::datatypes::Field::new("running_total_cents", arrow::datatypes::DataType::UInt64, false),
-        ]);
-
-        // Process data for each pool and markout time combination
-        let mut block_numbers = Vec::new();
-        let mut markout_times = Vec::new();
-        let mut pool_addresses = Vec::new();
-        let mut running_totals = Vec::new();
-
         // Get all data from interval files
         let intervals_path = object_store::path::Path::from("intervals");
         let mut interval_files = self.object_store.list(Some(&intervals_path));
         let valid_pools = get_valid_pools();
-        
-        let mut interval_totals: HashMap<(u64, u64, String, String), IntervalAPIData> = HashMap::new();
-
-        // Process all interval files
+            
+        let mut interval_data: HashMap<(u64, String, String), u64> = HashMap::new();
+        let mut aggregate_data: HashMap<(u64, String), u64> = HashMap::new();
+    
+        // Process all interval files to collect interval data
         while let Some(meta_result) = interval_files.next().await {
             let meta = meta_result.context("Failed to get file metadata")?;
             let file_path = meta.location.to_string();
             
+            // Get file start block from path
+            let file_start = file_path
+                .split("intervals/")
+                .nth(1)
+                .and_then(|name| name.trim_end_matches(".parquet").split('_').next())
+                .and_then(|num| num.parse::<u64>().ok())
+                .unwrap_or(*MERGE_BLOCK);
+    
             let bytes = self.object_store.get(&meta.location)
                 .await?
                 .bytes()
                 .await?;
-
+    
             let record_reader = ParquetRecordBatchReader::try_new(bytes, 1024)?;
-
+    
             for batch_result in record_reader {
                 let batch = batch_result?;
                 
                 let interval_ids = get_uint64_column(&batch, "interval_id")
-                    .map_err(|e| anyhow::anyhow!("Failed to get interval_id column: {}", e))?;
+                .map_err(|e| anyhow::anyhow!("Failed to get interval_id column: {}", e))?;
                 let markout_times_col = get_string_column(&batch, "markout_time")
                     .map_err(|e| anyhow::anyhow!("Failed to get markout_time column: {}", e))?;
                 let pool_addresses_col = get_string_column(&batch, "pair_address")
@@ -124,87 +119,155 @@ impl PrecomputedWriter {
                     .map_err(|e| anyhow::anyhow!("Failed to get total_lvr_cents column: {}", e))?;
                 let non_zero_counts = get_uint64_column(&batch, "non_zero_count")
                     .map_err(|e| anyhow::anyhow!("Failed to get non_zero_count column: {}", e))?;
-
+    
                 for i in 0..batch.num_rows() {
                     if total_lvr_cents.is_null(i) || non_zero_counts.value(i) == 0 {
                         continue;
                     }
-
+    
                     let pool_address = pool_addresses_col.value(i).to_lowercase();
                     if !valid_pools.contains(&pool_address) {
                         continue;
                     }
-
+    
                     let interval_id = interval_ids.value(i);
                     let markout_time = markout_times_col.value(i).to_string();
                     let lvr_cents = total_lvr_cents.value(i);
-
-                    // Get file start block from path
-                    let file_start = file_path
-                        .split("intervals/")
-                        .nth(1)
-                        .and_then(|name| name.trim_end_matches(".parquet").split('_').next())
-                        .and_then(|num| num.parse::<u64>().ok())
-                        .unwrap_or(*MERGE_BLOCK);
-
-                    interval_totals
-                        .entry((file_start, interval_id, markout_time, pool_address))
-                        .and_modify(|data| data.total = data.total.saturating_add(lvr_cents))
-                        .or_insert(IntervalAPIData {
-                            total: lvr_cents,
-                            file_path: file_path.clone(),
-                        });
+    
+                    let block_number = if file_path.ends_with(FINAL_INTERVAL_FILE) && interval_id == 19 {
+                        file_start + (interval_id * BLOCKS_PER_INTERVAL) + FINAL_PARTIAL_BLOCKS
+                    } else {
+                        file_start + (interval_id * BLOCKS_PER_INTERVAL)
+                    };
+    
+                    // Update individual pool data
+                    interval_data
+                        .entry((block_number, markout_time.clone(), pool_address.clone()))
+                        .and_modify(|total| *total = total.saturating_add(lvr_cents))
+                        .or_insert(lvr_cents);
+    
+                    // Update aggregate data
+                    aggregate_data
+                        .entry((block_number, markout_time.clone()))
+                        .and_modify(|total| *total = total.saturating_add(lvr_cents))
+                        .or_insert(lvr_cents);
                 }
             }
         }
-
-        // Convert to sorted Vec for chronological processing
-        let mut sorted_entries: Vec<_> = interval_totals.into_iter().collect();
-        sorted_entries.sort_by(|a, b| {
-            let block_a = a.0.0 + (a.0.1 * BLOCKS_PER_INTERVAL);
-            let block_b = b.0.0 + (b.0.1 * BLOCKS_PER_INTERVAL);
-            block_a.cmp(&block_b)
-        });
-
+    
+        // Write individual running totals
+        self.write_individual_running_totals(interval_data).await?;
+    
+        // Write aggregate running totals
+        self.write_aggregate_running_totals(aggregate_data).await?;
+    
+        info!("Successfully wrote precomputed running totals (individual and aggregate)");
+        Ok(())
+    }
+    
+    async fn write_individual_running_totals(
+        &self,
+        interval_data: HashMap<(u64, String, String), u64>
+    ) -> Result<(), anyhow::Error> {
+        // Create output schema for individual running totals
+        let schema = arrow::datatypes::Schema::new(vec![
+            arrow::datatypes::Field::new("block_number", arrow::datatypes::DataType::UInt64, false),
+            arrow::datatypes::Field::new("markout_time", arrow::datatypes::DataType::Utf8, false),
+            arrow::datatypes::Field::new("pool_address", arrow::datatypes::DataType::Utf8, false),
+            arrow::datatypes::Field::new("running_total_cents", arrow::datatypes::DataType::UInt64, false),
+        ]);
+    
         // Track running totals per pool/markout combination
-        let mut last_totals: HashMap<(String, String), u64> = HashMap::new();
-
-        // Process sorted entries
-        for ((file_start, interval_id, markout, pool_address), data) in sorted_entries {
-            let block_number = if data.file_path.ends_with(FINAL_INTERVAL_FILE) && interval_id == 19 {
-                file_start + (interval_id * BLOCKS_PER_INTERVAL) + FINAL_PARTIAL_BLOCKS
-            } else {
-                file_start + (interval_id * BLOCKS_PER_INTERVAL)
-            };
-
-            let current_total = last_totals
-                .entry((pool_address.clone(), markout.clone()))
-                .and_modify(|total| *total = total.saturating_add(data.total))
-                .or_insert(data.total);
-
-            // Add to arrays for batch
+        let mut running_totals: HashMap<(String, String), u64> = HashMap::new();
+    
+        // Sort data points by block number
+        let mut data_points: Vec<_> = interval_data.into_iter().collect();
+        data_points.sort_by_key(|((block, _, _), _)| *block);
+    
+        let mut block_numbers = Vec::new();
+        let mut markout_times = Vec::new();
+        let mut pool_addresses = Vec::new();
+        let mut totals = Vec::new();
+    
+        // Process sorted data points to maintain monotonicity
+        for ((block_number, markout_time, pool_address), interval_total) in data_points {
+            let current_total = running_totals
+                .entry((pool_address.clone(), markout_time.clone()))
+                .and_modify(|total| *total = total.saturating_add(interval_total))
+                .or_insert(interval_total);
+    
             block_numbers.push(block_number);
-            markout_times.push(markout.clone());
-            pool_addresses.push(pool_address.clone());
-            running_totals.push(*current_total);
+            markout_times.push(markout_time);
+            pool_addresses.push(pool_address);
+            totals.push(*current_total);
         }
-
-        // Create record batch
+    
+        // Create and write record batch
         let batch = RecordBatch::try_new(
             Arc::new(schema),
             vec![
                 Arc::new(UInt64Array::from(block_numbers)),
                 Arc::new(StringArray::from(markout_times)),
                 Arc::new(StringArray::from(pool_addresses)),
-                Arc::new(UInt64Array::from(running_totals)),
+                Arc::new(UInt64Array::from(totals)),
             ],
         )?;
-
-        // Write to output file
-        let output_path = Path::from("precomputed/running_totals/totals.parquet");
+    
+        let output_path = Path::from("precomputed/running_totals/individual.parquet");
         self.write_batch_to_store(output_path, batch).await?;
-
-        info!("Successfully wrote precomputed running totals");
+    
+        info!("Successfully wrote precomputed individual running totals");
+        Ok(())
+    }
+    
+    async fn write_aggregate_running_totals(
+        &self,
+        aggregate_data: HashMap<(u64, String), u64>
+    ) -> Result<(), anyhow::Error> {
+        // Create output schema for aggregate running totals
+        let schema = arrow::datatypes::Schema::new(vec![
+            arrow::datatypes::Field::new("block_number", arrow::datatypes::DataType::UInt64, false),
+            arrow::datatypes::Field::new("markout_time", arrow::datatypes::DataType::Utf8, false),
+            arrow::datatypes::Field::new("running_total_cents", arrow::datatypes::DataType::UInt64, false),
+        ]);
+    
+        // Track running totals per markout time
+        let mut running_totals: HashMap<String, u64> = HashMap::new();
+    
+        // Sort data points by block number
+        let mut data_points: Vec<_> = aggregate_data.into_iter().collect();
+        data_points.sort_by_key(|((block, _), _)| *block);
+    
+        let mut block_numbers = Vec::new();
+        let mut markout_times = Vec::new();
+        let mut totals = Vec::new();
+    
+        // Process sorted data points to maintain monotonicity
+        for ((block_number, markout_time), interval_total) in data_points {
+            let current_total = running_totals
+                .entry(markout_time.clone())
+                .and_modify(|total| *total = total.saturating_add(interval_total))
+                .or_insert(interval_total);
+    
+            block_numbers.push(block_number);
+            markout_times.push(markout_time);
+            totals.push(*current_total);
+        }
+    
+        // Create and write record batch
+        let batch = RecordBatch::try_new(
+            Arc::new(schema),
+            vec![
+                Arc::new(UInt64Array::from(block_numbers)),
+                Arc::new(StringArray::from(markout_times)),
+                Arc::new(UInt64Array::from(totals)),
+            ],
+        )?;
+    
+        let output_path = Path::from("precomputed/running_totals/aggregate.parquet");
+        self.write_batch_to_store(output_path, batch).await?;
+    
+        info!("Successfully wrote precomputed aggregate running totals");
         Ok(())
     }
 
