@@ -64,13 +64,9 @@ pub async fn get_running_total(
             StatusCode::INTERNAL_SERVER_ERROR
         })?;
 
+    // For aggregate queries, track totals by block and markout time
+    let mut aggregated_data: HashMap<(u64, String), u64> = HashMap::new();
     let mut results = Vec::new();
-    
-    // Track the latest total for each markout time or pool+markout combination
-    let mut latest_totals: HashMap<String, (u64, u64)> = HashMap::new(); // key -> (block_number, total)
-    
-    // Collect and sort all data points first
-    let mut all_data_points = Vec::new();
 
     // Process each batch
     for batch_result in reader {
@@ -94,7 +90,7 @@ pub async fn get_running_total(
 
             let markout_time = markout_times.value(i).to_string();
             let pool_address = pool_addresses.value(i).to_lowercase();
-            let total = running_totals.value(i);
+            let running_total = running_totals.value(i);
 
             // Apply markout time filter if specified
             if let Some(ref filter) = params.markout_time {
@@ -103,84 +99,52 @@ pub async fn get_running_total(
                 }
             }
 
-            // Apply pool filter for non-aggregate queries
-            if !is_aggregate {
+            if is_aggregate {
+                // For aggregate queries, sum the running totals for each block/markout combination
+                aggregated_data
+                    .entry((block_number, markout_time))
+                    .and_modify(|total| *total = total.saturating_add(running_total))
+                    .or_insert(running_total);
+            } else {
+                // For individual pool queries, filter and add data points directly
                 if let Some(ref requested_pool) = params.pool {
                     if requested_pool.to_lowercase() != pool_address {
                         continue;
                     }
                 }
-                all_data_points.push((
+
+                results.push(RunningTotal {
                     block_number,
-                    markout_time,
-                    Some(pool_address.clone()),
-                    total
-                ));
-            } else {
-                all_data_points.push((
-                    block_number,
-                    markout_time,
-                    None,
-                    total
-                ));
+                    markout: markout_time,
+                    pool_name: Some(get_pool_name(&pool_address)),
+                    pool_address: Some(pool_address),
+                    running_total_cents: running_total,
+                });
             }
         }
     }
 
-    // Sort data points by block number and then markout time
-    all_data_points.sort_by(|a, b| {
-        a.0.cmp(&b.0)
-            .then_with(|| a.1.cmp(&b.1))
-            .then(a.2.cmp(&b.2))
-    });
-
-    // Process sorted data points
-    for (block_number, markout_time, pool_opt, total) in all_data_points {
-        let key = if is_aggregate {
-            markout_time.clone()
-        } else {
-            format!("{}_{}", pool_opt.as_ref().unwrap(), markout_time)
-        };
-
-        // Get the previous total for this key or start at 0
-        let prev_total = latest_totals
-            .get(&key)
-            .map(|(_, total)| *total)
-            .unwrap_or(0);
-
-        // Update the running total
-        let new_total = if block_number > latest_totals.get(&key).map(|(block, _)| *block).unwrap_or(0) {
-            // If this is a newer block, use the larger of the current total or previous total
-            total.max(prev_total)
-        } else {
-            // If it's the same block (shouldn't happen with sorted data) or an older block, 
-            // maintain the previous total
-            prev_total
-        };
-
-        // Update the latest total for this key
-        latest_totals.insert(key, (block_number, new_total));
-
-        // Create the result entry
-        if !is_aggregate {
-            let pool_address = pool_opt.unwrap();
-            results.push(RunningTotal {
+    // For aggregate queries, convert the hashmap into results
+    if is_aggregate {
+        results = aggregated_data
+            .into_iter()
+            .map(|((block_number, markout), total)| RunningTotal {
                 block_number,
-                markout: markout_time,
-                pool_name: Some(get_pool_name(&pool_address)),
-                pool_address: Some(pool_address),
-                running_total_cents: new_total,
-            });
-        } else {
-            results.push(RunningTotal {
-                block_number,
-                markout: markout_time,
+                markout,
                 pool_name: None,
                 pool_address: None,
-                running_total_cents: new_total,
-            });
-        }
+                running_total_cents: total,
+            })
+            .collect();
     }
+
+    // Sort results by block number and markout time
+    results.sort_by(|a, b| {
+        a.block_number
+            .cmp(&b.block_number)
+            .then_with(|| a.markout.to_lowercase().cmp(&b.markout.to_lowercase()))
+            .then(a.pool_name.cmp(&b.pool_name))
+    });
 
     info!("Returning {} running total data points", results.len());
     Ok(Json(results))
