@@ -99,9 +99,9 @@ pub async fn get_percentile_band(
 
             data_points.push(PercentileDataPoint {
                 block_number,
-                percentile_25_cents: percentile_25.value(i),
-                median_cents: median_value,
-                percentile_75_cents: percentile_75.value(i),
+                percentile_25_cents: percentile_25.value(i) as f64 / 100.0,
+                median_cents: median_value as f64 / 100.0,
+                percentile_75_cents: percentile_75.value(i) as f64 / 100.0,
             });
         }
     }

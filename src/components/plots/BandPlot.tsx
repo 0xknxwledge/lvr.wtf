@@ -6,9 +6,9 @@ import { createBaseLayout, plotColors, fontConfig, commonConfig } from '../plotU
 
 interface PercentileDataPoint {
   block_number: number;
-  percentile_25_cents: number;
-  median_cents: number;
-  percentile_75_cents: number;
+  percentile_25: number;
+  median: number;
+  percentile_75: number;
 }
 
 interface PercentileBandResponse {
@@ -50,11 +50,9 @@ const PercentileBandChart: React.FC<PercentileBandChartProps> = ({
         }
 
         const jsonData: PercentileBandResponse = await response.json();
-
-        const { data_points: originalDataPoints } = jsonData;
-        const numDataPoints = originalDataPoints.length;
+        const numDataPoints = jsonData.data_points.length;
         
-        // We'll slice from the end rather than the beginning.
+        // We'll slice from the end rather than the beginning
         const startIndex = Math.max(0, dates.length - numDataPoints);
         const filteredDates = dates.slice(startIndex);
         
@@ -92,10 +90,10 @@ const PercentileBandChart: React.FC<PercentileBandChartProps> = ({
   // Pull back out our filteredDates
   const filteredDates: string[] = (data as any).filteredDates || [];
 
-  // Convert to dollar amounts
-  const medianValues = data_points.map((d) => d.median_cents / 100);
-  const percentile25Values = data_points.map((d) => d.percentile_25_cents / 100);
-  const percentile75Values = data_points.map((d) => d.percentile_75_cents / 100);
+  // Values are already in dollars, no need for conversion
+  const medianValues = data_points.map((d) => d.median);
+  const percentile25Values = data_points.map((d) => d.percentile_25);
+  const percentile75Values = data_points.map((d) => d.percentile_75);
 
   // Build the title
   const titleSuffix =
@@ -132,17 +130,17 @@ const PercentileBandChart: React.FC<PercentileBandChartProps> = ({
       },
       showlegend: false,
       customdata: data_points.map((d) => [
-        d.percentile_25_cents / 100,
-        d.median_cents / 100,
-        d.percentile_75_cents / 100,
+        d.percentile_25,
+        d.median,
+        d.percentile_75,
         d.block_number + 216000,
         d.block_number,
       ]),
       hovertemplate:
         '<b>Blocks %{customdata[4]} - %{customdata[3]}</b><br>' +
-        '75th Percentile: %{customdata[2]:$,.2f}<br>' +
-        'Median: %{customdata[1]:$,.2f}<br>' +
-        '25th Percentile: %{customdata[0]:$,.2f}' +
+        '75th Percentile: $%{customdata[2]:,.2f}<br>' +
+        'Median: $%{customdata[1]:,.2f}<br>' +
+        '25th Percentile: $%{customdata[0]:,.2f}' +
         '<extra></extra>',
     },
   ];
