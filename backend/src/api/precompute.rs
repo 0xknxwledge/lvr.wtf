@@ -905,10 +905,10 @@ impl PrecomputedWriter {
             arrow::datatypes::Field::new("markout_time", arrow::datatypes::DataType::Utf8, false),
             arrow::datatypes::Field::new("start_block", arrow::datatypes::DataType::UInt64, false),
             arrow::datatypes::Field::new("end_block", arrow::datatypes::DataType::UInt64, false),
-            arrow::datatypes::Field::new("total_lvr_cents", arrow::datatypes::DataType::UInt64, false),
-            arrow::datatypes::Field::new("percentile_25_cents", arrow::datatypes::DataType::UInt64, false),
-            arrow::datatypes::Field::new("median_cents", arrow::datatypes::DataType::UInt64, false),
-            arrow::datatypes::Field::new("percentile_75_cents", arrow::datatypes::DataType::UInt64, false),
+            arrow::datatypes::Field::new("total_lvr_dollars", arrow::datatypes::DataType::Float64, false),
+            arrow::datatypes::Field::new("percentile_25_dollars", arrow::datatypes::DataType::Float64, false),
+            arrow::datatypes::Field::new("median_dollars", arrow::datatypes::DataType::Float64, false),
+            arrow::datatypes::Field::new("percentile_75_dollars", arrow::datatypes::DataType::Float64, false),
         ]);
     
         let mut pool_addresses = Vec::new();
@@ -922,8 +922,6 @@ impl PrecomputedWriter {
         let mut percentile_75_values = Vec::new();
     
         let valid_pools = get_valid_pools();
-        let start_block = *MERGE_BLOCK;
-        let end_block = 20_000_000;
     
         // Process all interval files
         let intervals_path = object_store::path::Path::from("intervals");
@@ -948,13 +946,11 @@ impl PrecomputedWriter {
                 continue;
             };
     
-            // Skip files outside our range
-            if file_start > end_block || file_end < start_block {
-                continue;
-            }
-    
             let bytes = self.object_store.get(&meta.location).await?.bytes().await?;
             let record_reader = ParquetRecordBatchReader::try_new(bytes, 1024)?;
+    
+            // Collect and group data for this interval file
+            let mut interval_data: HashMap<(String, String), Vec<u64>> = HashMap::new();
     
             for batch_result in record_reader {
                 let batch = batch_result?;
@@ -965,11 +961,6 @@ impl PrecomputedWriter {
                     .map_err(|e| anyhow::anyhow!("Failed to get pair_address column: {}", e))?;
                 let total_lvr_cents = get_uint64_column(&batch, "total_lvr_cents")
                     .map_err(|e| anyhow::anyhow!("Failed to get total_lvr_cents column: {}", e))?;
-                let interval_ids = get_uint64_column(&batch, "interval_id")
-                    .map_err(|e| anyhow::anyhow!("Failed to get interval_id column: {}", e))?;
-    
-                // Group data by pool and markout time within this interval
-                let mut interval_data: HashMap<(String, String), Vec<u64>> = HashMap::new();
     
                 for i in 0..batch.num_rows() {
                     let pool_address = pool_addresses_col.value(i).to_lowercase();
@@ -987,39 +978,30 @@ impl PrecomputedWriter {
                             .push(lvr_cents);
                     }
                 }
+            }
     
-                // Calculate percentiles for each pool/markout combination in this interval
-                for ((pool_address, markout_time), mut values) in interval_data {
-                    if !values.is_empty() {
-                        values.sort_unstable();
-                        let total_lvr: u64 = values.iter().sum();
-                        let pool_name = get_pool_name(&pool_address);
-                        
-                        // Calculate percentiles
-                        let p25 = calculate_percentile(&values, 0.25);
-                        let p50 = calculate_percentile(&values, 0.50);
-                        let p75 = calculate_percentile(&values, 0.75);
+            // Process collected data for this interval
+            for ((pool_address, markout_time), mut values) in interval_data {
+                // Sort values for percentile calculations
+                values.sort_unstable();
+                
+                // Calculate metrics
+                let total_lvr = values.iter().sum::<u64>() as f64 / 100.0;  // Convert to dollars
+                let p25 = calculate_percentile(&values, 0.25) as f64 / 100.0;
+                let p50 = calculate_percentile(&values, 0.50) as f64 / 100.0;
+                let p75 = calculate_percentile(&values, 0.75) as f64 / 100.0;
+                
+                let pool_name = get_pool_name(&pool_address);
     
-                        // Calculate interval boundaries
-                        let interval_id = interval_ids.value(0); // Same for all rows in this batch
-                        let interval_start = file_start + (interval_id * BLOCKS_PER_INTERVAL);
-                        let interval_end = if file_path.ends_with(FINAL_INTERVAL_FILE) && interval_id == 19 {
-                            interval_start + FINAL_PARTIAL_BLOCKS
-                        } else {
-                            interval_start + BLOCKS_PER_INTERVAL
-                        };
-    
-                        pool_addresses.push(pool_address);
-                        pool_names.push(pool_name);
-                        markout_times.push(markout_time);
-                        start_blocks.push(interval_start);
-                        end_blocks.push(interval_end);
-                        total_lvr_values.push(total_lvr);
-                        percentile_25_values.push(p25);
-                        median_values.push(p50);
-                        percentile_75_values.push(p75);
-                    }
-                }
+                pool_addresses.push(pool_address);
+                pool_names.push(pool_name);
+                markout_times.push(markout_time);
+                start_blocks.push(file_start);
+                end_blocks.push(file_end);
+                total_lvr_values.push(total_lvr);
+                percentile_25_values.push(p25);
+                median_values.push(p50);
+                percentile_75_values.push(p75);
             }
         }
     
@@ -1032,10 +1014,10 @@ impl PrecomputedWriter {
                 Arc::new(StringArray::from(markout_times)),
                 Arc::new(UInt64Array::from(start_blocks)),
                 Arc::new(UInt64Array::from(end_blocks)),
-                Arc::new(UInt64Array::from(total_lvr_values)),
-                Arc::new(UInt64Array::from(percentile_25_values)),
-                Arc::new(UInt64Array::from(median_values)),
-                Arc::new(UInt64Array::from(percentile_75_values)),
+                Arc::new(Float64Array::from(total_lvr_values)),
+                Arc::new(Float64Array::from(percentile_25_values)),
+                Arc::new(Float64Array::from(median_values)),
+                Arc::new(Float64Array::from(percentile_75_values)),
             ],
         )?;
     

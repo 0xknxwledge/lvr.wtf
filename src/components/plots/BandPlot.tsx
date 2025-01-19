@@ -55,11 +55,9 @@ const PercentileBandChart: React.FC<PercentileBandChartProps> = ({
         console.log(jsonData);
         const numDataPoints = jsonData.data_points.length;
         
-        // We'll slice from the end rather than the beginning
         const startIndex = Math.max(0, dates.length - numDataPoints);
         const filteredDates = dates.slice(startIndex);
         
-        // Attach the filtered dates to our JSON response object
         (jsonData as any).filteredDates = filteredDates;
 
         setData(jsonData);
@@ -92,12 +90,10 @@ const PercentileBandChart: React.FC<PercentileBandChartProps> = ({
   const { data_points } = data;
   const filteredDates: string[] = (data as any).filteredDates || [];
 
-  // Use the new field names for values (already in dollars)
   const medianValues = data_points.map((d) => d.median_dollars);
   const percentile25Values = data_points.map((d) => d.percentile_25_dollars);
   const percentile75Values = data_points.map((d) => d.percentile_75_dollars);
 
-  // Build the title
   const titleSuffix =
     markoutTime === 'brontes'
       ? `${names[poolAddress]} (Observed LVR)`
@@ -106,7 +102,6 @@ const PercentileBandChart: React.FC<PercentileBandChartProps> = ({
   const title = `Monthly LVR Percentile Bandplot for ${titleSuffix}*`;
   const baseLayout = createBaseLayout(title);
 
-  // Create plotData with updated customdata to include block ranges
   const plotData: Array<Partial<Plotly.Data>> = [
     {
       x: [...filteredDates, ...filteredDates.slice().reverse()],
@@ -140,7 +135,8 @@ const PercentileBandChart: React.FC<PercentileBandChartProps> = ({
         d.total_lvr_dollars,
       ]),
       hovertemplate:
-        '<b>Blocks %{customdata[3]} - %{customdata[4]}</b><br>' +
+        '<b>Interval</b><br>' +
+        'Blocks: %{customdata[3]} - %{customdata[4]}<br>' +
         'Total LVR: $%{customdata[5]:,.2f}<br>' +
         '75th Percentile: $%{customdata[2]:,.2f}<br>' +
         'Median: $%{customdata[1]:,.2f}<br>' +

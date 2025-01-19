@@ -6,7 +6,7 @@ use axum::{
 use crate::{AppState, 
     MERGE_BLOCK, POOL_ADDRESSES,
     PercentileBandQuery, PercentileBandResponse, PercentileDataPoint,
-    api::handlers::common::{get_uint64_column, get_valid_pools, get_string_column}};
+    api::handlers::common::{get_uint64_column, get_valid_pools, get_string_column, get_float64_column}};
 use tracing::{error, info, warn};
 use std::sync::Arc;
 use parquet::arrow::arrow_reader::ParquetRecordBatchReader;
@@ -37,7 +37,6 @@ pub async fn get_percentile_band(
         pool_filter, start_block, end_block, markout_time
     );
 
-    // Read from precomputed file
     let bytes = state.store.get(&Path::from("precomputed/distributions/percentile_bands.parquet"))
         .await
         .map_err(|e| {
@@ -59,8 +58,8 @@ pub async fn get_percentile_band(
 
     let mut data_points = Vec::new();
     let mut pool_name = String::new();
-    let mut max_median = 0u64;
-    let mut min_median = u64::MAX;
+    let mut max_median = 0f64;
+    let mut min_median = f64::MAX;
 
     for batch_result in reader {
         let batch = batch_result.map_err(|e| {
@@ -73,10 +72,10 @@ pub async fn get_percentile_band(
         let markout_times = get_string_column(&batch, "markout_time")?;
         let start_blocks = get_uint64_column(&batch, "start_block")?;
         let end_blocks = get_uint64_column(&batch, "end_block")?;
-        let total_lvr = get_uint64_column(&batch, "total_lvr_cents")?;
-        let percentile_25 = get_uint64_column(&batch, "percentile_25_cents")?;
-        let median = get_uint64_column(&batch, "median_cents")?;
-        let percentile_75 = get_uint64_column(&batch, "percentile_75_cents")?;
+        let total_lvr = get_float64_column(&batch, "total_lvr_dollars")?;
+        let percentile_25 = get_float64_column(&batch, "percentile_25_dollars")?;
+        let median = get_float64_column(&batch, "median_dollars")?;
+        let percentile_75 = get_float64_column(&batch, "percentile_75_dollars")?;
 
         for i in 0..batch.num_rows() {
             let current_pool = pool_addresses.value(i).to_lowercase();
@@ -88,12 +87,10 @@ pub async fn get_percentile_band(
                 continue;
             }
 
-            // Apply remaining filters
             if current_pool != pool_filter || markout_times.value(i) != markout_time {
                 continue;
             }
 
-            // Store pool name on first match
             if pool_name.is_empty() {
                 pool_name = pool_names.value(i).to_string();
             }
@@ -105,10 +102,10 @@ pub async fn get_percentile_band(
             data_points.push(PercentileDataPoint {
                 start_block: interval_start,
                 end_block: interval_end,
-                total_lvr_dollars: total_lvr.value(i) as f64 / 100.0,
-                percentile_25_dollars: percentile_25.value(i) as f64 / 100.0,
-                median_dollars: median_value as f64 / 100.0,
-                percentile_75_dollars: percentile_75.value(i) as f64 / 100.0,
+                total_lvr_dollars: total_lvr.value(i),
+                percentile_25_dollars: percentile_25.value(i),
+                median_dollars: median_value,
+                percentile_75_dollars: percentile_75.value(i),
             });
         }
     }
@@ -129,8 +126,8 @@ pub async fn get_percentile_band(
         "Retrieved {} distribution points for {}. Median range: ${:.2} to ${:.2}",
         data_points.len(),
         pool_name,
-        min_median as f64 / 100.0,
-        max_median as f64 / 100.0
+        min_median,
+        max_median
     );
 
     Ok(Json(PercentileBandResponse {
