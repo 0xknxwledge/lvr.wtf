@@ -255,7 +255,6 @@ pub struct QuartilePlotQuery {
 pub struct PoolQuartileData {
     pub pool_name: String,
     pub pool_address: String,
-    pub min_nonzero_cents: u64,
     pub percentile_25_cents: u64,
     pub median_cents: u64,
     pub percentile_75_cents: u64,

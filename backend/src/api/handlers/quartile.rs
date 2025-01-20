@@ -18,7 +18,7 @@ pub async fn get_quartile_plot(
     Query(params): Query<QuartilePlotQuery>,
 ) -> Result<Json<QuartilePlotResponse>, StatusCode> {
     let markout_time = params.markout_time.unwrap_or_else(|| String::from("brontes"));
-    
+
     info!(
         "Analyzing distribution metrics across pools for markout time: {}", 
         markout_time
@@ -59,7 +59,6 @@ pub async fn get_quartile_plot(
         let pool_addresses = get_string_column(&batch, "pool_address")?;
         let pool_names = get_string_column(&batch, "pool_name")?;
         let markout_times = get_string_column(&batch, "markout_time")?;
-        let min_nonzero = get_uint64_column(&batch, "min_nonzero_cents")?;
         let percentile_25 = get_uint64_column(&batch, "percentile_25_cents")?;
         let median = get_uint64_column(&batch, "median_cents")?;
         let percentile_75 = get_uint64_column(&batch, "percentile_75_cents")?;
@@ -73,11 +72,11 @@ pub async fn get_quartile_plot(
             let median_value = median.value(i);
             let p75_value = percentile_75.value(i);
             let p25_value = percentile_25.value(i);
-            
+
             // Track distribution statistics
             highest_median = highest_median.max(median_value);
             lowest_median = lowest_median.min(median_value);
-            
+
             let iqr = p75_value.saturating_sub(p25_value);
             if iqr > widest_iqr {
                 widest_iqr = iqr;
@@ -87,7 +86,6 @@ pub async fn get_quartile_plot(
             pool_data.push(PoolQuartileData {
                 pool_name: pool_names.value(i).to_string(),
                 pool_address: pool_addresses.value(i).to_string(),
-                min_nonzero_cents: min_nonzero.value(i),
                 percentile_25_cents: p25_value,
                 median_cents: median_value,
                 percentile_75_cents: p75_value,

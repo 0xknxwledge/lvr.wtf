@@ -2,13 +2,23 @@
 - Change color palette for Category graphs (not enough contrast?)
 - Consistent title font (rn the Category non-zero is big and white, all others are small and lime green)
 - Make sure site works on mobile
-- Write out "What is LVR?" and "Methodology"
-
+- FIX HISTOGRAMS ON FRONT-END
+- DISPLAY AGGREGATE TOTALS FOR MONTHLY CATEGORIES
 
 
 POOLS WITH NO BRONTES DATA:
-0x435664008F38B0650fBC1C9fc971D0A3Bc2f1e47
-0x0d4a11d5EEaaC28EC3F61d100daF4d40471f1852
-0xB4e16d0168e52d35CaCD2c6185b44281Ec28C9Dc
+0x435664008F38B0650fBC1C9fc971D0A3Bc2f1e47 (USDe-USDT-100)
+0x0d4a11d5EEaaC28EC3F61d100daF4d40471f1852 (USDT-WETH-v2)
+0xB4e16d0168e52d35CaCD2c6185b44281Ec28C9Dc (WETH-USDC-v2)
 
-CHECK IF/WHICH POOLS HAVE OBSERVED > THEORETICAL TOTAL
+POOLS WHERE TOTAL OBSERVED LVR > TOTAL SIMULATED LVR
+----------------------------------------------------------------------------------------------------
+Pool Name            | Pool Address                               | Observed Total - Markout 0s Total
+----------------------------------------------------------------------------------------------------
+USDC-WETH-500        | 0x88e6a0c2ddd26feeb64f039a2c41296fcb3f5640 |   $66,462,518.54
+WBTC-WETH-500        | 0x4585fe77225b41b697c938b018e2ac67ac5a20c0 |   $15,645,832.43
+USDC-WETH-3000       | 0x8ad599c3a0ff1de082011efddc58f1908eb6e6d8 |   $10,730,242.49
+WBTC-WETH-3000       | 0xcbcdf9626bc03e24f779434178a73a0b4bad62ed |    $8,291,126.62
+DAI-WETH-500         | 0x60594a405d53811d3bc4766596efd80fd545a270 |    $5,259,682.96
+DAI-WETH-3000        | 0xc2e9f25be6257c210d7adf0d4cd6e3e881ba25f8 |    $3,124,656.48
+WETH-USDT-500        | 0x11b815efb8f581194ae79006d24e0d814b7697f6 |    $2,250,486.24

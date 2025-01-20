@@ -7,7 +7,6 @@ import { createBaseLayout, plotColors, fontConfig, commonConfig } from '../plotU
 interface PoolQuartileData {
   pool_name: string;
   pool_address: string;
-  min_nonzero_cents: number;
   percentile_25_cents: number;
   median_cents: number;
   percentile_75_cents: number;
@@ -34,12 +33,12 @@ const QuartilePlot: React.FC<QuartilePlotProps> = ({ selectedMarkout }) => {
         const params = new URLSearchParams({
           markout_time: selectedMarkout
         });
-        
+
         const response = await fetch(`https://lvr-wtf-568975696472.us-central1.run.app/quartile_plot?${params.toString()}`);
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
         }
-        
+
         const jsonData = await response.json();
         setData(jsonData);
       } catch (err) {
@@ -82,31 +81,11 @@ const QuartilePlot: React.FC<QuartilePlotProps> = ({ selectedMarkout }) => {
 
   // Create separate traces for each pool
   const plotData: Data[] = sortedData.flatMap((pool, index) => [
-    // Vertical line (min to Q1)
+    // Vertical line (Q1 to Q3)
     {
       type: 'scatter',
       x: [index, index],
-      y: [pool.min_nonzero_cents / 100, pool.percentile_25_cents / 100],
-      mode: 'lines',
-      line: { color: '#b4d838', width: 1 },
-      showlegend: false,
-      hoverinfo: 'skip' as const,
-    },
-    // Min whisker
-    {
-      type: 'scatter',
-      x: [index - 0.15, index + 0.15],
-      y: [pool.min_nonzero_cents / 100, pool.min_nonzero_cents / 100],
-      mode: 'lines',
-      line: { color: '#b4d838', width: 1 },
-      showlegend: false,
-      hoverinfo: 'skip' as const,
-    },
-    // Max whisker
-    {
-      type: 'scatter',
-      x: [index - 0.15, index + 0.15],
-      y: [pool.percentile_75_cents / 100, pool.percentile_75_cents / 100],
+      y: [pool.percentile_25_cents / 100, pool.percentile_75_cents / 100],
       mode: 'lines',
       line: { color: '#b4d838', width: 1 },
       showlegend: false,
@@ -132,7 +111,7 @@ const QuartilePlot: React.FC<QuartilePlotProps> = ({ selectedMarkout }) => {
       fill: 'toself',
       fillcolor: 'rgba(180, 216, 56, 0.2)',
       line: { color: '#b4d838', width: 1 },
-      mode: 'lines', // Changed from default to explicitly use 'lines' mode
+      mode: 'lines',
       showlegend: false,
       hoverinfo: 'skip' as const,
     },
@@ -159,18 +138,16 @@ const QuartilePlot: React.FC<QuartilePlotProps> = ({ selectedMarkout }) => {
       showlegend: false,
       hovertemplate: 
         '<b>%{text}</b><br>' +
-        '75th Percentile: $%{customdata[3]:,.2f}<br>' +
-        'Median: $%{customdata[2]:,.2f}<br>' +
-        '25th Percentile: $%{customdata[1]:,.2f}<br>' +
-        'Min: $%{customdata[0]:,.2f}' +
+        '75th Percentile: $%{customdata[2]:,.2f}<br>' +
+        'Median: $%{customdata[1]:,.2f}<br>' +
+        '25th Percentile: $%{customdata[0]:,.2f}' +
         '<extra></extra>',
       text: [names[pool.pool_address] || pool.pool_name],
-      customdata: [[
-        pool.min_nonzero_cents / 100,
+      customdata: [
         pool.percentile_25_cents / 100,
         pool.median_cents / 100,
         pool.percentile_75_cents / 100
-      ]]
+      ]
     }
   ]);
 
@@ -206,7 +183,7 @@ const QuartilePlot: React.FC<QuartilePlotProps> = ({ selectedMarkout }) => {
           gridcolor: '#212121',
           zeroline: false,
           nticks: numTicks,
-          range: [0, maxY * 1.1], // Add 10% padding at the top
+          range: [0, maxY * 1.1],
           automargin: true,
         },
         showlegend: false,

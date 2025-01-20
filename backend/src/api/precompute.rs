@@ -1031,111 +1031,138 @@ impl PrecomputedWriter {
 
     pub async fn write_quartile_plots(&self) -> Result<(), anyhow::Error> {
         info!("Starting precomputation of quartile plot distributions");
-        
+    
         let schema = arrow::datatypes::Schema::new(vec![
             arrow::datatypes::Field::new("pool_address", arrow::datatypes::DataType::Utf8, false),
             arrow::datatypes::Field::new("pool_name", arrow::datatypes::DataType::Utf8, false),
             arrow::datatypes::Field::new("markout_time", arrow::datatypes::DataType::Utf8, false),
-            arrow::datatypes::Field::new("min_nonzero_cents", arrow::datatypes::DataType::UInt64, false),
             arrow::datatypes::Field::new("percentile_25_cents", arrow::datatypes::DataType::UInt64, false),
             arrow::datatypes::Field::new("median_cents", arrow::datatypes::DataType::UInt64, false),
             arrow::datatypes::Field::new("percentile_75_cents", arrow::datatypes::DataType::UInt64, false),
         ]);
-
+    
         let mut pool_addresses = Vec::new();
         let mut pool_names = Vec::new();
         let mut markout_times = Vec::new();
-        let mut min_values = Vec::new();
         let mut percentile_25_values = Vec::new();
         let mut median_values = Vec::new();
         let mut percentile_75_values = Vec::new();
-
-        // Process all interval files
+    
+        // Map to collect segment-level percentiles and weights
+        let mut distribution_data: HashMap<(String, String), Vec<(u64, u64, u64, u64, u64)>> = HashMap::new();
+    
         let intervals_path = object_store::path::Path::from("intervals");
         let mut interval_files = self.object_store.list(Some(&intervals_path));
         let valid_pools = get_valid_pools();
-        
-        // Map to collect LVR values by pool and markout time
-        let mut distribution_data: HashMap<(String, String), Vec<u64>> = HashMap::new();
-
+    
         while let Some(meta_result) = interval_files.next().await {
             let meta = meta_result.context("Failed to get file metadata")?;
             let bytes = self.object_store.get(&meta.location).await?.bytes().await?;
             let record_reader = ParquetRecordBatchReader::try_new(bytes, 1024)?;
-
+    
             for batch_result in record_reader {
-                let batch = batch_result?;
-
+                let batch = batch_result?; 
                 let markout_times_col = get_string_column(&batch, "markout_time")
-                    .map_err(|e| anyhow::anyhow!("Failed to get markout_time column: {}", e))?;
+                .map_err(|e| anyhow::anyhow!("Failed to get markout_time column: {}", e))?;
                 let pool_addresses_col = get_string_column(&batch, "pair_address")
                     .map_err(|e| anyhow::anyhow!("Failed to get pair_address column: {}", e))?;
-                let total_lvr_cents = get_uint64_column(&batch, "total_lvr_cents")
-                    .map_err(|e| anyhow::anyhow!("Failed to get total_lvr_cents column: {}", e))?;
+                let percentile_25_cents = get_uint64_column(&batch, "percentile_25_cents")
+                    .map_err(|e| anyhow::anyhow!("Failed to get percentile_25_cents column: {}", e))?;
+                let median_cents = get_uint64_column(&batch, "median_lvr_cents")
+                    .map_err(|e| anyhow::anyhow!("Failed to get median_cents column: {}", e))?;
+                let percentile_75_cents = get_uint64_column(&batch, "percentile_75_cents")
+                    .map_err(|e| anyhow::anyhow!("Failed to get percentile_75_cents column: {}", e))?;
                 let non_zero_counts = get_uint64_column(&batch, "non_zero_count")
                     .map_err(|e| anyhow::anyhow!("Failed to get non_zero_count column: {}", e))?;
+                let total_counts = get_uint64_column(&batch, "total_count")
+                    .map_err(|e| anyhow::anyhow!("Failed to get total_count column: {}", e))?;
 
+    
                 for i in 0..batch.num_rows() {
-                    if non_zero_counts.value(i) == 0 {
+                    let total_count = total_counts.value(i);
+                    if total_count == 0 {
                         continue;
                     }
-
+    
                     let pool_address = pool_addresses_col.value(i).to_lowercase();
                     if !valid_pools.contains(&pool_address) {
                         continue;
                     }
-
+    
                     let markout_time = markout_times_col.value(i).to_string();
-                    let lvr_cents = total_lvr_cents.value(i);
-
-                    // Only include non-zero values
-                    if lvr_cents > 0 {
-                        distribution_data
-                            .entry((pool_address, markout_time))
-                            .or_default()
-                            .push(lvr_cents);
-                    }
+                    let segment_data = (
+                        percentile_25_cents.value(i),
+                        median_cents.value(i),
+                        percentile_75_cents.value(i),
+                        non_zero_counts.value(i),
+                        total_count,
+                    );
+    
+                    distribution_data
+                        .entry((pool_address, markout_time))
+                        .or_default()
+                        .push(segment_data);
                 }
             }
         }
-
-        // Calculate distribution metrics for each pool and markout time combination
-        for ((pool_address, markout_time), mut values) in distribution_data {
-            if !values.is_empty() {
-                values.sort_unstable();
-                
-                let pool_name = get_pool_name(&pool_address);
-
-                pool_addresses.push(pool_address);
-                pool_names.push(pool_name);
-                markout_times.push(markout_time);
-                min_values.push(values[0]); // First value after sorting is minimum
-                percentile_25_values.push(calculate_percentile(&values, 0.25));
-                median_values.push(calculate_percentile(&values, 0.50));
-                percentile_75_values.push(calculate_percentile(&values, 0.75));
-            }
+    
+        for ((pool_address, markout_time), data) in distribution_data {
+            let pool_name = get_pool_name(&pool_address);
+    
+            let weighted_25 = Self::calculate_weighted_percentile(
+                &data.iter()
+                    .map(|(p25, _, _, nz_count, t_count)| (*p25, *nz_count, *t_count))
+                    .collect::<Vec<_>>(),
+                0.25,
+            );
+            let weighted_50 = Self::calculate_weighted_percentile(
+                &data.iter()
+                    .map(|(_, p50, _, nz_count, t_count)| (*p50, *nz_count, *t_count))
+                    .collect::<Vec<_>>(),
+                0.50,
+            );
+            let weighted_75 = Self::calculate_weighted_percentile(
+                &data.iter()
+                    .map(|(_, _, p75, nz_count, t_count)| (*p75, *nz_count, *t_count))
+                    .collect::<Vec<_>>(),
+                0.75,
+            );
+    
+            pool_addresses.push(pool_address);
+            pool_names.push(pool_name);
+            markout_times.push(markout_time);
+            percentile_25_values.push(weighted_25);
+            median_values.push(weighted_50);
+            percentile_75_values.push(weighted_75);
         }
-
-        // Create record batch
+    
         let batch = RecordBatch::try_new(
             Arc::new(schema),
             vec![
                 Arc::new(StringArray::from(pool_addresses)),
                 Arc::new(StringArray::from(pool_names)),
                 Arc::new(StringArray::from(markout_times)),
-                Arc::new(UInt64Array::from(min_values)),
                 Arc::new(UInt64Array::from(percentile_25_values)),
                 Arc::new(UInt64Array::from(median_values)),
                 Arc::new(UInt64Array::from(percentile_75_values)),
             ],
         )?;
-
-        // Write to output file
+    
         let output_path = Path::from("precomputed/distributions/quartile_plots.parquet");
         self.write_batch_to_store(output_path, batch).await?;
-
+    
         info!("Successfully wrote precomputed quartile plot distributions");
         Ok(())
+    }
+    
+    pub fn calculate_weighted_percentile(percentiles: &[(u64, u64, u64)], target: f64) -> u64 {
+        let mut expanded: Vec<u64> = Vec::new();
+        for &(value, non_zero_count, total_count) in percentiles {
+            let normalized_weight = (non_zero_count as f64 / total_count as f64) * 10000.0;
+            expanded.extend(std::iter::repeat(value).take(normalized_weight as usize));
+        }
+        expanded.sort_unstable();
+        calculate_percentile(&expanded, target)
     }
 
     pub async fn write_cluster_proportions(&self) -> Result<(), anyhow::Error> {
