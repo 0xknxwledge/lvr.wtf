@@ -29,16 +29,14 @@ const QuartilePlot: React.FC<QuartilePlotProps> = ({ poolAddress, markoutTime })
         setIsLoading(true);
         const params = new URLSearchParams({
           pool_address: poolAddress,
-          markout_time: markoutTime
+          markout_time: markoutTime,
         });
 
-        const response = await fetch(`https://lvr-wtf-568975696472.us-central1.run.app/quartile_plot?${params.toString()}`);
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-
+        const response = await fetch(
+          `https://lvr-wtf-568975696472.us-central1.run.app/quartile_plot?${params.toString()}`
+        );
+        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
         const jsonData: QuartilePlotResponse = await response.json();
-        console.log(jsonData)
         setData(jsonData);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to fetch data');
@@ -66,42 +64,31 @@ const QuartilePlot: React.FC<QuartilePlotProps> = ({ poolAddress, markoutTime })
     );
   }
 
-  // Calculate y-axis range and tick spacing
-  const maxY = data.percentile_75_cents / 100;
-  const minY = 0;
-  const magnitude = Math.pow(10, Math.floor(Math.log10(maxY)));
-  const tickSpacing = magnitude / 2;
-  const numTicks = Math.ceil(maxY / tickSpacing);
+  // Calculate x-axis range
+  const maxX = data.percentile_75_cents / 100;
 
   // Create the plot traces
   const plotData: Data[] = [
-    // Vertical line (Q1 to Q3)
+    // IQR
     {
       type: 'scatter',
-      x: [0, 0],
-      y: [data.percentile_25_cents / 100, data.percentile_75_cents / 100],
+      x: [data.percentile_25_cents / 100, data.percentile_75_cents / 100],
+      y: [0, 0],
       mode: 'lines',
       line: { color: plotColors.accent, width: 1 },
       showlegend: false,
       hoverinfo: 'skip' as const,
     },
-    // Box
     {
       type: 'scatter',
       x: [
-        -0.25,
-        0.25,
-        0.25,
-        -0.25,
-        -0.25
-      ],
-      y: [
         data.percentile_25_cents / 100,
         data.percentile_25_cents / 100,
         data.percentile_75_cents / 100,
         data.percentile_75_cents / 100,
-        data.percentile_25_cents / 100
+        data.percentile_25_cents / 100,
       ],
+      y: [-0.25, 0.25, 0.25, -0.25, -0.25],
       fill: 'toself',
       fillcolor: `${plotColors.accent}33`,
       line: { color: plotColors.accent, width: 1 },
@@ -109,48 +96,49 @@ const QuartilePlot: React.FC<QuartilePlotProps> = ({ poolAddress, markoutTime })
       showlegend: false,
       hoverinfo: 'skip' as const,
     },
-    // Median line
+    // Median
     {
       type: 'scatter',
-      x: [-0.25, 0.25],
-      y: [data.median_cents / 100, data.median_cents / 100],
+      x: [data.median_cents / 100, data.median_cents / 100],
+      y: [-0.25, 0.25],
       mode: 'lines',
       line: { color: plotColors.accent, width: 2 },
       showlegend: false,
       hoverinfo: 'skip' as const,
     },
-    // Invisible hover area
+    // Hover area
     {
       type: 'scatter',
-      x: [0],
-      y: [data.median_cents / 100],
+      x: [data.median_cents / 100],
+      y: [0],
       mode: 'markers',
-      marker: { 
+      marker: {
         color: 'rgba(0,0,0,0)',
         size: 20,
       },
       showlegend: false,
-      hovertemplate: 
+      hovertemplate:
         '<b>%{text}</b><br>' +
         '75th Percentile: $%{customdata[2]:,.2f}<br>' +
         'Median: $%{customdata[1]:,.2f}<br>' +
         '25th Percentile: $%{customdata[0]:,.2f}' +
         '<extra></extra>',
       text: [names[data.pool_address] || data.pool_name],
-      customdata: [[
-        data.percentile_25_cents / 100,
-        data.median_cents / 100,
-        data.percentile_75_cents / 100
-      ]]
-    }
+      customdata: [
+        [
+          data.percentile_25_cents / 100,
+          data.median_cents / 100,
+          data.percentile_75_cents / 100,
+        ],
+      ],
+    },
   ];
 
   const poolName = names[data.pool_address] || data.pool_name;
-  const titleSuffix = markoutTime === 'brontes' ? 
-    '(Observed)' : 
-    `(Markout ${markoutTime}s)`;
+  const titleSuffix =
+    markoutTime === 'brontes' ? '(Observed)' : `(Markout ${markoutTime}s)`;
 
-  const title = `Daily LVR Quartile Plot for ${poolName} ${titleSuffix}*`;
+  const title = `Single-Block LVR Interquartile Plot for ${poolName} ${titleSuffix}*`;
   const baseLayout = createBaseLayout(title);
 
   return (
@@ -161,43 +149,40 @@ const QuartilePlot: React.FC<QuartilePlotProps> = ({ poolAddress, markoutTime })
         showlegend: false,
         xaxis: {
           ...baseLayout.xaxis,
-          showticklabels: false,
-          zeroline: false,
-          fixedrange: true,
-          range: [-1, 1]
-        },
-        yaxis: {
-          ...baseLayout.yaxis,
           title: {
-            text: 'Daily Total LVR',
-            font: { 
-              color: plotColors.accent, 
+            font: {
+              color: plotColors.accent,
               size: fontConfig.sizes.axisTitle,
-              family: fontConfig.family 
+              family: fontConfig.family,
             },
-            standoff: 30
           },
           tickformat: '$,.2f',
           zeroline: false,
           fixedrange: true,
           showgrid: true,
           gridcolor: '#212121',
-          nticks: numTicks,
-          range: [0, maxY * 1.1],
-          automargin: true
+          range: [0, maxX * 1.1],
+          automargin: true,
         },
-        height: 500,
-        margin: { l: 120, r: 50, b: 80, t: 100 },
+        yaxis: {
+          ...baseLayout.yaxis,
+          showticklabels: false,
+          zeroline: false,
+          fixedrange: true,
+          range: [-1, 1],
+        },
+        height: 300,
+        margin: { l: 50, r: 50, b: 50, t: 100 },
         hoverlabel: {
           bgcolor: '#424242',
           bordercolor: plotColors.accent,
-          font: { 
+          font: {
             color: '#ffffff',
             size: fontConfig.sizes.hover,
-            family: fontConfig.family 
-          }
+            family: fontConfig.family,
+          },
         },
-        hovermode: 'closest'
+        hovermode: 'closest',
       }}
       config={commonConfig}
       style={{ width: '100%', height: '100%' }}
