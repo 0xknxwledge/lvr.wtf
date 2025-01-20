@@ -85,10 +85,8 @@ const HistogramChart: React.FC<HistogramChartProps> = ({ poolAddress, markoutTim
     if (!data) return;
 
     if (selectedBucket?.label === label) {
-      // If clicking the same label, clear the selection
       setSelectedBucket(null);
     } else {
-      // Find the bucket data and set the selection
       const bucket = data.buckets.find(b => b.label === label);
       if (bucket) {
         const percentage = (bucket.count / data.total_observations) * 100;
@@ -192,7 +190,8 @@ const HistogramChart: React.FC<HistogramChartProps> = ({ poolAddress, markoutTim
             tickangle: 45,
             fixedrange: true,
             categoryorder: 'array' as const,
-            categoryarray: bucketOrder
+            categoryarray: bucketOrder,
+            showline: false
           },
           yaxis: {
             ...baseLayout.yaxis,
@@ -205,18 +204,14 @@ const HistogramChart: React.FC<HistogramChartProps> = ({ poolAddress, markoutTim
             fixedrange: true,
             showgrid: true,
             gridcolor: '#212121',
+            showline: false
           },
           bargap: 0.1,
           autosize: true,
           height: 400,
           margin: { l: 80, r: 50, b: 100, t: 80, pad: 4 },
           annotations: annotations,
-          hoverlabel: {
-            bgcolor: '#424242',
-            bordercolor: plotColors.accent,
-            font: { color: '#ffffff', size: fontConfig.sizes.hover, family: fontConfig.family },
-          },
-          hovermode: 'x unified'
+          hovermode: false
         }}
         config={commonConfig}
         style={{ width: '100%', height: '100%' }}

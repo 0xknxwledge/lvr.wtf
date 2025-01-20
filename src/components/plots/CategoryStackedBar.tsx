@@ -17,21 +17,21 @@ interface CategoryStackedBarProps {
   selectedMarkout: string;
 }
 
+// Consistent category configuration with defined order and colors
+const CATEGORY_CONFIG = [
+  { name: "Stable Pairs",   color: '#E2DFC9' },  // Light cream
+  { name: "WBTC-WETH",      color: '#738C3A' },  // Medium olive
+  { name: "USDC-WETH",      color: '#A4C27B' },  // Sage green
+  { name: "USDT-WETH",      color: '#2D3A15' },  // Dark forest
+  { name: "DAI-WETH",       color: '#BAC7A7' },  // Light sage
+  { name: "USDC-WBTC",      color: '#4A5D23' },  // Deep forest
+  { name: "Altcoin-WETH",   color: '#8B9556' }   // Muted olive
+] as const;
+
 const CategoryStackedBar: React.FC<CategoryStackedBarProps> = ({ selectedMarkout }) => {
   const [data, setData] = useState<CategoryStackedBarResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
-  // Updated color palette with more contrast between categories
-  const barColors = [
-    '#E2DFC9',  // Light cream - WBTC-WETH
-    '#738C3A',  // Medium olive - USDT-WETH
-    '#A4C27B',  // Sage green - USDC-WETH
-    '#2D3A15',  // Dark forest - USDC-WBTC
-    '#BAC7A7',  // Light sage - Stable Pairs
-    '#4A5D23',  // Deep forest - DAI-WETH
-    '#8B9556'   // Muted olive - Altcoin-WETH
-  ];
 
   useEffect(() => {
     const fetchData = async () => {
@@ -72,19 +72,23 @@ const CategoryStackedBar: React.FC<CategoryStackedBarProps> = ({ selectedMarkout
     );
   }
 
-  const traces = data.clusters.map((cluster, index) => ({
-    name: cluster,
-    x: data.monthly_data.map(d => d.time_range),
-    y: data.monthly_data.map(d => d.cluster_totals[cluster] / 100), // Convert cents to dollars
-    type: 'bar' as const,
-    marker: {
-      color: barColors[index]
-    },
-    hovertemplate: 
-      '<b>%{fullData.name}</b><br>' +
-      '$%{y:,.2f}' +
-      '<extra></extra>'
-  }));
+  // Create traces in the order defined by CATEGORY_CONFIG
+  const traces = CATEGORY_CONFIG.map((category, index) => {
+    const categoryData = {
+      name: category.name,
+      x: data.monthly_data.map(d => d.time_range),
+      y: data.monthly_data.map(d => d.cluster_totals[category.name] / 100), // Convert cents to dollars
+      type: 'bar' as const,
+      marker: {
+        color: category.color
+      },
+      hovertemplate: 
+        '<b>%{fullData.name}</b><br>' +
+        '$%{y:,.2f}' +
+        '<extra></extra>'
+    };
+    return categoryData;
+  });
 
   const titleSuffix = selectedMarkout === 'brontes' ? 
     '(Observed LVR)' : 
@@ -114,7 +118,7 @@ const CategoryStackedBar: React.FC<CategoryStackedBarProps> = ({ selectedMarkout
           title: {
             text: 'Total LVR ($)',
             font: { color: '#FFFFFF', size: 14 },
-            standoff: 100  // Increased standoff for more margin
+            standoff: 100
           },
           tickfont: { color: '#FFFFFF' },
           tickformat: '$,.0f',
@@ -131,17 +135,15 @@ const CategoryStackedBar: React.FC<CategoryStackedBarProps> = ({ selectedMarkout
           y: 1.1,
           xanchor: 'right',
           yanchor: 'top',
+          traceorder: 'normal'
         },
-        autosize: true,
         height: 500,
         margin: { 
-          l: 150,  // Increased left margin
+          l: 150,
           r: 50, 
           b: 160, 
           t: 80 
         },
-        paper_bgcolor: '#000000',
-        plot_bgcolor: '#000000',
         hovermode: 'x unified',
         hoverlabel: {
           bgcolor: '#424242',

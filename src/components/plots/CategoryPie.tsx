@@ -16,21 +16,20 @@ interface CategoryPieChartProps {
   selectedMarkout: string;
 }
 
+const CATEGORY_CONFIG = [
+  { name: "Stable Pairs",   color: '#E2DFC9' },  // Light cream
+  { name: "WBTC-WETH",      color: '#738C3A' },  // Medium olive
+  { name: "USDC-WETH",      color: '#A4C27B' },  // Sage green
+  { name: "USDT-WETH",      color: '#2D3A15' },  // Dark forest
+  { name: "DAI-WETH",       color: '#BAC7A7' },  // Light sage
+  { name: "USDC-WBTC",      color: '#4A5D23' },  // Deep forest
+  { name: "Altcoin-WETH",   color: '#8B9556' }   // Muted olive
+] as const;
+
 const CategoryPieChart: React.FC<CategoryPieChartProps> = ({ selectedMarkout }) => {
   const [data, setData] = useState<CategoryPieResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
-  // Custom color palette - more distinct shades while maintaining theme
-  const pieColors = [
-    '#B2AC88',  // Sage green
-    '#4A5D23',  // Deep forest green
-    '#D4E7A5',  // Light sage
-    '#2D3A15',  // Very dark forest
-    '#98B147',  // Medium sage
-    '#6B705C',  // Muted olive
-    '#C2C5AA'   // Light olive
-  ];
 
   useEffect(() => {
     const fetchData = async () => {
@@ -71,14 +70,18 @@ const CategoryPieChart: React.FC<CategoryPieChartProps> = ({ selectedMarkout }) 
     );
   }
 
-  const values = data.clusters.map(cluster => cluster.total_lvr_cents / 100);
-  const percentages = data.clusters.map(cluster => 
-    (cluster.total_lvr_cents / data.total_lvr_cents) * 100
-  );
-  
-  const labels = data.clusters.map((cluster, index) => 
-    `${cluster.name} (${percentages[index].toFixed(1)}%)`
-  );
+  // Sort and map data according to CATEGORY_CONFIG order
+  const sortedData = CATEGORY_CONFIG.map(config => {
+    const categoryData = data.clusters.find(cluster => cluster.name === config.name);
+    if (!categoryData) return null;
+    
+    const percentage = ((categoryData.total_lvr_cents / data.total_lvr_cents) * 100);
+    return {
+      value: categoryData.total_lvr_cents / 100, // Convert to dollars
+      label: `${config.name} (${percentage.toFixed(1)}%)`,
+      color: config.color
+    };
+  }).filter((item): item is NonNullable<typeof item> => item !== null);
 
   const titleSuffix = selectedMarkout === 'brontes' ? 
     '(Observed LVR)' : 
@@ -90,14 +93,14 @@ const CategoryPieChart: React.FC<CategoryPieChartProps> = ({ selectedMarkout }) 
     <Plot
       data={[
         {
-          values,
-          labels,
+          values: sortedData.map(d => d.value),
+          labels: sortedData.map(d => d.label),
           type: 'pie',
           textinfo: 'label',
           textposition: 'outside',
           automargin: true,
           marker: {
-            colors: pieColors,
+            colors: sortedData.map(d => d.color),
             line: {
               color: '#000000',
               width: 2

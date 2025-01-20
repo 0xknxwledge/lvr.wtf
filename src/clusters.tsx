@@ -41,6 +41,7 @@ export const ALTCOIN_WETH_POOLS = {
     "0xa43fe16908251ee70ef74718545e4fe6c5ccec9f": "PEPE-WETH-V2"
 } as const;
 
+
 export const ALL_CLUSTERS = {
     ...STABLE_POOLS,
     ...WBTC_WETH_POOLS,

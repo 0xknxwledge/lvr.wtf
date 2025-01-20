@@ -143,6 +143,9 @@ const RealizedRatioChart: React.FC = () => {
   const meanP = invLogit(alpha + beta * meanX);
   const marginalEffect = beta * meanP * (1 - meanP) * 100;
 
+  const maxY = Math.max(...yValues, ...yPred);
+  const yPadding = (maxY * 0.15); // 15% padding above the highest point
+
   const title = 'Ratio between Total Realized/Maximal LVR by Markout Time';
   const baseLayout = createBaseLayout(title);
 
@@ -177,14 +180,14 @@ const RealizedRatioChart: React.FC = () => {
             ticksuffix: '%',
             showgrid: true,
             gridcolor: '#212121',
-            range: [0, Math.max(...yValues) * 1.1],
+            range: [0, maxY + yPadding], // Extend range to accommodate annotation
           },
           height: 600,
           margin: { l: 120, r: 50, b: 80, t: 100, pad: 4 },
           annotations: [{
             ...createAnnotationConfig({
               x: 0,
-              y: invLogit(alpha) * 100,
+              y: maxY + (yPadding / 2), // Position annotation in the middle of the padding
               xref: 'x',
               yref: 'y',
               text: `Avg. Marginal Effect: ${marginalEffect.toFixed(2)}pp/s`,
@@ -210,11 +213,11 @@ const RealizedRatioChart: React.FC = () => {
           },
           hovermode: 'closest'
         }}
-                  config={{
-            ...commonConfig,
-            scrollZoom: false,
-            modeBarButtonsToRemove: ['zoomIn2d', 'zoomOut2d', 'autoScale2d', 'resetScale2d']
-          }}
+        config={{
+          ...commonConfig,
+          scrollZoom: false,
+          modeBarButtonsToRemove: ['zoomIn2d', 'zoomOut2d', 'autoScale2d', 'resetScale2d']
+        }}
         style={{ width: '100%', height: '100%' }}
       />
     </div>

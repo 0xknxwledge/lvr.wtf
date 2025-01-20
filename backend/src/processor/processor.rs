@@ -639,10 +639,24 @@ impl ParallelLVRProcessor {
         if sorted_values.is_empty() {
             return 0;
         }
-        let index = (sorted_values.len() as f64 * percentile).floor() as usize;
-        sorted_values[index.min(sorted_values.len() - 1)]
+        
+        if sorted_values.len() == 1 {
+            return sorted_values[0];
+        }
+        
+        let n = sorted_values.len() as f64;
+        let rank = (n - 1.0) * percentile;
+        let k = rank.floor() as usize;
+        let d = rank - k as f64;
+        
+        if k + 1 >= sorted_values.len() {
+            sorted_values[sorted_values.len() - 1]
+        } else {
+            let lower = sorted_values[k] as f64;
+            let upper = sorted_values[k + 1] as f64;
+            ((1.0 - d) * lower + d * upper).round() as u64
+        }
     }
-
     
     fn parse_lvr_details(&self, details_str: &str, target_pool_name: &str) -> Option<f64> {
         // Attempt to parse as a vector of vectors of strings

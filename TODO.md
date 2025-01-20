@@ -1,11 +1,6 @@
-- Remove zoom-in for Category histogram
-- Change color palette for Category graphs (not enough contrast?)
 - Consistent title font (rn the Category non-zero is big and white, all others are small and lime green)
 - Make sure site works on mobile
 - Fix the asterik on interquartile plot
-- FIX HISTOGRAMS ON FRONT-END
-- DISPLAY AGGREGATE TOTALS FOR MONTHLY CATEGORIES
-
 
 POOLS WITH NO BRONTES DATA:
 0x435664008F38B0650fBC1C9fc971D0A3Bc2f1e47 (USDe-USDT-100)

@@ -19,15 +19,14 @@ interface CategoryHistogramProps {
   selectedMarkout: string;
 }
 
-// Updated color configuration
-const CATEGORY_CONFIG = [
-  { name: "Stable Pairs",   label: "Stable Pairs",   color: '#E2DFC9' },  // Light cream
-  { name: "WBTC-WETH",      label: "WBTC-WETH",      color: '#738C3A' },  // Medium olive
-  { name: "USDC-WETH",      label: "USDC-WETH",      color: '#A4C27B' },  // Sage green
-  { name: "USDT-WETH",      label: "USDT-WETH",      color: '#2D3A15' },  // Dark forest
-  { name: "DAI-WETH",       label: "DAI-WETH",       color: '#BAC7A7' },  // Light sage
-  { name: "USDC-WBTC",      label: "USDC-WBTC",      color: '#4A5D23' },  // Deep forest
-  { name: "Altcoin-WETH",   label: "Altcoin-WETH",   color: '#8B9556' }   // Muted olive
+export const CATEGORY_CONFIG = [
+  { name: "Stable Pairs",   label: "Stable Pairs",   color: '#E2DFC9' },
+  { name: "WBTC-WETH",      label: "WBTC-WETH",      color: '#738C3A' },
+  { name: "USDC-WETH",      label: "USDC-WETH",      color: '#A4C27B' },
+  { name: "USDT-WETH",      label: "USDT-WETH",      color: '#2D3A15' },
+  { name: "DAI-WETH",       label: "DAI-WETH",       color: '#BAC7A7' },
+  { name: "USDC-WBTC",      label: "USDC-WBTC",      color: '#4A5D23' },
+  { name: "Altcoin-WETH",   label: "Altcoin-WETH",   color: '#8B9556' }
 ] as const;
 
 const CategoryHistogram: React.FC<CategoryHistogramProps> = ({ selectedMarkout }) => {
@@ -143,26 +142,27 @@ const CategoryHistogram: React.FC<CategoryHistogramProps> = ({ selectedMarkout }
       const bucketIndex = bucketOrder.indexOf(selectedLabel);
       return (trace.y?.[bucketIndex] as number) || 0;
     })),
-    text: traces
-      .map((trace, index) => {
-        const bucketIndex = bucketOrder.indexOf(selectedLabel);
-        const count = trace.y?.[bucketIndex] as number;
-        if (!count || count === 0) return null;
-
-        const cluster = data[index];
-        if (!cluster) return null;
-
-        const percentage = (count / cluster.total_observations) * 100;
+    text: data
+      .map((cluster, index) => {
+        const bucketData = cluster.buckets.find(b => b.label === selectedLabel);
+        if (!bucketData || bucketData.count === 0) return null;
+        
+        const percentage = (bucketData.count / cluster.total_observations) * 100;
         const categoryConfig = CATEGORY_CONFIG[index];
         
-        return `<span style="color:${categoryConfig.color}">■</span> <b>${trace.name}</b>: ${count.toLocaleString()} (${percentage.toFixed(2)}%)`;
+        return {
+          color: categoryConfig.color,
+          name: categoryConfig.label,
+          count: bucketData.count,
+          percentage: percentage,
+          order: index
+        };
       })
       .filter(Boolean)
-      .sort((a, b) => {
-        const countA = parseInt(a!.split(': ')[1]);
-        const countB = parseInt(b!.split(': ')[1]);
-        return countB - countA;
-      })
+      .sort((a, b) => a!.order - b!.order)
+      .map(item => 
+        `<span style="color:${item!.color}">■</span> <b>${item!.name}</b>: ${item!.count.toLocaleString()} (${item!.percentage.toFixed(2)}%)`
+      )
       .join('<br>'),
     showarrow: true,
     arrowhead: 2,
@@ -198,7 +198,8 @@ const CategoryHistogram: React.FC<CategoryHistogramProps> = ({ selectedMarkout }
             tickfont: { color: '#FFFFFF', size: 10 },
             tickangle: 45,
             categoryorder: 'array' as const,
-            categoryarray: bucketOrder
+            categoryarray: bucketOrder,
+            fixedrange: true
           },
           yaxis: {
             ...baseLayout.yaxis,
@@ -208,6 +209,7 @@ const CategoryHistogram: React.FC<CategoryHistogramProps> = ({ selectedMarkout }
               standoff: 100
             },
             tickfont: { color: '#FFFFFF' },
+            fixedrange: true
           },
           height: 500,
           margin: { l: 150, r: 50, b: 160, t: 80 },
@@ -222,7 +224,11 @@ const CategoryHistogram: React.FC<CategoryHistogramProps> = ({ selectedMarkout }
             yanchor: 'top',
           },
         }}
-        config={commonConfig}
+        config={{
+          ...commonConfig,
+          scrollZoom: false,
+          displayModeBar: false
+        }}
         style={{ width: '100%', height: '100%' }}
       />
       
