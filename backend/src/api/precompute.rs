@@ -898,7 +898,7 @@ impl PrecomputedWriter {
 
     pub async fn write_percentile_bands(&self) -> Result<(), anyhow::Error> {
         info!("Starting precomputation of percentile band distributions");
-        
+    
         let schema = arrow::datatypes::Schema::new(vec![
             arrow::datatypes::Field::new("pool_address", arrow::datatypes::DataType::Utf8, false),
             arrow::datatypes::Field::new("pool_name", arrow::datatypes::DataType::Utf8, false),
@@ -926,7 +926,7 @@ impl PrecomputedWriter {
         // Process all interval files
         let intervals_path = object_store::path::Path::from("intervals");
         let mut interval_files = self.object_store.list(Some(&intervals_path));
-        
+    
         while let Some(meta_result) = interval_files.next().await {
             let meta = meta_result.context("Failed to get file metadata")?;
             let file_path = meta.location.to_string();
@@ -950,17 +950,21 @@ impl PrecomputedWriter {
             let record_reader = ParquetRecordBatchReader::try_new(bytes, 1024)?;
     
             // Collect and group data for this interval file
-            let mut interval_data: HashMap<(String, String), Vec<u64>> = HashMap::new();
+            let mut interval_data: HashMap<(String, String), Vec<(u64, u64, u64)>> = HashMap::new();
     
             for batch_result in record_reader {
                 let batch = batch_result?;
     
                 let markout_times_col = get_string_column(&batch, "markout_time")
-                    .map_err(|e| anyhow::anyhow!("Failed to get markout_time column: {}", e))?;
+                .map_err(|e| anyhow::anyhow!("Failed to get markout_time column: {}", e))?;
                 let pool_addresses_col = get_string_column(&batch, "pair_address")
                     .map_err(|e| anyhow::anyhow!("Failed to get pair_address column: {}", e))?;
                 let total_lvr_cents = get_uint64_column(&batch, "total_lvr_cents")
                     .map_err(|e| anyhow::anyhow!("Failed to get total_lvr_cents column: {}", e))?;
+                let non_zero_counts = get_uint64_column(&batch, "non_zero_count")
+                    .map_err(|e| anyhow::anyhow!("Failed to get non_zero_count column: {}", e))?;
+                let total_counts = get_uint64_column(&batch, "total_count")
+                    .map_err(|e| anyhow::anyhow!("Failed to get total_count column: {}", e))?;
     
                 for i in 0..batch.num_rows() {
                     let pool_address = pool_addresses_col.value(i).to_lowercase();
@@ -970,27 +974,36 @@ impl PrecomputedWriter {
     
                     let markout_time = markout_times_col.value(i).to_string();
                     let lvr_cents = total_lvr_cents.value(i);
+                    let non_zero_count = non_zero_counts.value(i);
+                    let total_count = total_counts.value(i);
     
-                    if lvr_cents > 0 {
+                    if lvr_cents > 0 && total_count > 0 {
                         interval_data
-                            .entry((pool_address, markout_time))
+                            .entry((pool_address.clone(), markout_time.clone()))
                             .or_default()
-                            .push(lvr_cents);
+                            .push((lvr_cents, non_zero_count, total_count));
                     }
                 }
             }
     
             // Process collected data for this interval
-            for ((pool_address, markout_time), mut values) in interval_data {
-                // Sort values for percentile calculations
-                values.sort_unstable();
-                
-                // Calculate metrics
-                let total_lvr = values.iter().sum::<u64>() as f64 / 100.0;  // Convert to dollars
-                let p25 = calculate_percentile(&values, 0.25) as f64 / 100.0;
-                let p50 = calculate_percentile(&values, 0.50) as f64 / 100.0;
-                let p75 = calculate_percentile(&values, 0.75) as f64 / 100.0;
-                
+            for ((pool_address, markout_time), values) in interval_data {
+                // Calculate weighted percentiles
+                let weighted_percentile = |target: f64| -> f64 {
+                    Self::calculate_weighted_percentile(
+                        &values
+                            .iter()
+                            .map(|(lvr, non_zero, total)| (*lvr, *non_zero, *total))
+                            .collect::<Vec<_>>(),
+                        target,
+                    ) as f64 / 100.0
+                };
+    
+                let total_lvr = values.iter().map(|(lvr, _, _)| *lvr).sum::<u64>() as f64 / 100.0;
+                let p25 = weighted_percentile(0.25);
+                let p50 = weighted_percentile(0.50);
+                let p75 = weighted_percentile(0.75);
+    
                 let pool_name = get_pool_name(&pool_address);
     
                 pool_addresses.push(pool_address);
@@ -1028,6 +1041,7 @@ impl PrecomputedWriter {
         info!("Successfully wrote precomputed percentile band distributions");
         Ok(())
     }
+    
 
     pub async fn write_quartile_plots(&self) -> Result<(), anyhow::Error> {
         info!("Starting precomputation of quartile plot distributions");
