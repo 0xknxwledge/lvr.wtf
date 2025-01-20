@@ -5,8 +5,8 @@ use axum::{
 };
 use crate::{
     AppState,
-    api::handlers::common::{get_uint64_column, get_string_column},
-    PoolQuartileData, QuartilePlotResponse, QuartilePlotQuery
+    api::handlers::common::{get_uint64_column, get_string_column, get_valid_pools},
+    QuartilePlotResponse, QuartilePlotQuery
 };
 use tracing::{error, info, warn};
 use std::sync::Arc;
@@ -17,24 +17,32 @@ pub async fn get_quartile_plot(
     State(state): State<Arc<AppState>>,
     Query(params): Query<QuartilePlotQuery>,
 ) -> Result<Json<QuartilePlotResponse>, StatusCode> {
+    let pool_address = params.pool_address.to_lowercase();
     let markout_time = params.markout_time.unwrap_or_else(|| String::from("brontes"));
 
+    // Validate pool address early
+    let valid_pools = get_valid_pools();
+    if !valid_pools.contains(&pool_address) {
+        warn!("Invalid pool address provided: {}", pool_address);
+        return Err(StatusCode::BAD_REQUEST);
+    }
+
     info!(
-        "Analyzing distribution metrics across pools for markout time: {}", 
-        markout_time
+        "Analyzing distribution metrics for pool {} with markout time: {}", 
+        pool_address, markout_time
     );
 
     // Read from precomputed file
     let bytes = state.store.get(&Path::from("precomputed/distributions/quartile_plots.parquet"))
         .await
         .map_err(|e| {
-            error!("Failed to read precomputed distribution metrics: {}", e);
+            error!("Failed to read precomputed quartile metrics: {}", e);
             StatusCode::INTERNAL_SERVER_ERROR
         })?
         .bytes()
         .await
         .map_err(|e| {
-            error!("Failed to get bytes from precomputed distribution data: {}", e);
+            error!("Failed to get bytes from precomputed quartile data: {}", e);
             StatusCode::INTERNAL_SERVER_ERROR
         })?;
 
@@ -43,12 +51,6 @@ pub async fn get_quartile_plot(
             error!("Failed to create Parquet reader: {}", e);
             StatusCode::INTERNAL_SERVER_ERROR
         })?;
-
-    let mut pool_data = Vec::new();
-    let mut highest_median = 0u64;
-    let mut lowest_median = u64::MAX;
-    let mut widest_iqr = 0u64;
-    let mut widest_iqr_pool = String::new();
 
     for batch_result in reader {
         let batch = batch_result.map_err(|e| {
@@ -64,58 +66,36 @@ pub async fn get_quartile_plot(
         let percentile_75 = get_uint64_column(&batch, "percentile_75_cents")?;
 
         for i in 0..batch.num_rows() {
-            // Early filter by markout time
-            if markout_times.value(i) != markout_time {
+            let current_pool = pool_addresses.value(i).to_lowercase();
+            
+            // Filter by pool and markout time
+            if current_pool != pool_address || markout_times.value(i) != markout_time {
                 continue;
             }
 
-            let median_value = median.value(i);
-            let p75_value = percentile_75.value(i);
-            let p25_value = percentile_25.value(i);
+            info!(
+                "Found quartile data for {} ({}): Q1=${:.2}, Median=${:.2}, Q3=${:.2}", 
+                pool_names.value(i),
+                markout_time,
+                percentile_25.value(i) as f64 / 100.0,
+                median.value(i) as f64 / 100.0,
+                percentile_75.value(i) as f64 / 100.0
+            );
 
-            // Track distribution statistics
-            highest_median = highest_median.max(median_value);
-            lowest_median = lowest_median.min(median_value);
-
-            let iqr = p75_value.saturating_sub(p25_value);
-            if iqr > widest_iqr {
-                widest_iqr = iqr;
-                widest_iqr_pool = pool_names.value(i).to_string();
-            }
-
-            pool_data.push(PoolQuartileData {
+            return Ok(Json(QuartilePlotResponse {
                 pool_name: pool_names.value(i).to_string(),
-                pool_address: pool_addresses.value(i).to_string(),
-                percentile_25_cents: p25_value,
-                median_cents: median_value,
-                percentile_75_cents: p75_value,
-            });
+                pool_address: current_pool,
+                markout_time,
+                percentile_25_cents: percentile_25.value(i),
+                median_cents: median.value(i),
+                percentile_75_cents: percentile_75.value(i),
+            }));
         }
     }
 
-    if pool_data.is_empty() {
-        warn!(
-            "No distribution data found for markout time {}", 
-            markout_time
-        );
-        return Err(StatusCode::NOT_FOUND);
-    }
-
-    // Sort by median value descending for consistent ordering
-    pool_data.sort_by(|a, b| b.median_cents.cmp(&a.median_cents));
-
-    info!(
-        "Analyzed {} pools for {}. Median range: ${:.2} to ${:.2}. Widest IQR: ${:.2} ({})", 
-        pool_data.len(),
-        markout_time,
-        lowest_median as f64 / 100.0,
-        highest_median as f64 / 100.0,
-        widest_iqr as f64 / 100.0,
-        widest_iqr_pool
+    warn!(
+        "No quartile data found for pool {} with markout time {}", 
+        pool_address, markout_time
     );
-
-    Ok(Json(QuartilePlotResponse {
-        markout_time,
-        pool_data,
-    }))
+    Err(StatusCode::NOT_FOUND)
 }

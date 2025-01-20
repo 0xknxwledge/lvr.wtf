@@ -248,20 +248,16 @@ pub struct ClusterNonZeroResponse {
 
 #[derive(Debug, Deserialize)]
 pub struct QuartilePlotQuery {
-    pub markout_time: Option<String>,
-}
-
-#[derive(Debug, Serialize)]
-pub struct PoolQuartileData {
-    pub pool_name: String,
     pub pool_address: String,
-    pub percentile_25_cents: u64,
-    pub median_cents: u64,
-    pub percentile_75_cents: u64,
+    pub markout_time: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
 pub struct QuartilePlotResponse {
     pub markout_time: String,
-    pub pool_data: Vec<PoolQuartileData>,
+    pub pool_name: String,
+    pub pool_address: String,
+    pub percentile_25_cents: u64,
+    pub median_cents: u64,
+    pub percentile_75_cents: u64,
 }

@@ -3,7 +3,6 @@ import RunningTotalChart from '../components/plots/RunningTotalChart';
 import EfficiencyRatioChart from '../components/plots/RealizedRatioChart';
 import PoolTotalsPieChart from '../components/plots/PieChart';
 import MaxLVRChart from '../components/plots/MaxLVRChart';
-import QuartilePlot from '../components/plots/QuartilePlot';
 import { MarkoutSelect } from '../components/LabeledSelect';
 import PageLayout from '../components/pagelayout';
 import PlotContainer from '../components/PlotContainer';
@@ -25,7 +24,7 @@ const Aggregate: React.FC = () => {
       <div className="max-w-7xl mx-auto">
         <p className="font-['Menlo'] text-[#B2AC88] text-lg mb-8 text-center">
           View data aggregated across pools. The first two plots are aggregated across markout times. 
-          The last three plots are specific to the selected markout time.
+          The last two plots are specific to the selected markout time.
         </p>
         
         <div className="font-['Menlo'] mt-4 mb-12 text-center">
@@ -47,10 +46,6 @@ const Aggregate: React.FC = () => {
 
           <PlotContainer>
             <PoolTotalsPieChart selectedMarkout={selectedMarkout} />
-          </PlotContainer>
-
-          <PlotContainer>
-            <QuartilePlot selectedMarkout={selectedMarkout} />
           </PlotContainer>
 
           <PlotContainer>

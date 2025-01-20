@@ -4,6 +4,7 @@ import HistogramChart from '../components/plots/Histogram';
 import SoleRunningTotal from '../components/plots/SoleRunningTotal';
 import NonZeroProportion from '../components/plots/NonZeroProp';
 import PercentileBandChart from '../components/plots/BandPlot';
+import QuartilePlot from '../components/plots/QuartilePlot';
 import PlotContainer from '../components/PlotContainer';
 import names from '../names';
 import PageLayout from '../components/pagelayout';
@@ -43,6 +44,13 @@ const Pool: React.FC = () => {
         <div className="flex flex-col">
           <PlotContainer>
             <SoleRunningTotal 
+              poolAddress={selectedPool}
+              markoutTime={selectedMarkout}
+            />
+          </PlotContainer>
+
+          <PlotContainer>
+            <QuartilePlot
               poolAddress={selectedPool}
               markoutTime={selectedMarkout}
             />
