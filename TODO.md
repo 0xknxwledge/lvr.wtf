@@ -1,13 +1,10 @@
-- Fix the asterik on interquartile plot (mention how we track percentiles for every 7200 blocks, compile into three separate lists for each percentile, weight values by non-zero/total block count for the value's respective interval, and then linear interopolate the nth percentile for the list of nth percentiles) ---> is this the best way? 
+- IMPLEMENT T-DIGEST FOR ESTIMATING SINGLE-BLOCK NON-ZERO LVR DISTRIBUTION
 
-- OUTLIERS ARE BLOWING UP THE WEIGHTING FOR PERCENTILE BANDPLOT; remove (or fix?)
+- Fix the asterik on interquartile plot (mention how we track percentiles for every 7200 blocks, compile into three separate lists for each percentile, weight values by non-zero/total block count for the value's respective interval, and then linear interopolate the nth percentile for the list of nth percentiles) ---> is this the best way? 
 
 - NORMALIZE CATEGORY TOTALS BY ???
 
 - FLAG THE BIG JUMPS IN RUNNING TOTALS (e.g, USDC DEPEG, RELEASE OF PEPE, etc.)
-
-
-
 
 POOLS WITH NO BRONTES DATA:
 0x435664008F38B0650fBC1C9fc971D0A3Bc2f1e47 (USDe-USDT-100)

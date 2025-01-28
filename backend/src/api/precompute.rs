@@ -988,21 +988,12 @@ impl PrecomputedWriter {
     
             // Process collected data for this interval
             for ((pool_address, markout_time), values) in interval_data {
-                // Calculate weighted percentiles
-                let weighted_percentile = |target: f64| -> f64 {
-                    Self::calculate_weighted_percentile(
-                        &values
-                            .iter()
-                            .map(|(lvr, non_zero, total)| (*lvr, *non_zero, *total))
-                            .collect::<Vec<_>>(),
-                        target,
-                    ) as f64 / 100.0
-                };
-    
-                let total_lvr = values.iter().map(|(lvr, _, _)| *lvr).sum::<u64>() as f64 / 100.0;
-                let p25 = weighted_percentile(0.25);
-                let p50 = weighted_percentile(0.50);
-                let p75 = weighted_percentile(0.75);
+                // Calculate unweighted percentiles
+                let unweighted_values: Vec<u64> = values.iter().map(|(lvr, _, _)| *lvr).collect();
+                let total_lvr = unweighted_values.iter().map(|lvr| *lvr).sum::<u64>() as f64 / 100.0;
+                let p25 = Self::calculate_unweighted_percentile(&unweighted_values, 25);
+                let p50 = Self:: calculate_unweighted_percentile(&unweighted_values, 50);
+                let p75 = Self::calculate_unweighted_percentile(&unweighted_values, 75);
     
                 let pool_name = get_pool_name(&pool_address);
     
@@ -1122,22 +1113,25 @@ impl PrecomputedWriter {
     
         for ((pool_address, markout_time), data) in distribution_data {
             let pool_name = get_pool_name(&pool_address);
-    
-            let weighted_25 = Self::calculate_weighted_quartiles(
+
+            // Changed: Use non_zero_count directly as weights
+            let weighted_25 = Self::calculate_weighted_percentile(
                 &data.iter()
-                    .map(|(p25, _, _, nz_count, t_count)| (*p25, *nz_count, *t_count))
+                    .map(|(p25, _, _, nz_count, _)| (*p25, *nz_count))
                     .collect::<Vec<_>>(),
                 0.25,
             );
-            let weighted_50 = Self::calculate_weighted_quartiles(
+            
+            let weighted_50 = Self::calculate_weighted_percentile(
                 &data.iter()
-                    .map(|(_, p50, _, nz_count, t_count)| (*p50, *nz_count, *t_count))
+                    .map(|(_, p50, _, nz_count, _)| (*p50, *nz_count))
                     .collect::<Vec<_>>(),
                 0.50,
             );
-            let weighted_75 = Self::calculate_weighted_quartiles(
+            
+            let weighted_75 = Self::calculate_weighted_percentile(
                 &data.iter()
-                    .map(|(_, _, p75, nz_count, t_count)| (*p75, *nz_count, *t_count))
+                    .map(|(_, _, p75, nz_count, _)| (*p75, *nz_count))
                     .collect::<Vec<_>>(),
                 0.75,
             );
@@ -1169,107 +1163,70 @@ impl PrecomputedWriter {
         Ok(())
     }
     
-    pub fn calculate_weighted_quartiles(quartiles: &[(u64, u64, u64)], target: f64) -> u64 {
-        // Early return if no data
-        if quartiles.is_empty() {
+    pub fn calculate_weighted_percentile(
+        values_weights: &[(u64, u64)],  // (value, non_zero_count)
+        target: f64,
+    ) -> u64 {
+        if values_weights.is_empty() {
             return 0;
         }
     
-        // Create vector of (value, weight) pairs
-        let mut weighted_values: Vec<(u64, f64)> = quartiles
+        // Convert to (value, weight) with proper types
+        let mut weighted: Vec<(u64, f64)> = values_weights
             .iter()
-            .map(|(value, non_zero_count, total_count)| {
-                let weight = if *total_count > 0 {
-                    *non_zero_count as f64 / *total_count as f64
-                } else {
-                    0.0
-                };
-                (*value, weight)
-            })
+            .map(|(val, nz)| (*val, *nz as f64))
             .collect();
     
-        // Sort by value
-        weighted_values.sort_by_key(|(value, _)| *value);
+        // Sort by value to enable linear interpolation
+        weighted.sort_by_key(|(val, _)| *val);
     
-        // Calculate cumulative weights
-        let total_weight: f64 = weighted_values.iter().map(|(_, w)| w).sum();
+        let total_weight: f64 = weighted.iter().map(|(_, w)| w).sum();
         if total_weight == 0.0 {
             return 0;
         }
     
-        let mut cumulative_weight = 0.0;
         let target_weight = target * total_weight;
+        let mut cumulative = 0.0;
     
-        // Find the value at the target quartile
-        for (i, (value, weight)) in weighted_values.iter().enumerate() {
-            cumulative_weight += weight;
-            if cumulative_weight >= target_weight {
-                // If we're not at the last value, interpolate
-                if i < weighted_values.len() - 1 && cumulative_weight > target_weight {
-                    let prev_cumulative = cumulative_weight - weight;
-                    let proportion = (target_weight - prev_cumulative) / weight;
-                    let next_value = weighted_values[i + 1].0;
-                    return (*value as f64 * (1.0 - proportion) + next_value as f64 * proportion) as u64;
+        for (i, (val, weight)) in weighted.iter().enumerate() {
+            cumulative += weight;
+    
+            if cumulative >= target_weight {
+                // Exact match or last element
+                if i == 0 || i == weighted.len() - 1 {
+                    return *val;
                 }
-                return *value;
+    
+                // Calculate interpolation between current and previous
+                let prev_weight = cumulative - weight;
+                let fraction = (target_weight - prev_weight) / weight;
+                let prev_val = weighted[i.saturating_sub(1)].0;
+    
+                return (prev_val as f64 * (1.0 - fraction) + *val as f64 * fraction).round() as u64;
             }
         }
     
-        // If we haven't returned yet, use the last value
-        weighted_values.last().map(|(value, _)| *value).unwrap_or(0)
+        // Fallback to last value
+        weighted.last().map(|(v, _)| *v).unwrap_or(0)
     }
 
-    pub fn calculate_weighted_percentile(percentiles: &[(u64, u64, u64)], target: f64) -> u64 {
-        // Early return if no data
-        if percentiles.is_empty() {
-            return 0;
+    pub fn calculate_unweighted_percentile(values: &[u64], percentile: u64) -> f64 {
+        if values.is_empty() {
+            return 0.0;
         }
     
-        // Create vector of (value_in_dollars, weight) pairs
-        let mut weighted_values: Vec<(f64, f64)> = percentiles
-            .iter()
-            .map(|(value, non_zero_count, total_count)| {
-                let value_in_dollars = *value as f64 / 100.0;
-                let weight = if *total_count > 0 {
-                    *non_zero_count as f64 / *total_count as f64
-                } else {
-                    0.0
-                };
-                (value_in_dollars, weight)
-            })
-            .collect();
+        let mut sorted = values.to_vec();
+        sorted.sort_unstable();
     
-        // Sort by value
-        weighted_values.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(std::cmp::Ordering::Equal));
+        let rank = (percentile as f64 / 100.0) * (sorted.len() - 1) as f64;
+        let i = rank.floor() as usize;
+        let fraction = rank - i as f64;
     
-        // Calculate cumulative weights
-        let total_weight: f64 = weighted_values.iter().map(|(_, w)| w).sum();
-        if total_weight == 0.0 {
-            return 0;
+        if i + 1 >= sorted.len() {
+            sorted[i] as f64 / 100.0
+        } else {
+            (sorted[i] as f64 * (1.0 - fraction) + sorted[i + 1] as f64 * fraction) / 100.0
         }
-    
-        let mut cumulative_weight = 0.0;
-        let target_weight = target * total_weight;
-    
-        // Find the value at the target percentile
-        for (i, (value, weight)) in weighted_values.iter().enumerate() {
-            cumulative_weight += weight;
-            if cumulative_weight >= target_weight {
-                // If we're not at the last value, interpolate
-                if i < weighted_values.len() - 1 && cumulative_weight > target_weight {
-                    let prev_cumulative = cumulative_weight - weight;
-                    let proportion = (target_weight - prev_cumulative) / weight;
-                    let next_value = weighted_values[i + 1].0;
-                    let interpolated = value * (1.0 - proportion) + next_value * proportion;
-                    return (interpolated * 100.0).round() as u64;
-                }
-                return (value * 100.0).round() as u64;
-            }
-        }
-    
-        // If we haven't returned yet, use the last value
-        let (last_value, _) = weighted_values.last().unwrap();
-        (*last_value * 100.0).round() as u64
     }
 
     pub async fn write_cluster_proportions(&self) -> Result<(), anyhow::Error> {
