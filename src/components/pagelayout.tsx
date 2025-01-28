@@ -1,29 +1,33 @@
 import React from 'react';
 
-const PageLayout = ({ 
-  title, 
-  controls, 
-  children 
-}: { 
+interface PageLayoutProps {
   title: string;
   controls?: React.ReactNode;
   children: React.ReactNode;
-}) => {
+}
+
+const PageLayout: React.FC<PageLayoutProps> = ({ title, controls, children }) => {
   return (
-    <div className="font-['Menlo'] px-8 py-8 bg-[#030304] min-h-screen">
+    <div className="font-['Menlo'] px-4 sm:px-6 md:px-8 py-4 sm:py-6 md:py-8 bg-[#030304] min-h-screen">
       <div className="max-w-7xl mx-auto">
-        {/* Header section with centered title */}
-        <div className="flex flex-col items-center mb-8">
-          <h1 className="text-4xl font-bold text-white mb-4">{title}</h1>
+        {/* Header section with responsive spacing and font sizes */}
+        <div className="flex flex-col items-center mb-4 sm:mb-6 md:mb-8">
+          <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white mb-4 text-center">
+            {title}
+          </h1>
+          
+          {/* Controls section with improved mobile layout */}
           {controls && (
-            <div className="flex gap-4 items-center">
-              {controls}
+            <div className="w-full max-w-xl mx-auto">
+              <div className="flex flex-col sm:flex-row gap-4 items-stretch sm:items-center">
+                {controls}
+              </div>
             </div>
           )}
         </div>
         
-        {/* Content section */}
-        <div className="space-y-12">
+        {/* Content section with responsive spacing */}
+        <div className="space-y-6 sm:space-y-8 md:space-y-12">
           {children}
         </div>
       </div>

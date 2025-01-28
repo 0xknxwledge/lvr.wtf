@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Plot from 'react-plotly.js';
-import { Data } from 'plotly.js';
+import { Data, Layout } from 'plotly.js';
 import { createBaseLayout, plotColors, fontConfig, commonConfig, createAnnotationConfig } from '../plotUtils';
 
 interface MarkoutRatio {
@@ -14,7 +14,6 @@ interface LVRRatioResponse {
   ratios: MarkoutRatio[];
 }
 
-// Beta regression helper functions
 function logit(p: number): number {
   p = Math.max(0.0001, Math.min(0.9999, p));
   return Math.log(p / (1 - p));
@@ -41,6 +40,40 @@ const RealizedRatioChart: React.FC = () => {
   const [data, setData] = useState<MarkoutRatio[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [windowWidth, setWindowWidth] = useState(window.innerWidth);
+
+  useEffect(() => {
+    const handleResize = () => setWindowWidth(window.innerWidth);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  const getResponsiveLayout = useCallback(() => {
+    const isMobile = windowWidth <= 768;
+    const isTablet = windowWidth >= 768 && windowWidth < 1024;
+
+    return {
+      height: isMobile ? 400 : 600,
+      margin: {
+        l: isMobile ? 60 : (isTablet ? 90 : 120),
+        r: isMobile ? 30 : (isTablet ? 40 : 50),
+        b: isMobile ? 50 : (isTablet ? 65 : 80),
+        t: isMobile ? 70 : (isTablet ? 85 : 100),
+        pad: 4
+      },
+      fontSize: {
+        title: isMobile ? 12 : (isTablet ? 14 : 16),
+        axis: isMobile ? 10 : (isTablet ? 12 : 14),
+        tick: isMobile ? 8 : (isTablet ? 9 : 10),
+        annotation: isMobile ? 10 : (isTablet ? 11 : 12)
+      },
+      markerSize: isMobile ? 6 : 8,
+      lineWidth: {
+        primary: isMobile ? 2 : 3,
+        secondary: isMobile ? 1.5 : 2
+      }
+    };
+  }, [windowWidth]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -64,16 +97,16 @@ const RealizedRatioChart: React.FC = () => {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-96">
-        <p className="text-white font-['Menlo']">Loading...</p>
+      <div className="flex items-center justify-center h-[400px] md:h-[600px]">
+        <p className="text-white text-base md:text-lg font-['Menlo']">Loading...</p>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="flex items-center justify-center h-96">
-        <p className="text-red-500 font-['Menlo']">{error}</p>
+      <div className="flex items-center justify-center h-[400px] md:h-[600px]">
+        <p className="text-red-500 text-sm md:text-base font-['Menlo']">{error}</p>
       </div>
     );
   }
@@ -84,7 +117,6 @@ const RealizedRatioChart: React.FC = () => {
     return aNum - bNum;
   });
 
-  // Calculate beta regression
   const xValues = sortedData.map(d => parseFloat(d.markout_time));
   const yValues = sortedData.map(d => d.ratio);
   const [alpha, beta] = betaRegression(xValues, yValues);
@@ -96,6 +128,8 @@ const RealizedRatioChart: React.FC = () => {
   });
 
   const yPred = xRange.map(x => invLogit(alpha + beta * x) * 100);
+  const responsiveLayout = getResponsiveLayout();
+  const isMobile = windowWidth <= 768;
 
   const mainTrace: Partial<Data> = {
     x: sortedData.map(d => parseFloat(d.markout_time)),
@@ -105,17 +139,17 @@ const RealizedRatioChart: React.FC = () => {
     name: 'Observed Ratio',
     line: {
       color: plotColors.primary,
-      width: 3,
+      width: responsiveLayout.lineWidth.primary,
     },
     marker: {
       color: plotColors.primary,
-      size: 8,
+      size: responsiveLayout.markerSize,
     },
     hovertemplate: 
       '<b>Markout: %{x}s</b><br>' +
       'Capture Efficiency: %{y:.1f}%<br>' +
       'Realized: $%{customdata[0]:,.2f}<br>' +
-      'Theoretical: $%{customdata[1]:,.2f}' +
+      'Theoretical Maximum: $%{customdata[1]:,.2f}' +
       '<extra></extra>',
     customdata: sortedData.map(d => [
       d.realized_lvr_cents / 100,
@@ -132,7 +166,7 @@ const RealizedRatioChart: React.FC = () => {
     name: 'Beta Regression',
     line: {
       color: plotColors.accent,
-      width: 2,
+      width: responsiveLayout.lineWidth.secondary,
       dash: 'dot',
     },
     hoverinfo: 'skip',
@@ -144,79 +178,112 @@ const RealizedRatioChart: React.FC = () => {
   const marginalEffect = beta * meanP * (1 - meanP) * 100;
 
   const maxY = Math.max(...yValues, ...yPred);
-  const yPadding = (maxY * 0.15); // 15% padding above the highest point
+  const yPadding = (maxY * (isMobile ? 0.1 : 0.15));
 
-  const title = 'Ratio between Total Realized/Maximal LVR by Markout Time';
+  const title = 'Ratio between Total<br>Realized/Maximal LVR by Markout Time';
   const baseLayout = createBaseLayout(title);
+
+  const layout: Partial<Layout> = {
+    ...baseLayout,
+    height: responsiveLayout.height,
+    margin: responsiveLayout.margin,
+    xaxis: {
+      ...baseLayout.xaxis,
+      title: {
+        text: 'Markout Time (seconds)',
+        font: { 
+          color: plotColors.accent, 
+          size: responsiveLayout.fontSize.axis,
+          family: fontConfig.family 
+        },
+        standoff: isMobile ? 15 : 20
+      },
+      tickfont: { 
+        color: '#ffffff',
+        size: responsiveLayout.fontSize.tick,
+        family: fontConfig.family 
+      },
+      showgrid: false,
+      gridcolor: '#212121',
+      zeroline: true,
+      zerolinecolor: plotColors.secondary,
+    },
+    yaxis: {
+      ...baseLayout.yaxis,
+      title: {
+        text: 'Observed/Simulated Ratio',
+        font: { 
+          color: plotColors.accent,
+          size: responsiveLayout.fontSize.axis,
+          family: fontConfig.family 
+        },
+        standoff: isMobile ? 30 : 40
+      },
+      tickfont: { 
+        color: '#ffffff',
+        size: responsiveLayout.fontSize.tick,
+        family: fontConfig.family 
+      },
+      tickformat: '.1f',
+      ticksuffix: '%',
+      showgrid: true,
+      gridcolor: '#212121',
+      range: [0, maxY + yPadding],
+    },
+    title: {
+      text: isMobile ? title : title.replace('<br>', ' '),
+      font: {
+        color: plotColors.accent,
+        size: responsiveLayout.fontSize.title,
+        family: fontConfig.family
+      }
+    },
+    annotations: [{
+      ...createAnnotationConfig({
+        x: 0,
+        y: maxY + (yPadding / 2),
+        xref: 'x',
+        yref: 'y',
+        text: `Avg. Marginal Effect: ${marginalEffect.toFixed(2)}pp/s`,
+        showarrow: false,
+        font: { 
+          color: plotColors.accent,
+          family: fontConfig.family,
+          size: responsiveLayout.fontSize.annotation
+        },
+        bgcolor: 'rgba(0,0,0,0.7)',
+        borderpad: isMobile ? 3 : 4,
+      })
+    }],
+    showlegend: false,
+    hoverlabel: {
+      bgcolor: '#424242',
+      bordercolor: plotColors.accent,
+      font: { 
+        family: fontConfig.family,
+        color: '#ffffff',
+        size: responsiveLayout.fontSize.tick
+      }
+    },
+    hovermode: 'closest'
+  };
 
   return (
     <div className="w-full">
       <Plot
         data={[mainTrace, betaRegressionTrace]}
-        layout={{
-          ...baseLayout,
-          xaxis: {
-            ...baseLayout.xaxis,
-            title: {
-              text: 'Markout Time (seconds)',
-              font: { color: plotColors.accent, size: fontConfig.sizes.axisTitle, family: fontConfig.family },
-              standoff: 20
-            },
-            tickfont: { color: '#ffffff', family: fontConfig.family },
-            showgrid: false,
-            gridcolor: '#212121',
-            zeroline: true,
-            zerolinecolor: plotColors.secondary,
-          },
-          yaxis: {
-            ...baseLayout.yaxis,
-            title: {
-              text: 'Observed/Simulated Ratio',
-              font: { color: plotColors.accent, size: fontConfig.sizes.axisTitle, family: fontConfig.family },
-              standoff: 40
-            },
-            tickfont: { color: '#ffffff', family: fontConfig.family },
-            tickformat: '.1f',
-            ticksuffix: '%',
-            showgrid: true,
-            gridcolor: '#212121',
-            range: [0, maxY + yPadding], // Extend range to accommodate annotation
-          },
-          height: 600,
-          margin: { l: 120, r: 50, b: 80, t: 100, pad: 4 },
-          annotations: [{
-            ...createAnnotationConfig({
-              x: 0,
-              y: maxY + (yPadding / 2), // Position annotation in the middle of the padding
-              xref: 'x',
-              yref: 'y',
-              text: `Avg. Marginal Effect: ${marginalEffect.toFixed(2)}pp/s`,
-              showarrow: false,
-              font: { 
-                color: plotColors.accent,
-                family: fontConfig.family,
-                size: fontConfig.sizes.annotation
-              },
-              bgcolor: 'rgba(0,0,0,0.7)',
-              borderpad: 4,
-            })
-          }],
-          showlegend: false,
-          hoverlabel: {
-            bgcolor: '#424242',
-            bordercolor: plotColors.accent,
-            font: { 
-              family: fontConfig.family,
-              color: '#ffffff',
-              size: fontConfig.sizes.hover
-            }
-          },
-          hovermode: 'closest'
-        }}
+        layout={layout}
         config={{
           ...commonConfig,
           scrollZoom: false,
-          modeBarButtonsToRemove: ['zoomIn2d', 'zoomOut2d', 'autoScale2d', 'resetScale2d']
+          modeBarButtonsToRemove: ['zoomIn2d', 'zoomOut2d', 'autoScale2d', 'resetScale2d'],
+          toImageButtonOptions: {
+            format: 'png',
+            filename: 'realized_ratio_chart',
+            height: responsiveLayout.height,
+            width: windowWidth,
+            scale: 2
+          }
         }}
         style={{ width: '100%', height: '100%' }}
       />

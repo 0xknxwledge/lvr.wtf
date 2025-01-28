@@ -6,14 +6,22 @@ interface SelectWrapperProps {
   onChange: (value: string) => void;
   options: Array<{ value: string; label: string }>;
   id: string;
+  className?: string;
 }
 
-const SelectWrapper: React.FC<SelectWrapperProps> = ({ label, value, onChange, options, id }) => {
+const SelectWrapper: React.FC<SelectWrapperProps> = ({ 
+  label, 
+  value, 
+  onChange, 
+  options, 
+  id,
+  className = '' 
+}) => {
   return (
-    <div className="font-['Menlo'] flex flex-col gap-2">
+    <div className={`font-['Menlo'] flex flex-col gap-2 w-full sm:w-auto ${className}`}>
       <label 
         htmlFor={id}
-        className="text-[#b4d838] text-sm font-medium"
+        className="text-[#b4d838] text-sm font-medium truncate"
       >
         {label}
       </label>
@@ -21,8 +29,15 @@ const SelectWrapper: React.FC<SelectWrapperProps> = ({ label, value, onChange, o
         id={id}
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="px-4 py-2 bg-[#161616] text-white border border-[#8B9556] rounded cursor-pointer appearance-none min-w-[160px] 
-                  hover:border-[#b4d838] focus:border-[#b4d838] focus:outline-none transition-colors duration-200"
+        className="px-4 py-3 sm:py-2 
+                  bg-[#161616] text-white 
+                  border border-[#8B9556] rounded 
+                  cursor-pointer appearance-none 
+                  w-full sm:min-w-[160px] 
+                  text-base sm:text-sm
+                  hover:border-[#b4d838] focus:border-[#b4d838] 
+                  focus:outline-none 
+                  transition-colors duration-200"
         style={{
           WebkitAppearance: 'none',
           MozAppearance: 'none',
@@ -37,7 +52,7 @@ const SelectWrapper: React.FC<SelectWrapperProps> = ({ label, value, onChange, o
           <option 
             key={option.value} 
             value={option.value}
-            className="bg-[#161616] text-white hover:bg-[#1a1a1a]"
+            className="bg-[#161616] text-white py-2 hover:bg-[#1a1a1a]"
           >
             {option.label}
           </option>
@@ -50,9 +65,14 @@ const SelectWrapper: React.FC<SelectWrapperProps> = ({ label, value, onChange, o
 interface MarkoutSelectProps {
   selectedMarkout: string;
   onChange: (value: string) => void;
+  className?: string;
 }
 
-export const MarkoutSelect: React.FC<MarkoutSelectProps> = ({ selectedMarkout, onChange }) => {
+export const MarkoutSelect: React.FC<MarkoutSelectProps> = ({ 
+  selectedMarkout, 
+  onChange,
+  className 
+}) => {
   const markoutOptions = [
     { value: 'brontes', label: 'Observed' },
     { value: '-2.0', label: '-2.0s' },
@@ -73,6 +93,7 @@ export const MarkoutSelect: React.FC<MarkoutSelectProps> = ({ selectedMarkout, o
       onChange={onChange}
       options={markoutOptions}
       id="markout-select"
+      className={className}
     />
   );
 };
@@ -81,9 +102,15 @@ interface PoolSelectProps {
   selectedPool: string;
   onChange: (value: string) => void;
   names: Record<string, string>;
+  className?: string;
 }
 
-export const PoolSelect: React.FC<PoolSelectProps> = ({ selectedPool, onChange, names }) => {
+export const PoolSelect: React.FC<PoolSelectProps> = ({ 
+  selectedPool, 
+  onChange, 
+  names,
+  className 
+}) => {
   const poolOptions = Object.entries(names).map(([address, name]) => ({
     value: address,
     label: name,
@@ -96,6 +123,7 @@ export const PoolSelect: React.FC<PoolSelectProps> = ({ selectedPool, onChange, 
       onChange={onChange}
       options={poolOptions}
       id="pool-select"
+      className={className}
     />
   );
 };

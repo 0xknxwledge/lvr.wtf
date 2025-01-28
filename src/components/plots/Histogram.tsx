@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Plot from 'react-plotly.js';
+import type { Layout } from 'plotly.js';
 import names from '../../names';
 import { createBaseLayout, plotColors, fontConfig, commonConfig, createAnnotationConfig } from '../plotUtils';
 
@@ -31,6 +32,38 @@ const HistogramChart: React.FC<HistogramChartProps> = ({ poolAddress, markoutTim
     count: number;
     percentage: number;
   } | null>(null);
+  const [windowWidth, setWindowWidth] = useState(window.innerWidth);
+
+  // Handle window resize
+  useEffect(() => {
+    const handleResize = () => setWindowWidth(window.innerWidth);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  // Calculate responsive dimensions
+  const getResponsiveLayout = useCallback(() => {
+    const isMobile = windowWidth < 768;
+    const isTablet = windowWidth >= 768 && windowWidth < 1024;
+
+    return {
+      height: isMobile ? 400 : 600,
+      margin: {
+        l: isMobile ? 60 : (isTablet ? 70 : 80),
+        r: isMobile ? 30 : (isTablet ? 40 : 50),
+        b: isMobile ? 100 : (isTablet ? 110 : 120),
+        t: isMobile ? 60 : (isTablet ? 70 : 80),
+        pad: 4
+      },
+      fontSize: {
+        title: isMobile ? 12 : (isTablet ? 14 : 16),
+        axis: isMobile ? 10 : (isTablet ? 12 : 14),
+        tick: isMobile ? 8 : (isTablet ? 9 : 10),
+        annotation: isMobile ? 10 : (isTablet ? 11 : 12)
+      },
+      barWidth: isMobile ? 0.6 : 0.8
+    };
+  }, [windowWidth]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -101,20 +134,16 @@ const HistogramChart: React.FC<HistogramChartProps> = ({ poolAddress, markoutTim
 
   if (isLoading) {
     return (
-      <div className="w-full bg-black rounded-2xl border border-[#212121] p-6">
-        <div className="h-[400px] flex items-center justify-center">
-          <p className="text-white font-['Menlo']">Loading...</p>
-        </div>
+      <div className="flex items-center justify-center h-[400px] md:h-[600px]">
+        <p className="text-white text-base md:text-lg font-['Menlo']">Loading...</p>
       </div>
     );
   }
 
   if (error || !data) {
     return (
-      <div className="w-full bg-black rounded-2xl border border-[#212121] p-6">
-        <div className="h-[400px] flex items-center justify-center">
-          <p className="text-red-500 font-['Menlo']">{error || 'No data available'}</p>
-        </div>
+      <div className="flex items-center justify-center h-[400px] md:h-[600px]">
+        <p className="text-red-500 text-sm md:text-base font-['Menlo']">{error || 'No data available'}</p>
       </div>
     );
   }
@@ -132,17 +161,19 @@ const HistogramChart: React.FC<HistogramChartProps> = ({ poolAddress, markoutTim
 
   const xValues = sortedBuckets.map(bucket => bucket.label);
   const yValues = sortedBuckets.map(bucket => bucket.count);
-  const percentages = yValues.map(count => 
-    ((count / data.total_observations) * 100).toFixed(2)
-  );
 
   const poolName = names[data.pool_address] || data.pool_name;
   const titleSuffix = markoutTime === 'brontes' ? 
     '(Observed LVR)' : 
     `(Markout ${markoutTime}s)`;
 
-  const title = `Per-Block LVR Histogram for ${poolName} ${titleSuffix}`;
+  const isMobile = windowWidth <= 768;
+  const title = isMobile ?
+    `Single Block LVR Histogram for<br>${poolName}<br>${titleSuffix}` :
+    `Single Block LVR Histogram for ${poolName} ${titleSuffix}`;
+
   const baseLayout = createBaseLayout(title);
+  const responsiveLayout = getResponsiveLayout();
 
   // Create annotation for selected bucket
   const annotations = selectedBucket ? [{
@@ -158,11 +189,76 @@ const HistogramChart: React.FC<HistogramChartProps> = ({ poolAddress, markoutTim
       arrowcolor: plotColors.accent,
       ay: -40,
       ax: 0,
+      font: {
+        size: responsiveLayout.fontSize.annotation,
+        family: fontConfig.family,
+        color: '#ffffff'
+      }
     })
   }] : [];
 
+  const layout: Partial<Layout> = {
+    ...baseLayout,
+    height: responsiveLayout.height,
+    margin: responsiveLayout.margin,
+    xaxis: {
+      ...baseLayout.xaxis,
+      title: {
+        text: 'LVR Range ($)',
+        font: { 
+          color: plotColors.accent, 
+          size: responsiveLayout.fontSize.axis,
+          family: fontConfig.family 
+        },
+        standoff: isMobile ? 15 : 20
+      },
+      tickfont: { 
+        color: '#ffffff', 
+        size: responsiveLayout.fontSize.tick,
+        family: fontConfig.family 
+      },
+      tickangle: 45,
+      fixedrange: true,
+      categoryorder: 'array' as const,
+      categoryarray: bucketOrder,
+      showline: false
+    },
+    yaxis: {
+      ...baseLayout.yaxis,
+      title: {
+        text: 'Number of Blocks',
+        font: { 
+          color: plotColors.accent, 
+          size: responsiveLayout.fontSize.axis,
+          family: fontConfig.family 
+        },
+        standoff: isMobile ? 30 : 40
+      },
+      tickfont: { 
+        color: '#ffffff',
+        size: responsiveLayout.fontSize.tick,
+        family: fontConfig.family 
+      },
+      fixedrange: true,
+      showgrid: true,
+      gridcolor: '#212121',
+      showline: false
+    },
+    bargap: 0.1,
+    title: {
+      text: title,
+      font: {
+        color: plotColors.accent,
+        size: responsiveLayout.fontSize.title,
+        family: fontConfig.family
+      }
+    },
+    annotations: annotations,
+    hovermode: false
+  };
+
   return (
-    <div className="w-full bg-black rounded-2xl border border-[#212121] p-6">
+    <div className="w-full">
       <Plot
         data={[
           {
@@ -175,55 +271,33 @@ const HistogramChart: React.FC<HistogramChartProps> = ({ poolAddress, markoutTim
             },
             hoverinfo: 'none',
             showlegend: false,
+            width: responsiveLayout.barWidth
           }
         ]}
-        layout={{
-          ...baseLayout,
-          xaxis: {
-            ...baseLayout.xaxis,
-            title: {
-              text: 'LVR Range ($)',
-              font: { color: plotColors.accent, size: fontConfig.sizes.axisTitle, family: fontConfig.family },
-              standoff: 20
-            },
-            tickfont: { color: '#ffffff', size: fontConfig.sizes.axisLabel, family: fontConfig.family },
-            tickangle: 45,
-            fixedrange: true,
-            categoryorder: 'array' as const,
-            categoryarray: bucketOrder,
-            showline: false
-          },
-          yaxis: {
-            ...baseLayout.yaxis,
-            title: {
-              text: 'Number of Blocks',
-              font: { color: plotColors.accent, size: fontConfig.sizes.axisTitle, family: fontConfig.family },
-              standoff: 20
-            },
-            tickfont: { color: '#ffffff', family: fontConfig.family },
-            fixedrange: true,
-            showgrid: true,
-            gridcolor: '#212121',
-            showline: false
-          },
-          bargap: 0.1,
-          autosize: true,
-          height: 400,
-          margin: { l: 80, r: 50, b: 100, t: 80, pad: 4 },
-          annotations: annotations,
-          hovermode: false
+        layout={layout}
+        config={{
+          ...commonConfig,
+          responsive: true,
+          displayModeBar: false,
+          toImageButtonOptions: {
+            format: 'png',
+            filename: `histogram_${poolAddress}`,
+            height: responsiveLayout.height,
+            width: windowWidth,
+            scale: 2
+          }
         }}
-        config={commonConfig}
         style={{ width: '100%', height: '100%' }}
+        useResizeHandler
       />
       
       {/* Clickable labels below the chart */}
-      <div className="flex justify-center mt-8 gap-4">
+      <div className="flex flex-wrap justify-center mt-8 gap-4">
         {xValues.map((label) => (
           <button
             key={label}
             onClick={() => handleLabelClick(label)}
-            className={`px-4 py-2 rounded-lg transition-all duration-200 font-['Menlo'] ${
+            className={`px-4 py-2 rounded-lg transition-all duration-200 font-['Menlo'] text-sm md:text-base ${
               selectedBucket?.label === label
                 ? 'bg-[#b4d838] text-black font-medium'
                 : 'bg-[#212121] text-white hover:bg-[#2a2a2a]'

@@ -32,6 +32,17 @@ const CategoryStackedBar: React.FC<CategoryStackedBarProps> = ({ selectedMarkout
   const [data, setData] = useState<CategoryStackedBarResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [windowWidth, setWindowWidth] = useState(window.innerWidth);
+
+  useEffect(() => {
+    const handleResize = () => setWindowWidth(window.innerWidth);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  const isMobile = windowWidth < 768;
+  const isTablet = windowWidth >= 768 && windowWidth <= 1024;
+
 
   useEffect(() => {
     const fetchData = async () => {
@@ -90,11 +101,21 @@ const CategoryStackedBar: React.FC<CategoryStackedBarProps> = ({ selectedMarkout
     return categoryData;
   });
 
-  const titleSuffix = selectedMarkout === 'brontes' ? 
-    '(Observed LVR)' : 
-    `(Markout ${selectedMarkout}s)`;
+  // Split title into two lines for mobile
+  const titleSuffix = selectedMarkout === 'brontes' 
+    ? '(Observed LVR)' 
+    : `(Markout ${selectedMarkout}s)`;
 
-  const baseLayout = createBaseLayout(`Monthly Total LVR by Category ${titleSuffix}`);
+  let title;
+  if (isMobile) {
+    title = `Monthly Total LVR<br>by Category<br>${titleSuffix}`;
+  } else if (isTablet) {
+    title = `Monthly Total LVR by Category<br>${titleSuffix}`;
+  } else {
+    title = `Monthly Total LVR by Category ${titleSuffix}`;
+  }
+
+  const baseLayout = createBaseLayout(title);
 
   return (
     <Plot
@@ -106,21 +127,21 @@ const CategoryStackedBar: React.FC<CategoryStackedBarProps> = ({ selectedMarkout
           ...baseLayout.xaxis,
           title: {
             text: 'Date Range (UTC)',
-            font: { color: '#FFFFFF', size: 14 },
-            standoff: 20
+            font: { color: '#FFFFFF', size: isMobile ? 12 : 14 },
+            standoff: isMobile ? 15 : 20
           },
-          tickfont: { color: '#FFFFFF', size: 10 },
-          tickangle: 45,
+          tickfont: { color: '#FFFFFF', size: isMobile ? 8 : 10 },
+          tickangle: isMobile ? -90 : -45,
           fixedrange: true,
         },
         yaxis: {
           ...baseLayout.yaxis,
           title: {
-            text: 'Total LVR ($)',
-            font: { color: '#FFFFFF', size: 14 },
-            standoff: 100
+            text: 'Total LVR (USD)',
+            font: { color: '#FFFFFF', size: isMobile ? 12 : 14 },
+            standoff: isMobile ? 40 : 100
           },
-          tickfont: { color: '#FFFFFF' },
+          tickfont: { color: '#FFFFFF', size: isMobile ? 8 : 12 },
           tickformat: '$,.0f',
           fixedrange: true,
           showgrid: true,
@@ -128,31 +149,34 @@ const CategoryStackedBar: React.FC<CategoryStackedBarProps> = ({ selectedMarkout
         },
         showlegend: true,
         legend: {
-          font: { color: '#FFFFFF' },
+          font: { color: '#FFFFFF', size: isMobile ? 10 : 12 },
           bgcolor: '#000000',
           bordercolor: '#212121',
-          x: 1,
-          y: 1.1,
-          xanchor: 'right',
+          x: isMobile ? 0.5 : 1,
+          y: isMobile ? -0.6 : 1.1, // Move legend further down on mobile
+          xanchor: isMobile ? 'center' : 'right',
           yanchor: 'top',
-          traceorder: 'normal'
+          orientation: isMobile ? 'h' : 'v'
         },
-        height: 500,
+        height: isMobile ? 650 : 500,
         margin: { 
-          l: 150,
-          r: 50, 
-          b: 160, 
-          t: 80 
+          l: isMobile ? 120 : 150,
+          r: isMobile ? 20 : 50, 
+          b: isMobile ? 220 : 160, // Increased bottom margin for mobile
+          t: isMobile ? 80 : 80 // Increased top margin for title
         },
         hovermode: 'x unified',
         hoverlabel: {
           bgcolor: '#424242',
           bordercolor: '#b4d838',
-          font: { color: '#FFFFFF' }
+          font: { color: '#FFFFFF', size: isMobile ? 10 : 12 }
         }
       }}
-      config={commonConfig}
-      style={{ width: '100%', height: '100%' }}
+      config={{
+        ...commonConfig,
+        responsive: true
+      }}
+      style={{ width: '100%', height: '100%', minHeight: '500px' }}
     />
   );
 };

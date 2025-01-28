@@ -10,9 +10,14 @@ import PageLayout from '../components/pagelayout';
 const CategorySection: React.FC<{ title: string; items: string[] }> = ({ title, items }) => (
   <div className="bg-[#0b0b0e]/50 p-4 rounded-lg border border-[#B2AC88]/20">
     <h3 className="text-[#b4d838] font-medium mb-2 text-center">{title}</h3>
-    <ul className="list-disc pl-6 space-y-1">
+    <ul className="list-disc pl-4 space-y-2">
       {items.map((item, index) => (
-        <li key={index} className="text-[#B2AC88]/90">{item}</li>
+        <li 
+          key={index} 
+          className="text-[#B2AC88]/90 text-sm leading-tight break-words overflow-hidden"
+        >
+          {item}
+        </li>
       ))}
     </ul>
   </div>
@@ -22,7 +27,7 @@ const Category: React.FC = () => {
   const [selectedMarkout, setSelectedMarkout] = useState('0.0');
 
   const controls = (
-    <div className="bg-gradient-to-r from-[#0b0b0e] via-[#B2AC88]/5 to-[#0b0b0e] p-6 rounded-lg">
+    <div className="font-['Menlo'] w-full flex flex-col md:flex-row gap-4 justify-center items-center bg-gradient-to-r from-[#0b0b0e] via-[#B2AC88]/5 to-[#0b0b0e] p-6 rounded-lg">
       <MarkoutSelect
         selectedMarkout={selectedMarkout}
         onChange={setSelectedMarkout}
@@ -38,7 +43,7 @@ const Category: React.FC = () => {
             View data grouped across similar pools. The categories are composed as follows:
           </p>
           
-          <div className="grid grid-cols-3 gap-6 mb-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
             <CategorySection 
               title="Stablecoin Pairs" 
               items={[
@@ -66,7 +71,7 @@ const Category: React.FC = () => {
             />
           </div>
 
-          <div className="grid grid-cols-3 gap-6 mb-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
             <CategorySection 
               title="USDT-WETH Pairs" 
               items={[

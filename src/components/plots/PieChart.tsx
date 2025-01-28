@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Plot from 'react-plotly.js';
+import type { Layout } from 'plotly.js';
 import names from '../../names';
-import { plotColors, createBaseLayout, commonConfig, fontConfig} from '../plotUtils';
+import { plotColors, createBaseLayout, commonConfig, fontConfig } from '../plotUtils';
 
 interface PoolTotal {
   pool_name: string;
@@ -18,6 +19,33 @@ const PoolTotalsPieChart: React.FC<PoolTotalsPieChartProps> = ({ selectedMarkout
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedSegment, setSelectedSegment] = useState<string | null>(null);
+  const [windowWidth, setWindowWidth] = useState(window.innerWidth);
+
+  useEffect(() => {
+    const handleResize = () => setWindowWidth(window.innerWidth);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  const getResponsiveLayout = useCallback(() => {
+    const isMobile = windowWidth < 768;
+    const isTablet = windowWidth >= 768 && windowWidth < 1024;
+
+    return {
+      height: isMobile ? 400 : (isTablet ? 500 : 600),
+      margin: {
+        t: isMobile ? 60 : (isTablet ? 70 : 80),
+        b: isMobile ? 60 : (isTablet ? 70 : 80),
+        l: isMobile ? 40 : (isTablet ? 60 : 80),
+        r: isMobile ? 40 : (isTablet ? 60 : 80),
+      },
+      fontSize: {
+        title: isMobile ? 12 : (isTablet ? 13 : 14),
+        text: isMobile ? 10 : (isTablet ? 11 : 12),
+        hover: isMobile ? 10 : (isTablet ? 11 : 12)
+      }
+    };
+  }, [windowWidth]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -50,48 +78,69 @@ const PoolTotalsPieChart: React.FC<PoolTotalsPieChartProps> = ({ selectedMarkout
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-[600px]">
-        <div className="text-white text-lg animate-pulse">Loading...</div>
+      <div className="flex items-center justify-center h-[400px] md:h-[600px]">
+        <div className="text-white text-base md:text-lg animate-pulse">Loading...</div>
       </div>
     );
   }
 
   if (error || !data || data.length === 0) {
     return (
-      <div className="flex items-center justify-center h-[600px]">
-        <div className="text-red-500 bg-red-500/10 px-4 py-2 rounded-lg">
+      <div className="flex items-center justify-center h-[400px] md:h-[600px]">
+        <div className="text-red-500 bg-red-500/10 px-4 py-2 rounded-lg text-sm md:text-base">
           {error || 'No data available'}
         </div>
       </div>
     );
   }
 
-  // Sort data by total_lvr_cents in descending order
   const sortedData = [...data].sort((a, b) => b.total_lvr_cents - a.total_lvr_cents);
-
-  // Calculate total and percentages
   const total = sortedData.reduce((sum, item) => sum + item.total_lvr_cents, 0);
-  const values = sortedData.map(item => item.total_lvr_cents / 100); // Convert cents to dollars
+  const values = sortedData.map(item => item.total_lvr_cents / 100);
 
-  // Format labels with pool names and percentages
+  const isMobile = windowWidth < 768;
+  const responsiveLayout = getResponsiveLayout();
+
   const labels = sortedData.map(item => {
     const poolName = names[item.pool_address] || item.pool_name;
     const percentage = ((item.total_lvr_cents / total) * 100).toFixed(1);
     return `${poolName} (${percentage}%)`;
   });
 
-  // Create custom color array using plotColors
   const customColors = plotColors.chartColors;
-
   const titleSuffix = selectedMarkout === 'brontes' ? 
     '(Observed)' : 
     `(Markout ${selectedMarkout}s)`;
 
-  // Get base layout and customize for pie chart
-  const baseLayout = createBaseLayout(`Total LVR by Pool ${titleSuffix}`);
+  const title = isMobile ? 
+    `Total LVR by Pool<br>${titleSuffix}` : 
+    `Total LVR by Pool ${titleSuffix}`;
+
+  const baseLayout = createBaseLayout(title);
+
+  const layout: Partial<Layout> = {
+    ...baseLayout,
+    showlegend: false,
+    height: responsiveLayout.height,
+    margin: responsiveLayout.margin,
+    autosize: true,
+    font: { 
+      color: '#FFFFFF', 
+      family: fontConfig.family,
+      size: responsiveLayout.fontSize.text
+    },
+    title: {
+      text: title,
+      font: {
+        color: plotColors.accent,
+        size: responsiveLayout.fontSize.title,
+        family: fontConfig.family
+      }
+    }
+  };
 
   return (
-    <div className="w-full bg-black rounded-lg">
+    <div className="w-full h-full bg-black rounded-lg">
       <Plot
         data={[
           {
@@ -105,50 +154,34 @@ const PoolTotalsPieChart: React.FC<PoolTotalsPieChartProps> = ({ selectedMarkout
               colors: customColors,
               line: {
                 color: '#000000',
-                width: 2
+                width: isMobile ? 1 : 2
               }
             },
             textfont: {
               color: '#FFFFFF',
-              size: 12
+              size: responsiveLayout.fontSize.text,
+              family: fontConfig.family
             },
             hoverlabel: {
               bgcolor: plotColors.secondary,
               bordercolor: plotColors.accent,
               font: { 
                 color: '#FFFFFF',
-                size: 12
+                size: responsiveLayout.fontSize.hover,
+                family: fontConfig.family
               }
             },
             hovertemplate: '<b>%{label}</b><br>$%{value:,.2f}<extra></extra>'
           }
         ]}
-        layout={{
-          ...baseLayout,
-          showlegend: false,
-          height: 600,
-          margin: { t: 80, b: 80, l: 80, r: 80 },
-          font: { color: '#FFFFFF', family: fontConfig.family },
-          annotations: [{
-            text: '',
-            showarrow: false,
-            x: 0.5,
-            y: 1.1,
-            xref: 'paper',
-            yref: 'paper',
-            font: {
-              color: plotColors.accent,
-              size: 14,
-              family: fontConfig.family
-            }
-          }]
-        }}
+        layout={layout}
         config={{
           ...commonConfig,
           responsive: true,
           displayModeBar: false,
         }}
         style={{ width: '100%', height: '100%' }}
+        useResizeHandler
         onClick={(event) => {
           if (event.points && event.points[0]) {
             const point = event.points[0];

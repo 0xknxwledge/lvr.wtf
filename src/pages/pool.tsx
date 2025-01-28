@@ -14,7 +14,7 @@ const Pool: React.FC = () => {
   const [selectedPool, setSelectedPool] = useState('0x88e6a0c2ddd26feeb64f039a2c41296fcb3f5640');
 
   const controls = (
-    <div className="font-['Menlo'] flex gap-6 bg-gradient-to-r from-[#0b0b0e] via-[#B2AC88]/5 to-[#0b0b0e] p-6 rounded-lg">
+    <div className="font-['Menlo'] w-full flex flex-col md:flex-row gap-4 justify-center items-center bg-gradient-to-r from-[#0b0b0e] via-[#B2AC88]/5 to-[#0b0b0e] p-6 rounded-lg">
       <PoolSelect
         selectedPool={selectedPool}
         onChange={setSelectedPool}

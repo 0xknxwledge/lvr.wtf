@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Plot from 'react-plotly.js';
-import type { Data } from 'plotly.js';
+import type { Data, Layout } from 'plotly.js';
 import names from '../../names';
 import { createBaseLayout, plotColors, fontConfig, commonConfig } from '../plotUtils';
 
@@ -22,6 +22,40 @@ const QuartilePlot: React.FC<QuartilePlotProps> = ({ poolAddress, markoutTime })
   const [data, setData] = useState<QuartilePlotResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [windowWidth, setWindowWidth] = useState(window.innerWidth);
+
+  useEffect(() => {
+    const handleResize = () => setWindowWidth(window.innerWidth);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  const isMobile = windowWidth <= 768;
+  const isTablet = windowWidth >= 768 && windowWidth < 1024;
+  const shouldBreakTitle = isMobile || isTablet;
+
+  const getResponsiveLayout = useCallback(() => {
+    return {
+      height: isMobile ? 400 : 600,
+      margin: {
+        l: isMobile ? 80 : (isTablet ? 100 : 120),
+        r: isMobile ? 30 : (isTablet ? 40 : 50),
+        b: isMobile ? 40 : (isTablet ? 45 : 50),
+        t: isMobile ? 80 : (isTablet ? 90 : 100),
+      },
+      fontSize: {
+        title: isMobile ? 12 : (isTablet ? 14 : 16),
+        axis: isMobile ? 10 : (isTablet ? 12 : 14),
+        tick: isMobile ? 8 : (isTablet ? 9 : 10),
+        annotation: isMobile ? 10 : (isTablet ? 11 : 12)
+      },
+      whiskerWidth: isMobile ? 0.3 : 0.4,
+      lineWidth: {
+        primary: isMobile ? 1.5 : 2,
+        secondary: isMobile ? 1 : 1.5
+      }
+    };
+  }, [windowWidth]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -50,143 +84,221 @@ const QuartilePlot: React.FC<QuartilePlotProps> = ({ poolAddress, markoutTime })
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-96">
-        <p className="text-white">Loading...</p>
+      <div className="flex items-center justify-center h-[400px] md:h-[600px]">
+        <p className="text-white text-base md:text-lg font-['Menlo']">Loading...</p>
       </div>
     );
   }
 
   if (error || !data) {
     return (
-      <div className="flex items-center justify-center h-96">
-        <p className="text-red-500">{error || 'No data available'}</p>
+      <div className="flex items-center justify-center h-[400px] md:h-[600px]">
+        <p className="text-red-500 text-sm md:text-base font-['Menlo']">{error || 'No data available'}</p>
       </div>
     );
   }
 
-  // Calculate x-axis range
-  const maxX = data.percentile_75_cents / 100;
+  const maxY = data.percentile_75_cents / 100;
+  const responsiveLayout = getResponsiveLayout();
 
-  // Create the plot traces
   const plotData: Data[] = [
-    // IQR
+    // IQR box
     {
       type: 'scatter',
-      x: [data.percentile_25_cents / 100, data.percentile_75_cents / 100],
-      y: [0, 0],
-      mode: 'lines',
-      line: { color: plotColors.accent, width: 1 },
-      showlegend: false,
-      hoverinfo: 'skip' as const,
-    },
-    {
-      type: 'scatter',
-      x: [
+      y: [
         data.percentile_25_cents / 100,
         data.percentile_25_cents / 100,
         data.percentile_75_cents / 100,
         data.percentile_75_cents / 100,
         data.percentile_25_cents / 100,
       ],
-      y: [-0.25, 0.25, 0.25, -0.25, -0.25],
+      x: [-responsiveLayout.whiskerWidth, responsiveLayout.whiskerWidth, 
+          responsiveLayout.whiskerWidth, -responsiveLayout.whiskerWidth, 
+          -responsiveLayout.whiskerWidth],
       fill: 'toself',
       fillcolor: `${plotColors.accent}33`,
-      line: { color: plotColors.accent, width: 1 },
+      line: { color: plotColors.accent, width: responsiveLayout.lineWidth.secondary },
       mode: 'lines',
       showlegend: false,
       hoverinfo: 'skip' as const,
     },
-    // Median
+    // Bottom whisker
     {
       type: 'scatter',
-      x: [data.median_cents / 100, data.median_cents / 100],
-      y: [-0.25, 0.25],
+      y: [0, data.percentile_25_cents / 100],
+      x: [0, 0],
       mode: 'lines',
-      line: { color: plotColors.accent, width: 2 },
-      showlegend: false,
-      hoverinfo: 'skip' as const,
-    },
-    // Hover area
-    {
-      type: 'scatter',
-      x: [data.median_cents / 100],
-      y: [0],
-      mode: 'markers',
-      marker: {
-        color: 'rgba(0,0,0,0)',
-        size: 20,
+      line: { 
+        color: plotColors.accent, 
+        width: responsiveLayout.lineWidth.secondary, 
+        dash: 'dot' 
       },
       showlegend: false,
-      hovertemplate:
-        '<b>%{text}</b><br>' +
-        '75th Percentile: $%{customdata[2]:,.2f}<br>' +
-        'Median: $%{customdata[1]:,.2f}<br>' +
-        '25th Percentile: $%{customdata[0]:,.2f}' +
-        '<extra></extra>',
-      text: [names[data.pool_address] || data.pool_name],
-      customdata: [
-        [
-          data.percentile_25_cents / 100,
-          data.median_cents / 100,
-          data.percentile_75_cents / 100,
-        ],
-      ],
+      hoverinfo: 'skip' as const,
     },
+    // Top whisker
+    {
+      type: 'scatter',
+      y: [data.percentile_75_cents / 100, maxY * 1.1],
+      x: [0, 0],
+      mode: 'lines',
+      line: { 
+        color: plotColors.accent, 
+        width: responsiveLayout.lineWidth.secondary, 
+        dash: 'dot' 
+      },
+      showlegend: false,
+      hoverinfo: 'skip' as const,
+    },
+    // Bottom whisker horizontal lines
+    {
+      type: 'scatter',
+      y: [data.percentile_25_cents / 100, data.percentile_25_cents / 100],
+      x: [-responsiveLayout.whiskerWidth, responsiveLayout.whiskerWidth],
+      mode: 'lines',
+      line: { color: plotColors.accent, width: responsiveLayout.lineWidth.primary },
+      showlegend: false,
+      hoverinfo: 'skip' as const,
+    },
+    // Top whisker horizontal lines
+    {
+      type: 'scatter',
+      y: [data.percentile_75_cents / 100, data.percentile_75_cents / 100],
+      x: [-responsiveLayout.whiskerWidth, responsiveLayout.whiskerWidth],
+      mode: 'lines',
+      line: { color: plotColors.accent, width: responsiveLayout.lineWidth.primary },
+      showlegend: false,
+      hoverinfo: 'skip' as const,
+    },
+    // Median line (in red)
+    {
+      type: 'scatter',
+      y: [data.median_cents / 100, data.median_cents / 100],
+      x: [-responsiveLayout.whiskerWidth, responsiveLayout.whiskerWidth],
+      mode: 'lines',
+      line: { color: '#ff4444', width: responsiveLayout.lineWidth.primary },
+      showlegend: false,
+      hoverinfo: 'skip' as const,
+    }
   ];
 
   const poolName = names[data.pool_address] || data.pool_name;
-  const titleSuffix =
-    markoutTime === 'brontes' ? '(Observed)' : `(Markout ${markoutTime}s)`;
+  const titleSuffix = markoutTime === 'brontes' ? '(Observed)' : `(Markout ${markoutTime}s)`;
 
-  const title = `Single-Block LVR Interquartile Plot for ${poolName} ${titleSuffix}*`;
+  const title = shouldBreakTitle 
+    ? `Single-Block LVR<br>Interquartile Plot for<br>${poolName}<br>${titleSuffix}*`
+    : `Single-Block LVR Interquartile Plot for ${poolName} ${titleSuffix}*`;
+
   const baseLayout = createBaseLayout(title);
 
+  const annotations = [
+    {
+      y: data.percentile_25_cents / 100,
+      x: 0.5, // Changed from 1.0 to 0.5
+      text: `25th Percentile<br>$${(data.percentile_25_cents / 100).toFixed(2)}`, // Added $
+      showarrow: false,
+      font: { 
+        color: '#ffffff', 
+        size: responsiveLayout.fontSize.annotation, 
+        family: fontConfig.family 
+      },
+      align: 'left' as const,
+      xanchor: 'left' as const,
+    },
+    {
+      y: data.median_cents / 100,
+      x: -0.5, // Changed from -1.0 to -0.5
+      text: `Median<br>$${(data.median_cents / 100).toFixed(2)}`, // Added $
+      showarrow: false,
+      font: { 
+        color: '#ff4444', 
+        size: responsiveLayout.fontSize.annotation, 
+        family: fontConfig.family 
+      },
+      align: 'right' as const,
+      xanchor: 'right' as const,
+    },
+    {
+      y: data.percentile_75_cents / 100,
+      x: 0.5, // Changed from 1.0 to 0.5
+      text: `75th Percentile<br>$${(data.percentile_75_cents / 100).toFixed(2)}`, // Added $
+      showarrow: false,
+      font: { 
+        color: '#ffffff', 
+        size: responsiveLayout.fontSize.annotation, 
+        family: fontConfig.family 
+      },
+      align: 'left' as const,
+      xanchor: 'left' as const,
+    }
+  ];
+
   return (
-    <Plot
-      data={plotData}
-      layout={{
-        ...baseLayout,
-        showlegend: false,
-        xaxis: {
-          ...baseLayout.xaxis,
+    <div className="w-full h-full">
+      <Plot
+        data={plotData}
+        layout={{
+          ...baseLayout,
+          showlegend: false,
+          xaxis: {
+            ...baseLayout.xaxis,
+            showticklabels: false,
+            zeroline: false,
+            fixedrange: true,
+            showgrid: false,
+            range: [-1.2, 1.2],
+          },
+          yaxis: {
+            ...baseLayout.yaxis,
+            title: {
+              text: 'Single-Block LVR (USD)',
+              font: {
+                color: plotColors.accent,
+                size: responsiveLayout.fontSize.axis,
+                family: fontConfig.family
+              },
+              standoff: isMobile ? 30 : 40
+            },
+            tickformat: '$,.2f',
+            tickfont: {
+              color: '#ffffff',
+              size: responsiveLayout.fontSize.tick,
+              family: fontConfig.family
+            },
+            zeroline: false,
+            fixedrange: true,
+            showgrid: true,
+            gridcolor: '#212121',
+            range: [0, maxY * 1.1],
+            automargin: true,
+          },
+          height: responsiveLayout.height,
+          margin: responsiveLayout.margin,
+          annotations: annotations,
           title: {
+            text: title,
             font: {
               color: plotColors.accent,
-              size: fontConfig.sizes.axisTitle,
-              family: fontConfig.family,
-            },
+              size: responsiveLayout.fontSize.title,
+              family: fontConfig.family
+            }
           },
-          tickformat: '$,.2f',
-          zeroline: false,
-          fixedrange: true,
-          showgrid: true,
-          gridcolor: '#212121',
-          range: [0, maxX * 1.1],
-          automargin: true,
-        },
-        yaxis: {
-          ...baseLayout.yaxis,
-          showticklabels: false,
-          zeroline: false,
-          fixedrange: true,
-          range: [-1, 1],
-        },
-        height: 300,
-        margin: { l: 50, r: 50, b: 50, t: 100 },
-        hoverlabel: {
-          bgcolor: '#424242',
-          bordercolor: plotColors.accent,
-          font: {
-            color: '#ffffff',
-            size: fontConfig.sizes.hover,
-            family: fontConfig.family,
-          },
-        },
-        hovermode: 'closest',
-      }}
-      config={commonConfig}
-      style={{ width: '100%', height: '100%' }}
-    />
+        }}
+        config={{
+          ...commonConfig,
+          responsive: true,
+          toImageButtonOptions: {
+            format: 'png',
+            filename: `quartile_plot_${poolAddress}`,
+            height: responsiveLayout.height,
+            width: windowWidth,
+            scale: 2
+          }
+        }}
+        style={{ width: '100%', height: '100%' }}
+        useResizeHandler
+      />
+    </div>
   );
 };
 

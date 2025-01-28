@@ -11,7 +11,7 @@ const Aggregate: React.FC = () => {
   const [selectedMarkout, setSelectedMarkout] = useState('0.0');
 
   const controls = (
-    <div className="bg-gradient-to-r from-[#0b0b0e] via-[#B2AC88]/5 to-[#0b0b0e] p-6 rounded-lg">
+    <div className="font-['Menlo'] w-full flex flex-col md:flex-row gap-4 justify-center items-center bg-gradient-to-r from-[#0b0b0e] via-[#B2AC88]/5 to-[#0b0b0e] p-6 rounded-lg">
       <MarkoutSelect 
         selectedMarkout={selectedMarkout} 
         onChange={setSelectedMarkout}
@@ -26,14 +26,6 @@ const Aggregate: React.FC = () => {
           View data aggregated across pools. The first two plots are aggregated across markout times. 
           The last two plots are specific to the selected markout time.
         </p>
-        
-        <div className="font-['Menlo'] mt-4 mb-12 text-center">
-          <p className="text-sm text-[#B2AC88]/80">
-            *We exclude days (i.e, 7200-block-long chunks starting from the Merge block)
-            that had zero simulated LVR activity. Additionally, we excluded showing maximum daily total LVR for the sake of 
-            keeping the y-axis scale reasonable
-          </p>
-        </div>
 
         <div className="flex flex-col">
           <PlotContainer>

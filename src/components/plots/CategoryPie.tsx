@@ -30,6 +30,13 @@ const CategoryPieChart: React.FC<CategoryPieChartProps> = ({ selectedMarkout }) 
   const [data, setData] = useState<CategoryPieResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [windowWidth, setWindowWidth] = useState(window.innerWidth);
+
+  useEffect(() => {
+    const handleResize = () => setWindowWidth(window.innerWidth);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -53,6 +60,24 @@ const CategoryPieChart: React.FC<CategoryPieChartProps> = ({ selectedMarkout }) 
 
     fetchData();
   }, [selectedMarkout]);
+
+  // Calculate responsive values
+  const isMobile = windowWidth < 768;
+  const isTablet = windowWidth >= 768 && windowWidth <= 1024;
+  const isSmallScreen = isMobile || isTablet;
+
+  const responsiveLayout = {
+    height: isMobile ? 400 : isTablet ? 450 : 500,
+    margin: {
+      t: isMobile ? 30 : 50,
+      b: isMobile ? 60 : 50,
+      l: isMobile ? 30 : 50,
+      r: isMobile ? 30 : 50
+    },
+    textFont: {
+      size: isMobile ? 10 : isTablet ? 12 : 14
+    }
+  };
 
   if (isLoading) {
     return (
@@ -87,7 +112,12 @@ const CategoryPieChart: React.FC<CategoryPieChartProps> = ({ selectedMarkout }) 
     '(Observed LVR)' : 
     `(Markout ${selectedMarkout}s)`;
 
-  const baseLayout = createBaseLayout(`Total LVR by Category ${titleSuffix}`);
+  // Create title with conditional line break
+  const title = isSmallScreen ? 
+    `Total LVR<br>by Category ${titleSuffix}` :
+    `Total LVR by Category ${titleSuffix}`;
+
+  const baseLayout = createBaseLayout(title);
 
   return (
     <Plot
@@ -108,7 +138,7 @@ const CategoryPieChart: React.FC<CategoryPieChartProps> = ({ selectedMarkout }) 
           },
           textfont: {
             color: '#FFFFFF',
-            size: 12
+            size: responsiveLayout.textFont.size
           },
           hoverlabel: {
             bgcolor: '#424242',
@@ -120,8 +150,8 @@ const CategoryPieChart: React.FC<CategoryPieChartProps> = ({ selectedMarkout }) 
       layout={{
         ...baseLayout,
         showlegend: false,
-        height: 500,
-        margin: { t: 50, b: 50, l: 50, r: 50 },
+        height: responsiveLayout.height,
+        margin: responsiveLayout.margin,
         annotations: [{
           text: '',
           showarrow: false,
@@ -137,6 +167,7 @@ const CategoryPieChart: React.FC<CategoryPieChartProps> = ({ selectedMarkout }) 
       }}
       config={commonConfig}
       style={{ width: '100%', height: '100%' }}
+      useResizeHandler={true}
     />
   );
 };

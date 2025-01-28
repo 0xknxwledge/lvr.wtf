@@ -51,9 +51,9 @@ const NonZeroProportion: React.FC<NonZeroProportionProps> = ({ poolAddress, sele
 
   if (isLoading) {
     return (
-      <div className="w-full bg-black rounded-lg border border-[#212121] p-6">
+      <div className="w-full">
         <div className="flex items-center justify-center h-48">
-          <p className="text-white">Loading...</p>
+          <p className="text-white text-base md:text-lg">Loading...</p>
         </div>
       </div>
     );
@@ -61,9 +61,9 @@ const NonZeroProportion: React.FC<NonZeroProportionProps> = ({ poolAddress, sele
 
   if (error) {
     return (
-      <div className="w-full bg-black rounded-lg border border-[#212121] p-6">
+      <div className="w-full">
         <div className="flex items-center justify-center h-48">
-          <p className="text-red-500">{error}</p>
+          <p className="text-red-500 text-sm md:text-base px-4 py-2 bg-red-500/10 rounded">{error}</p>
         </div>
       </div>
     );
@@ -71,9 +71,9 @@ const NonZeroProportion: React.FC<NonZeroProportionProps> = ({ poolAddress, sele
 
   if (!data) {
     return (
-      <div className="w-full bg-black rounded-lg border border-[#212121] p-6">
+      <div className="w-full">
         <div className="flex items-center justify-center h-48">
-          <p className="text-white">No data available</p>
+          <p className="text-white text-base md:text-lg">No data available</p>
         </div>
       </div>
     );
@@ -82,21 +82,58 @@ const NonZeroProportion: React.FC<NonZeroProportionProps> = ({ poolAddress, sele
   const titleSuffix = selectedMarkout === 'brontes' ? 
     '(Observed)' : 
     `(Markout ${selectedMarkout}s)`;
+  const colors = {
+    primary: '#b4d838',
+    secondary: '#9fc732'
+  };
 
   return (
-    <div className="w-full bg-black rounded-lg border border-[#212121] p-6">
-      <div className="mb-4">
-        <h2 className="text-[#b4d838] text-base text-center">
+    <div className="w-full">
+      <div className="mb-8">
+        <h2 className="text-[#b4d838] text-base md:text-lg text-center px-4">
           Percentage of Blocks with Non-Zero LVR for {names[data.pool_address] || data.pool_name} {titleSuffix}
         </h2>
       </div>
-      <div className="flex flex-col items-center justify-center">
-        <p className="text-5xl font-semibold text-[#b4d838]">
-          {(data.non_zero_proportion * 100).toFixed(2)}%
-        </p>
-        <p className="text-sm text-gray-500 mt-2">
-          {data.non_zero_blocks.toLocaleString()} / {data.total_blocks.toLocaleString()} blocks
-        </p>
+      <div className="grid grid-cols-1 gap-4 max-w-xl mx-auto">
+        <div 
+          className="relative flex flex-col items-center justify-center p-4 md:p-6 lg:p-8 rounded-xl overflow-hidden transition-all duration-300 hover:scale-105 min-h-[200px]"
+          style={{
+            background: `linear-gradient(135deg, rgba(45, 45, 45, 0.5), rgba(20, 20, 20, 0.8))`,
+            border: `1px solid ${colors.primary}20`,
+            boxShadow: `0 4px 30px ${colors.primary}10`
+          }}
+        >
+          {/* Gradient background overlay */}
+          <div 
+            className="absolute inset-0 opacity-10 transition-opacity duration-300 hover:opacity-20"
+            style={{
+              background: `linear-gradient(135deg, ${colors.primary}, ${colors.secondary})`
+            }}
+          />
+          
+          {/* Content */}
+          <div className="relative z-10 flex flex-col items-center w-full">
+            <h3 className="text-sm md:text-base lg:text-lg font-medium mb-4 text-center text-white break-words max-w-full px-2">
+              {names[data.pool_address] || data.pool_name}
+            </h3>
+            <p className="text-3xl md:text-4xl lg:text-5xl xl:text-6xl font-bold mb-2 md:mb-4 text-center" 
+               style={{ color: colors.primary }}>
+              {(data.non_zero_proportion * 100).toFixed(2)}
+              <span className="text-xl md:text-2xl lg:text-3xl">%</span>
+            </p>
+            <div className="text-xs md:text-sm text-gray-400 mt-2 text-center w-full px-2">
+              <span className="font-medium" style={{ color: colors.primary }}>
+                {data.non_zero_blocks.toLocaleString()}
+              </span>
+              <span className="mx-1">/</span>
+              <span className="font-medium">
+                {data.total_blocks.toLocaleString()}
+              </span>
+              <br />
+              <span className="text-gray-500 text-xs">blocks</span>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );

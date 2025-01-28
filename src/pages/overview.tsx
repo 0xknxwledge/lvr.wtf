@@ -12,7 +12,7 @@ function Overview() {
           <div className="absolute inset-0 bg-gradient-to-br from-transparent to-[#B2AC88]/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
           
           <div className="relative z-10"> {/* Content stays above the overlay */}
-            <h2 className="text-4xl font-semibold mb-8 text-[#b4d838]">What is lvr.wtf?</h2>
+            <h2 className="text-4xl font-semibold mb-8 text-[#b4d838]">What is LVR.wtf?</h2>
             <hr className="border-[#B2AC88]/20 mb-8" />
             <p className="text-white/90 text-base">
               Loss-Versus-Rebalancing (LVR), as defined by Millonis et al., measures the cost on-chain liquidity providers (LPs) face from trading at outdated prices compared to centralized exchanges (CEXs). While AMMs update prices every 12 seconds, CEXs operate in real-time, enabling arbitrageurs to profit from price gaps. To quantify this, Brontes flagged potential CEX-DEX arbitrage trades on Ethereum and estimated profits using T+X markouts against Binance mid-prices. However, its accuracy depends on correctly identifying arbitrage trades. LVR.wtf builds on this by comparing Brontes with alternative methods, offering a new perspective on LVR through empirical simulation that attempts to capture the observable maximum LVR. This reveals the true scale of value leakage from LPs and highlights the opportunities to address it.

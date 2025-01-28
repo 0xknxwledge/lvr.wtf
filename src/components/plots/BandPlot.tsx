@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Plot from 'react-plotly.js';
 import names from '../../names';
 import dates from '../../dates';
@@ -32,6 +32,39 @@ const PercentileBandChart: React.FC<PercentileBandChartProps> = ({
   const [data, setData] = useState<PercentileBandResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [windowWidth, setWindowWidth] = useState(window.innerWidth);
+
+  useEffect(() => {
+    const handleResize = () => setWindowWidth(window.innerWidth);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  const isMobile = windowWidth <= 768;
+  const isTablet = windowWidth >= 768 && windowWidth < 1024;
+  const shouldBreakTitle = isMobile || isTablet;
+
+  const getResponsiveLayout = useCallback(() => {
+    return {
+      height: isMobile ? 400 : 600,
+      margin: {
+        l: isMobile ? 60 : (isTablet ? 80 : 100),
+        r: isMobile ? 50 : (isTablet ? 60 : 50),
+        b: isMobile ? 140 : (isTablet ? 160 : 180),
+        t: isMobile ? 80 : (isTablet ? 90 : 100),
+        pad: 10,
+      },
+      fontSize: {
+        title: isMobile ? 12 : (isTablet ? 14 : 16),
+        axis: isMobile ? 10 : (isTablet ? 12 : 14),
+        tick: isMobile ? 8 : (isTablet ? 10 : 12),
+      },
+      standoff: {
+        x: isMobile ? 40 : (isTablet ? 50 : 60),
+        y: isMobile ? 40 : (isTablet ? 50 : 60),
+      }
+    };
+  }, [windowWidth]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -52,7 +85,6 @@ const PercentileBandChart: React.FC<PercentileBandChartProps> = ({
         }
 
         const jsonData: PercentileBandResponse = await response.json();
-        console.log(jsonData);
         const numDataPoints = jsonData.data_points.length;
         
         const startIndex = Math.max(0, dates.length - numDataPoints);
@@ -96,11 +128,15 @@ const PercentileBandChart: React.FC<PercentileBandChartProps> = ({
 
   const titleSuffix =
     markoutTime === 'brontes'
-      ? `${names[poolAddress]} (Observed LVR)`
-      : `${names[poolAddress]} (Markout ${markoutTime}s)`;
+      ? `${data.pool_name} (Observed LVR)`
+      : `${data.pool_name} (Markout ${markoutTime}s)`;
 
-  const title = `Monthly LVR Percentile Bandplot for ${titleSuffix}*`;
+  const title = shouldBreakTitle
+    ? `Monthly LVR Percentile Bandplot<br>for ${titleSuffix}*`
+    : `Monthly LVR Percentile Bandplot for ${titleSuffix}*`;
+
   const baseLayout = createBaseLayout(title);
+  const responsiveLayout = getResponsiveLayout();
 
   const plotData: Array<Partial<Plotly.Data>> = [
     {
@@ -135,7 +171,7 @@ const PercentileBandChart: React.FC<PercentileBandChartProps> = ({
         d.total_lvr_dollars,
       ]),
       hovertemplate:
-        '<b>Interval</b><br>' +
+        '<b>%{x}</b><br>' +
         'Blocks: %{customdata[3]} - %{customdata[4]}<br>' +
         'Total LVR: $%{customdata[5]:,.2f}<br>' +
         '75th Percentile: $%{customdata[2]:,.2f}<br>' +
@@ -145,50 +181,85 @@ const PercentileBandChart: React.FC<PercentileBandChartProps> = ({
     },
   ];
 
+  const plotLayout = {
+    ...baseLayout,
+    title: {
+      text: title,
+      font: {
+        color: plotColors.accent,
+        size: responsiveLayout.fontSize.title,
+        family: fontConfig.family,
+      },
+    },
+          xaxis: {
+      ...baseLayout.xaxis,
+      fixedrange: true,
+      title: {
+        text: 'Date Range (UTC)',
+        font: { 
+          color: plotColors.accent, 
+          size: responsiveLayout.fontSize.axis, 
+          family: fontConfig.family 
+        },
+        standoff: responsiveLayout.standoff.x,
+      },
+      tickfont: { 
+        color: '#ffffff', 
+        size: responsiveLayout.fontSize.tick, 
+        family: fontConfig.family 
+      },
+      tickangle: 45,
+      automargin: true,
+    },
+          yaxis: {
+      ...baseLayout.yaxis,
+      fixedrange: true,
+      title: {
+        text: 'Daily Total LVR (USD)',
+        font: { 
+          color: plotColors.accent, 
+          size: responsiveLayout.fontSize.axis, 
+          family: fontConfig.family 
+        },
+        standoff: responsiveLayout.standoff.y,
+      },
+      tickfont: { 
+        color: '#ffffff', 
+        size: responsiveLayout.fontSize.tick, 
+        family: fontConfig.family 
+      },
+      automargin: true,
+    },
+    height: responsiveLayout.height,
+    margin: responsiveLayout.margin,
+    hoverlabel: {
+      bgcolor: '#424242',
+      bordercolor: plotColors.accent,
+      font: { 
+        color: '#ffffff', 
+        size: responsiveLayout.fontSize.tick, 
+        family: fontConfig.family 
+      },
+    },
+  };
+
   return (
     <div className="w-full bg-black rounded-lg border border-[#212121] p-6">
       <Plot
         data={plotData}
-        layout={{
-          ...baseLayout,
-          xaxis: {
-            ...baseLayout.xaxis,
-            title: {
-              text: 'Date Range (UTC)',
-              font: { color: plotColors.accent, size: fontConfig.sizes.axisTitle, family: fontConfig.family },
-              standoff: 30,
-            },
-            tickfont: { color: '#ffffff', size: fontConfig.sizes.axisLabel, family: fontConfig.family },
-            tickangle: 45,
-            fixedrange: true,
-            showgrid: false,
-            automargin: true,
-          },
-          yaxis: {
-            ...baseLayout.yaxis,
-            title: {
-              text: 'Daily Total LVR',
-              font: { color: plotColors.accent, size: fontConfig.sizes.axisTitle, family: fontConfig.family },
-              standoff: 30,
-            },
-            tickformat: '$,.2f',
-            tickfont: { color: '#ffffff', family: fontConfig.family },
-            fixedrange: true,
-            showgrid: true,
-            gridcolor: '#212121',
-          },
-          showlegend: false,
-          autosize: true,
-          height: 400,
-          margin: { l: 100, r: 50, b: 140, t: 80 },
-          hoverlabel: {
-            bgcolor: '#424242',
-            bordercolor: plotColors.accent,
-            font: { color: '#ffffff', size: fontConfig.sizes.hover, family: fontConfig.family },
-          },
-          hovermode: 'x unified',
+        layout={plotLayout}
+        config={{
+          ...commonConfig,
+          scrollZoom: false,
+          displayModeBar: false,
+          toImageButtonOptions: {
+            format: 'png',
+            filename: `bandplot_${poolAddress}`,
+            height: responsiveLayout.height,
+            width: windowWidth,
+            scale: 2
+          }
         }}
-        config={commonConfig}
         style={{ width: '100%', height: '100%' }}
       />
     </div>
