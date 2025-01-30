@@ -38,20 +38,15 @@ pub struct DatabaseConnectionConfig {
 impl AuroraConfig {
     pub fn from_env() -> Result<Self> {
         Ok(Self {
-            gcp_host: env::var("AURORA_GCP_HOST")
-                .map_err(|_| Error::Config("AURORA_GCP_HOST not set".to_string()))?,
-            public_host: env::var("AURORA_PUBLIC_HOST")
-                .map_err(|_| Error::Config("AURORA_PUBLIC_HOST not set".to_string()))?,
+            gcp_host: env::var("AURORA_GCP_HOST").unwrap_or_else(|_| "dummy_gcp_host".to_string()),
+            public_host: env::var("AURORA_PUBLIC_HOST").unwrap_or_else(|_| "dummy_public_host".to_string()),
             port: env::var("AURORA_PORT")
-                .map_err(|_| Error::Config("AURORA_PORT not set".to_string()))?
+                .unwrap_or_else(|_| "5432".to_string())
                 .parse()
                 .map_err(|_| Error::Config("Invalid AURORA_PORT format".to_string()))?,
-            user: env::var("AURORA_USER")
-                .map_err(|_| Error::Config("AURORA_USER not set".to_string()))?,
-            password: env::var("AURORA_PASSWORD")
-                .map_err(|_| Error::Config("AURORA_PASSWORD not set".to_string()))?,
-            database: env::var("AURORA_DATABASE")
-                .map_err(|_| Error::Config("AURORA_DATABASE not set".to_string()))?,
+            user: env::var("AURORA_USER").unwrap_or_else(|_| "dummy_user".to_string()),
+            password: env::var("AURORA_PASSWORD").unwrap_or_else(|_| "dummy_password".to_string()),
+            database: env::var("AURORA_DATABASE").unwrap_or_else(|_| "dummy_database".to_string()),
             connection_timeout: env::var("AURORA_TIMEOUT")
                 .unwrap_or_else(|_| "30".to_string())
                 .parse()
@@ -72,19 +67,17 @@ impl AuroraConfig {
         }
     }
 }
+
 impl BrontesConfig {
     pub fn from_env() -> Result<Self> {
         Ok(Self {
-            host: env::var("BRONTES_HOST")
-                .map_err(|_| Error::Config("BRONTES_HOST not set".to_string()))?,
+            host: env::var("BRONTES_HOST").unwrap_or_else(|_| "dummy_host".to_string()),
             port: env::var("BRONTES_PORT")
-                .map_err(|_| Error::Config("BRONTES_PORT not set".to_string()))?
+                .unwrap_or_else(|_| "5432".to_string())
                 .parse()
                 .map_err(|_| Error::Config("Invalid BRONTES_PORT format".to_string()))?,
-            user: env::var("BRONTES_USER")
-                .map_err(|_| Error::Config("BRONTES_USER not set".to_string()))?,
-            password: env::var("BRONTES_PASSWORD")
-                .map_err(|_| Error::Config("BRONTES_PASSWORD not set".to_string()))?,
+            user: env::var("BRONTES_USER").unwrap_or_else(|_| "dummy_user".to_string()),
+            password: env::var("BRONTES_PASSWORD").unwrap_or_else(|_| "dummy_password".to_string()),
             connection_timeout: env::var("BRONTES_TIMEOUT")
                 .unwrap_or_else(|_| "30".to_string())
                 .parse()
