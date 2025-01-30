@@ -164,7 +164,7 @@ const HistogramChart: React.FC<HistogramChartProps> = ({ poolAddress, markoutTim
 
   const poolName = names[data.pool_address] || data.pool_name;
   const titleSuffix = markoutTime === 'brontes' ? 
-    '(Observed LVR)' : 
+    '(Observed)' : 
     `(Markout ${markoutTime}s)`;
 
   const isMobile = windowWidth <= 768;

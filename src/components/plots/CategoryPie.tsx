@@ -109,7 +109,7 @@ const CategoryPieChart: React.FC<CategoryPieChartProps> = ({ selectedMarkout }) 
   }).filter((item): item is NonNullable<typeof item> => item !== null);
 
   const titleSuffix = selectedMarkout === 'brontes' ? 
-    '(Observed LVR)' : 
+    '(Observed)' : 
     `(Markout ${selectedMarkout}s)`;
 
   // Create title with conditional line break

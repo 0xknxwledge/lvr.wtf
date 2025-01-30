@@ -103,7 +103,7 @@ const CategoryStackedBar: React.FC<CategoryStackedBarProps> = ({ selectedMarkout
 
   // Split title into two lines for mobile
   const titleSuffix = selectedMarkout === 'brontes' 
-    ? '(Observed LVR)' 
+    ? '(Observed)' 
     : `(Markout ${selectedMarkout}s)`;
 
   let title;

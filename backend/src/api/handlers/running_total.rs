@@ -4,12 +4,11 @@ use axum::{
     http::StatusCode,
 };
 use crate::{AppState, 
-    TimeRangeQuery, RunningTotal, IntervalAPIData, 
-    MERGE_BLOCK, POOL_NAMES, api::handlers::common::{get_uint64_column, get_valid_pools, get_pool_name,
-    BLOCKS_PER_INTERVAL, FINAL_INTERVAL_FILE, FINAL_PARTIAL_BLOCKS,
+    TimeRangeQuery, RunningTotal, 
+    MERGE_BLOCK, api::handlers::common::{get_uint64_column, get_valid_pools, get_pool_name,
     get_string_column}};
-use tracing::{error, debug, info, warn};
-use std::{sync::Arc, collections::HashMap};
+use tracing::{error, info, warn};
+use std::sync::Arc;
 use parquet::arrow::arrow_reader::ParquetRecordBatchReader;
 use object_store::path::Path;
 
@@ -212,89 +211,4 @@ async fn read_individual_running_totals(
     });
 
     Ok(results)
-}
-
-fn process_interval_totals(
-    interval_totals: HashMap<(u64, u64, String, Option<String>), IntervalAPIData>,
-    start_block: u64,
-    end_block: u64,
-    is_aggregate: bool,
-) -> Vec<RunningTotal> {
-    let mut results = Vec::new();
-    let mut last_totals: HashMap<String, u64> = HashMap::new();
-    
-    // Convert to sorted Vec for chronological processing
-    let mut sorted_entries: Vec<_> = interval_totals.into_iter().collect();
-    sorted_entries.sort_by(|a, b| {
-        let block_a = a.0.0 + (a.0.1 * BLOCKS_PER_INTERVAL);
-        let block_b = b.0.0 + (b.0.1 * BLOCKS_PER_INTERVAL);
-        block_a.cmp(&block_b)
-    });
-
-    debug!("Processing {} sorted interval entries", sorted_entries.len());
-
-    for ((file_start, interval_id, markout, pool_opt), data) in sorted_entries {
-        let block_number = if data.file_path.ends_with(FINAL_INTERVAL_FILE) && interval_id == 19 {
-            file_start + (interval_id * BLOCKS_PER_INTERVAL) + FINAL_PARTIAL_BLOCKS
-        } else {
-            file_start + (interval_id * BLOCKS_PER_INTERVAL)
-        };
-
-        if block_number >= start_block && block_number <= end_block {
-            if is_aggregate {
-                let current_total = last_totals
-                    .entry(markout.clone())
-                    .and_modify(|total| *total = total.saturating_add(data.total))
-                    .or_insert(data.total);
-
-                if results.last().map_or(true, |last: &RunningTotal| 
-                    last.markout != markout || last.running_total_cents != *current_total
-                ) {
-                    results.push(RunningTotal {
-                        block_number,
-                        markout,
-                        pool_name: None,
-                        pool_address: None,
-                        running_total_cents: *current_total,
-                    });
-                }
-            } else if let Some(pool_address) = pool_opt {
-                let pool_name = POOL_NAMES
-                    .iter()
-                    .find(|(addr, _)| addr.to_lowercase() == pool_address)
-                    .map(|(_, name)| name.to_string())
-                    .unwrap_or_else(|| pool_address.clone());
-
-                let key = format!("{}_{}", markout, pool_name);
-                let current_total = last_totals
-                    .entry(key.clone())
-                    .and_modify(|total| *total = total.saturating_add(data.total))
-                    .or_insert(data.total);
-
-                if results.last().map_or(true, |last: &RunningTotal| 
-                    last.markout != markout || 
-                    last.pool_name.as_ref() != Some(&pool_name) ||
-                    last.running_total_cents != *current_total
-                ) {
-                    results.push(RunningTotal {
-                        block_number,
-                        markout,
-                        pool_name: Some(pool_name),
-                        pool_address: Some(pool_address),
-                        running_total_cents: *current_total,
-                    });
-                }
-            }
-        }
-    }
-
-    // Sort results
-    results.sort_by(|a, b| {
-        a.block_number
-            .cmp(&b.block_number)
-            .then_with(|| a.markout.to_lowercase().cmp(&b.markout.to_lowercase()))
-            .then(a.pool_name.cmp(&b.pool_name))
-    });
-
-    results
 }

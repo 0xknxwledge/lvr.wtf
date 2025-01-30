@@ -139,7 +139,7 @@ const CategoryNonZero: React.FC<CategoryNonZeroProps> = ({ selectedMarkout }) =>
   }
 
   const titleSuffix = selectedMarkout === 'brontes' ? 
-    '(Observed LVR)' : 
+    '(Observed)' : 
     `(Markout ${selectedMarkout}s)`;
 
   const getColorsForCluster = (clusterName: string): ColorSet => {

@@ -128,7 +128,7 @@ const PercentileBandChart: React.FC<PercentileBandChartProps> = ({
 
   const titleSuffix =
     markoutTime === 'brontes'
-      ? `${data.pool_name} (Observed LVR)`
+      ? `${data.pool_name} (Observed)`
       : `${data.pool_name} (Markout ${markoutTime}s)`;
 
   const title = shouldBreakTitle
