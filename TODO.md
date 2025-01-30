@@ -1,11 +1,8 @@
-- IMPLEMENT T-DIGEST FOR ESTIMATING SINGLE-BLOCK NON-ZERO LVR DISTRIBUTION
-    - "Critical slope is n (number of samples), at which point each centroid has a single data point"
-    - Adapt this implementation: https://github.com/facebook/folly/blob/main/folly/stats/TDigest.cpp
-    - ^ https://github.com/facebook/folly/blob/main/folly/stats/QuantileEstimator.cpp
-    - OR peep this and check how precise + memory efficient it is https://github.com/MnO2/t-digest
+- Add testing + validation for TDigest
+- Refactor parquet schemas (no need to track percentiles now)
+- Add TDigest periodic merging into processor and/or db
+- Refactor precomputed quartile and its API handler
 
-
-- Fix the asterik on interquartile plot (mention how we track percentiles for every 7200 blocks, compile into three separate lists for each percentile, weight values by non-zero/total block count for the value's respective interval, and then linear interopolate the nth percentile for the list of nth percentiles) ---> is this the best way? 
 
 - NORMALIZE CATEGORY TOTALS BY ???
 
