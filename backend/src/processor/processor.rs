@@ -503,7 +503,7 @@ impl ParallelLVRProcessor {
         Ok(())
      }
 
-    fn calculate_interval_metrics(
+     fn calculate_interval_metrics(
         &self,
         chunk_start: u64,
         chunk_end: u64,
@@ -523,7 +523,7 @@ impl ParallelLVRProcessor {
         // Create map to store data for each block
         let block_data: DashMap<u64, u64> = DashMap::new();
         
-        // First, map all available data points
+        // Map all available data points
         data.iter()
             .filter(|d| d.block_number >= effective_chunk_start && d.block_number < chunk_end)
             .for_each(|data_point| {
@@ -567,19 +567,12 @@ impl ParallelLVRProcessor {
                     .collect();
                 let non_zero_count = non_zero_values.len() as u64;
     
-                // Sort for percentile calculations
-                let mut sorted_non_zero_values = non_zero_values.clone();
-                sorted_non_zero_values.sort_unstable();
-    
                 IntervalData {
                     interval_id,
                     pair_address: pool_address.to_string(),
                     markout_time: markout_time.clone(),
                     total_lvr_cents: non_zero_values.iter().sum(),
-                    median_lvr_cents: Self::calculate_percentile_cents(&sorted_non_zero_values, 0.5),
-                    percentile_25_cents: Self::calculate_percentile_cents(&sorted_non_zero_values, 0.25),
-                    percentile_75_cents: Self::calculate_percentile_cents(&sorted_non_zero_values, 0.75),
-                    max_lvr_cents: *sorted_non_zero_values.last().unwrap_or(&0),
+                    max_lvr_cents: non_zero_values.iter().copied().max().unwrap_or(0),
                     non_zero_count,
                     total_count,
                 }
@@ -633,29 +626,6 @@ impl ParallelLVRProcessor {
     
         info!("Successfully completed all metric precomputations");
         Ok(())
-    }
-
-    fn calculate_percentile_cents(sorted_values: &[u64], percentile: f64) -> u64 {
-        if sorted_values.is_empty() {
-            return 0;
-        }
-        
-        if sorted_values.len() == 1 {
-            return sorted_values[0];
-        }
-        
-        let n = sorted_values.len() as f64;
-        let rank = (n - 1.0) * percentile;
-        let k = rank.floor() as usize;
-        let d = rank - k as f64;
-        
-        if k + 1 >= sorted_values.len() {
-            sorted_values[sorted_values.len() - 1]
-        } else {
-            let lower = sorted_values[k] as f64;
-            let upper = sorted_values[k + 1] as f64;
-            ((1.0 - d) * lower + d * upper).round() as u64
-        }
     }
     
     fn parse_lvr_details(&self, details_str: &str, target_pool_name: &str) -> Option<f64> {

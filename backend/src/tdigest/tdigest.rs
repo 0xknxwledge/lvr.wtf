@@ -1,10 +1,8 @@
 use std::f64::consts::TAU;
-use std::cmp::Ordering;
+use serde::{Serialize, Deserialize};
 
 
-/// 3, Implement quantile function w/ linear interpolation
-
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Centroid {
     pub mean: f64,
     pub weight: f64,
@@ -16,24 +14,11 @@ impl Centroid {
     }
 }
 
-impl PartialOrd for Centroid {
-    fn partial_cmp(&self, other: &Centroid) -> Option<Ordering> {
-        Some(self.cmp(other))
-    }
-}
-
-impl Ord for Centroid {
-    fn cmp(&self, other: &Centroid) -> Ordering {
-        self.mean.cmp(&other.mean)
-    }
-}
-
 /// A skeletal T-Digest structure that uses:
 ///  - Stratified merging (buffer + partial merges)
 ///  - Weight = 1 for each non-zero data point
-///
-/// We are *not* yet implementing real merging logic; this is purely
-/// for demonstrating structure and flow.
+
+#[derive(Debug, Serialize, Deserialize)]
 pub struct TDigest {
     /// A sorted list of centroids (once merged). 
     pub centroids: Vec<Centroid>,
@@ -70,6 +55,7 @@ impl TDigest {
             buffer_capacity,
             delta_partial,
             delta_final,
+            samples: 0
         }
     }
 
@@ -82,7 +68,7 @@ impl TDigest {
         if self.buffer.len() >= self.buffer_capacity {
             // All data points in buffer are ensured to be != NaN, 
             // so should have total order
-            self.buffer.sort().unstable_by(|a,b|
+            self.buffer.sort_unstable_by(|a,b|
                 a.partial_cmp(b).unwrap());
 
             self.partial_merge();
@@ -115,7 +101,7 @@ impl TDigest {
                 }
             }
         }
-        self.samples += total_samples;
+        self.samples += total_samples as u64;
     }
 
     /// Merges two sorted slices of centroids into a single sorted Vec.
@@ -178,49 +164,113 @@ impl TDigest {
         }
 
         // 2. Re-merge with `delta_final compression
-        self.centroids = self.stratified_merge(self.centroids.clone(), self.delta_final);
+        self.stratified_merge_in_place(self.delta_final);
     }
 
     /// Applies stratified merging to a sorted list of centroids using the given delta
-    pub fn stratified_merge(&mut self, centroids: Vec<Centroid>, delta: u64) -> Vec<Centroid> {
+    pub fn stratified_merge(&mut self, mut centroids: Vec<Centroid>, delta: u64) -> Vec<Centroid> {
         if centroids.is_empty() {
             return centroids;
         }
+        let total_weight = self.samples as f64;
 
-        // Total weight is equal to the number of samples, since each data point has weight 1.0
-        let total_weight: f64 = self.samples as f64;
+        let mut merged = Vec::with_capacity(centroids.len());
 
-        let mut merged = Vec::new();
-        let mut current = centroids[0].clone();
-        let mut q_0 = current.weight / total_weight; // Cumulative normalized weight up to the current centroid
+        // Start with the first centroid
+        let mut current = centroids.remove(0);
 
-        for centroid in centroids.into_iter().skip(1) {
-            // Calculate the cumulative normalized weight up to the next centroid
+        // q₀ = 0 at the start
+        let mut q_0 = 0.0;
+        let mut q_limit = self.weight_limit(q_0, delta);
+
+        for centroid in centroids {
             let q = q_0 + (current.weight + centroid.weight) / total_weight;
-
-            // Calculate the weight limit for the current quantile
-            let limit_q = Self::weight_limit(q_0, delta);
-
-            // Calculate the allowed increment in weight before a new centroid is needed
-            let allowed_increment = (limit_q - q_0) * total_weight;
-
-            if centroid.weight <= allowed_increment {
-                // Merge the centroid into the current centroid
+            if q <= q_limit {
+                // Merge
                 let new_weight = current.weight + centroid.weight;
-                let new_mean = (current.mean * current.weight + centroid.mean * centroid.weight) / new_weight;
+                let new_mean =
+                    (current.mean * current.weight + centroid.mean * centroid.weight)
+                     / new_weight;
                 current = Centroid::new(new_mean, new_weight);
-                q_0 += current.weight / total_weight; // Update cumulative normalized weight
             } else {
-                // Append the current centroid to the merged list and start a new centroid
+                // Close out
+                q_0 += current.weight / total_weight;
+                q_limit = self.weight_limit(q_0, delta);
+
                 merged.push(current);
                 current = centroid;
-                q_0 += current.weight / total_weight; // Update cumulative normalized weight
             }
         }
 
-        // Append the last centroid to the merged list
+        // Push last open centroid
         merged.push(current);
         merged
+    }
+
+    /// In-place "stratified merge" on `self.centroids`, using the given `delta`.
+    /// Overwrites `self.centroids` in place, then truncates the extra tail.
+    /// 
+    /// Assumes:
+    ///   - `self.centroids` is already sorted by mean.
+    ///   - `self.samples` is up to date (so total_weight is correct).
+    pub fn stratified_merge_in_place(&mut self, delta: u64) {
+        // If nothing to merge, we're done.
+        if self.centroids.is_empty() {
+            return;
+        }
+
+        let total_weight = self.samples as f64;
+
+        // We'll keep the "current centroid" in a local variable,
+        // and maintain separate read and write indexes into `self.centroids`.
+        let mut write_index = 0;
+        let mut read_index = 0;
+
+        // Start with the first centroid as `current`.
+        let mut current = self.centroids[0].clone();
+        read_index += 1;
+
+        // q₀=0 at the start
+        let mut q_0 = 0.0;
+        let mut q_limit = self.weight_limit(q_0, delta);
+
+        // Process the remaining centroids one by one
+        while read_index < self.centroids.len() {
+            // Clone out the next centroid so we don't keep a borrow
+            let next = self.centroids[read_index].clone();
+
+            // Tentative new q if we fold `next` into `current`
+            let tentative_q = q_0 + (current.weight + next.weight) / total_weight;
+
+            if tentative_q <= q_limit {
+                // Merge `next` into `current`
+                let new_weight = current.weight + next.weight;
+                let new_mean =
+                    (current.mean * current.weight + next.mean * next.weight)
+                    / new_weight;
+                current = Centroid::new(new_mean, new_weight);
+            } else {
+                // "Close out" the current centroid
+                self.centroids[write_index] = current;
+                write_index += 1;
+
+                // Update q₀ and recalc the limit for the next group
+                q_0 += current.weight / total_weight;
+                q_limit = self.weight_limit(q_0, delta);
+
+                // Start fresh with `next`
+                current = next;
+            }
+
+            read_index += 1;
+        }
+
+        // Put the final "open" centroid into place
+        self.centroids[write_index] = current;
+        write_index += 1;
+
+        // Truncate any leftover old centroids
+        self.centroids.truncate(write_index);
     }
 
     /// Given a delta threshold and quantile, returns scale factor k
@@ -233,7 +283,7 @@ impl TDigest {
     /// Given a scale factor k and delta threshold, returns quantile q
     pub fn inv_k1(k: f64, delta: u64) -> f64 {
         let x: f64 = (TAU * k) / (delta as f64);
-        x_sin = x.sin();
+        let x_sin = x.sin();
         (x_sin + 1.0) / 2.0
     }
 
@@ -242,58 +292,58 @@ impl TDigest {
         return TDigest::inv_k1(TDigest::k1(delta, q_0) + 1.0, delta)
     }
 
+
     /// Computes the quantile for a given probability `q` (where 0.0 <= q <= 1.0).
     /// Uses linear interpolation between centroids to estimate the quantile.
-    pub fn quantile(&self, q: f64) -> f64 {
+    /// Returns `None` if `q` is out of bounds or if no data exists.
+    pub fn quantile(&self, q: f64) -> Option<f64> {
+        // Validate that q is in [0.0, 1.0].
         if q < 0.0 || q > 1.0 {
-            panic!("Quantile must be between 0.0 and 1.0");
+            return None;
         }
 
+        // If there are no centroids (i.e., no data), return None.
         if self.centroids.is_empty() {
-            return f64::NAN; // No data, return NaN
+            return None;
         }
 
-        // Ensure centroids are sorted by mean (should already be sorted, but just in case)
+        // Ensure centroids are sorted by mean (they should already be sorted, but just in case).
         let mut sorted_centroids = self.centroids.clone();
         sorted_centroids.sort_by(|a, b| a.mean.partial_cmp(&b.mean).unwrap());
 
-        // Total weight is equal to the number of samples
+        // Total weight is equal to the number of samples.
         let total_weight: f64 = self.samples as f64;
 
-        // Target weight for the quantile
+        // Calculate the target cumulative weight.
         let target_weight = q * total_weight;
 
-        // Accumulate weight to find the centroid(s) that bound the target weight
         let mut cumulative_weight = 0.0;
         for i in 0..sorted_centroids.len() {
             let centroid = &sorted_centroids[i];
             let next_cumulative_weight = cumulative_weight + centroid.weight;
 
             if next_cumulative_weight >= target_weight {
-                // The target quantile lies within this centroid
                 if i == 0 {
-                    // If it's the first centroid, return its mean
-                    return centroid.mean;
+                    // If it's the first centroid, we return its mean.
+                    return Some(centroid.mean);
                 }
 
-                // Perform linear interpolation between the current and previous centroid
+                // Perform linear interpolation between the current and previous centroids.
                 let prev_centroid = &sorted_centroids[i - 1];
                 let prev_cumulative_weight = cumulative_weight;
-
-                // Interpolation formula:
-                // quantile = prev_centroid.mean + (target_weight - prev_cumulative_weight) *
-                //            (centroid.mean - prev_centroid.mean) / (centroid.weight)
-                return prev_centroid.mean
+                let interpolated = prev_centroid.mean
                     + (target_weight - prev_cumulative_weight)
                         * (centroid.mean - prev_centroid.mean)
                         / centroid.weight;
+                return Some(interpolated);
             }
 
             cumulative_weight = next_cumulative_weight;
         }
 
-        // If the target weight is beyond the last centroid, return the last centroid's mean
-        sorted_centroids.last().unwrap().mean
+        // If the target weight is beyond the last centroid, return the last centroid's mean.
+        sorted_centroids.last().map(|c| c.mean)
     }
+
 
 }

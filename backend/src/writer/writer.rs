@@ -79,13 +79,14 @@ impl ParallelParquetWriter {
     ) -> Result<()> {
         let _permit = self.write_semaphore.acquire().await?;
     
-        // Create new FuturesOrdered for this batch of checkpoints
         let mut checkpoint_tasks = FuturesOrdered::new();
     
-        // Process checkpoints in parallel
         for checkpoint in checkpoints {
             let store = self.object_store.clone();
-            let path = self.get_checkpoint_path(&checkpoint.pair_address, &checkpoint.markout_time.to_string());
+            let path = self.get_checkpoint_path(
+                &checkpoint.pair_address, 
+                &checkpoint.markout_time.to_string()
+            );
             
             let task = tokio::spawn(async move {
                 let batch = create_record_batch_from_checkpoint(&checkpoint)?;
@@ -95,7 +96,6 @@ impl ParallelParquetWriter {
             checkpoint_tasks.push_back(task);
         }
     
-        // Wait for all checkpoint writes to complete
         while let Some(result) = checkpoint_tasks.next().await {
             match result {
                 Ok(Ok(_)) => continue,
@@ -160,9 +160,6 @@ fn create_record_batch_from_interval_data(data: Vec<IntervalData>) -> Result<Rec
         ("pair_address", Arc::new(StringArray::from(data.iter().map(|d| d.pair_address.clone()).collect::<Vec<_>>())) as ArrayRef),
         ("markout_time", Arc::new(StringArray::from(data.iter().map(|d| d.markout_time.to_string()).collect::<Vec<_>>())) as ArrayRef),
         ("total_lvr_cents", Arc::new(UInt64Array::from(data.iter().map(|d| d.total_lvr_cents).collect::<Vec<_>>())) as ArrayRef),
-        ("median_lvr_cents", Arc::new(UInt64Array::from(data.iter().map(|d| d.median_lvr_cents).collect::<Vec<_>>())) as ArrayRef),
-        ("percentile_25_cents", Arc::new(UInt64Array::from(data.iter().map(|d| d.percentile_25_cents).collect::<Vec<_>>())) as ArrayRef),
-        ("percentile_75_cents", Arc::new(UInt64Array::from(data.iter().map(|d| d.percentile_75_cents).collect::<Vec<_>>())) as ArrayRef),
         ("max_lvr_cents", Arc::new(UInt64Array::from(data.iter().map(|d| d.max_lvr_cents).collect::<Vec<_>>())) as ArrayRef),
         ("non_zero_count", Arc::new(UInt64Array::from(data.iter().map(|d| d.non_zero_count).collect::<Vec<_>>())) as ArrayRef),
         ("total_count", Arc::new(UInt64Array::from(data.iter().map(|d| d.total_count).collect::<Vec<_>>())) as ArrayRef),
@@ -185,5 +182,8 @@ fn create_record_batch_from_checkpoint(checkpoint: &CheckpointSnapshot) -> Resul
         ("total_bucket_10000_plus", Arc::new(UInt64Array::from(vec![checkpoint.total_bucket_10000_plus])) as ArrayRef),
         ("last_updated_block", Arc::new(UInt64Array::from(vec![checkpoint.last_updated_block])) as ArrayRef),
         ("non_zero_proportion", Arc::new(Float64Array::from(vec![checkpoint.non_zero_proportion])) as ArrayRef),
+        ("percentile_25_cents", Arc::new(UInt64Array::from(vec![checkpoint.percentile_25_cents])) as ArrayRef),
+        ("median_cents", Arc::new(UInt64Array::from(vec![checkpoint.median_cents])) as ArrayRef),
+        ("percentile_75_cents", Arc::new(UInt64Array::from(vec![checkpoint.percentile_75_cents])) as ArrayRef),
     ]).context("Failed to create checkpoint record batch")
 }

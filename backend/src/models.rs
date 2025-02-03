@@ -4,6 +4,7 @@ use std::fmt;
 use std::sync::atomic::Ordering;
 use std::sync::{Arc, Mutex};
 use num_traits::cast::ToPrimitive;
+use crate::tdigest::*;
 
 #[derive(Debug, Clone)]
 pub struct UnifiedLVRData {
@@ -112,6 +113,7 @@ pub struct Checkpoint {
     pub total_bucket_1000_10000: AtomicU64, 
     pub total_bucket_10000_plus: AtomicU64, 
     pub last_updated_block: AtomicU64,
+    pub digest: Arc<Mutex<TDigest>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -130,8 +132,10 @@ pub struct CheckpointSnapshot {
     pub total_bucket_10000_plus: u64,  
     pub last_updated_block: u64,
     pub non_zero_proportion: f64,
+    pub percentile_25_cents: u64,
+    pub median_cents: u64,
+    pub percentile_75_cents: u64,
 }
-
 
 #[derive(Debug)]
 pub struct CheckpointUpdate {
@@ -161,11 +165,18 @@ impl Checkpoint {
             total_bucket_1000_10000: AtomicU64::new(0),
             total_bucket_10000_plus: AtomicU64::new(0),
             last_updated_block: AtomicU64::new(0),
+
+            digest: Arc::new(Mutex::new(TDigest::new(
+                100,  // delta_partial
+                50,   // delta_final
+                1000, // buffer_capacity
+            ))),
         }
     }
 
     pub fn to_snapshot(&self) -> CheckpointSnapshot {
         let max_lvr_data = self.max_lvr.lock().unwrap();
+        let digest = self.digest.lock().unwrap();
         let total_observations = self.total_bucket_0.load(Ordering::Acquire) +
             self.total_bucket_0_10.load(Ordering::Acquire) +
             self.total_bucket_10_100.load(Ordering::Acquire) +
@@ -181,6 +192,11 @@ impl Checkpoint {
         } else {
             0.0
         };
+
+        // Calculate percentiles using TDigest
+        let p25 = digest.quantile(0.25).map(|x| (x * 100.0).round() as u64).unwrap_or(0);
+        let p50 = digest.quantile(0.50).map(|x| (x * 100.0).round() as u64).unwrap_or(0);
+        let p75 = digest.quantile(0.75).map(|x| (x * 100.0).round() as u64).unwrap_or(0);
         
         CheckpointSnapshot {
             pair_address: self.pair_address.clone(),
@@ -197,6 +213,16 @@ impl Checkpoint {
             total_bucket_10000_plus: self.total_bucket_10000_plus.load(Ordering::Acquire),
             last_updated_block: self.last_updated_block.load(Ordering::Acquire),
             non_zero_proportion,
+            percentile_25_cents: p25,
+            median_cents: p50,
+            percentile_75_cents: p75,
+        }
+    }
+
+    // Add a new method to update the TDigest
+    pub fn update_digest(&self, value: f64) {
+        if let Ok(mut digest) = self.digest.lock() {
+            digest.add(value);
         }
     }
 
@@ -215,9 +241,6 @@ pub struct IntervalData {
     pub pair_address: String,
     pub markout_time: MarkoutTime,
     pub total_lvr_cents: u64,     
-    pub median_lvr_cents: u64,    
-    pub percentile_25_cents: u64, 
-    pub percentile_75_cents: u64, 
     pub max_lvr_cents: u64,       
     pub non_zero_count: u64,        
     pub total_count: u64,            
@@ -237,16 +260,28 @@ impl IntervalData {
     }
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct CheckpointStats {
     pub updates: u64,
     pub running_total: u64,
     pub max_lvr: u64,
     pub max_lvr_block: u64,
-    pub buckets: [u64; 7] 
+    pub buckets: [u64; 7],
+    pub digest: TDigest
 }
 
-
+impl Default for CheckpointStats {
+    fn default() -> Self {
+        Self {
+            updates: 0,
+            running_total: 0,
+            max_lvr: 0,
+            max_lvr_block: 0,
+            buckets: [0; 7],
+            digest: TDigest::new(100, 50, 1000)
+        }
+    }
+}
 
 impl CheckpointStats {
     pub fn update(&mut self, data_point: &UnifiedLVRData) {
@@ -264,7 +299,15 @@ impl CheckpointStats {
             self.max_lvr_block = data_point.block_number;
         }
 
+        // Convert cents to dollars for bucketing and TDigest
         let abs_dollars = (data_point.lvr_cents as f64 / 100.0).abs();
+
+        if data_point.lvr_cents != 0 {
+            // Update TDigest with the non-zero dollar value
+            self.digest.add(abs_dollars);
+
+        }
+        // Update bucket counts
         let bucket_idx = match abs_dollars {
             x if x == 0.0 => 0,          // $0
             x if x <= 10.0 => 1,         // $0-10
@@ -286,13 +329,28 @@ impl CheckpointStats {
             self.max_lvr_block = other.max_lvr_block;
         }
 
+        // Merge bucket counts
         for (self_bucket, other_bucket) in self.buckets.iter_mut().zip(other.buckets.iter()) {
             *self_bucket += other_bucket;
         }
+
+        // Merge TDigests
+        let sorted = TDigest::merge_sorted_centroids(&self.digest.centroids, &other.digest.centroids);
+        self.digest.centroids = self.digest.stratified_merge(sorted, self.digest.delta_partial);
+    }
+
+    pub fn get_percentiles(&mut self) -> (u64, u64, u64) {
+        // Finalize the digest before computing percentiles
+        self.digest.finalize();
+        
+        // Convert the dollar values back to cents
+        let p25 = (self.digest.quantile(0.25).unwrap() * 100.0).round() as u64;
+        let p50 = (self.digest.quantile(0.50).unwrap() * 100.0).round() as u64;
+        let p75 = (self.digest.quantile(0.75).unwrap() * 100.0).round() as u64;
+
+        (p25, p50, p75)
     }
 }
-
-
 #[cfg(test)]
 mod tests {
     use super::*;
