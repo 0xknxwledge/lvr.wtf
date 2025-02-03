@@ -36,8 +36,8 @@ const Pool: React.FC = () => {
         
         <div className="font-['Menlo'] mt-4 mb-12 text-center">
           <p className="text-sm text-[#B2AC88]/80">
-            *We exclude days (i.e, 7200-block-long chunks starting from the Merge block)
-            that had zero simulated LVR activity
+            *For the interquartile plot, we estimated percentile values through the TDigest algorithm and excluded blocks with zero simulated/observed LVR from the estimated distrbution. 
+            For the bandplot, we excluded days (i.e, 7200-block-long chunks starting from the Merge block) that had zero simulated/observed LVR.
           </p>
         </div>
 
