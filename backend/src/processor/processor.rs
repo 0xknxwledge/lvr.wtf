@@ -1,4 +1,5 @@
 use crate::{
+    tdigest::*,
     aurora::{AuroraConnection, LVRDetails},
     brontes::{BrontesConnection, LVRAnalysis},
     config::{AuroraConfig, BrontesConfig},
@@ -438,7 +439,7 @@ impl ParallelLVRProcessor {
         data: &[UnifiedLVRData],
         chunk_start: u64,
         chunk_end: u64,
-     ) -> Result<()> {
+    ) -> Result<()> {
         // Get deployment block for this pool
         let deployment_block = self.get_deployment_block(pool_address);
         let effective_start = chunk_start.max(deployment_block);
@@ -495,13 +496,23 @@ impl ParallelLVRProcessor {
             for (count, bucket) in stats.buckets.iter().zip(bucket_refs.iter()) {
                 bucket.fetch_add(*count, Ordering::Release);
             }
+
+            // Update TDigest 
+            if let Ok(mut digest_lock) = checkpoint.digest.lock() {
+                // Merge the new stats' digest into the checkpoint's digest
+                let sorted = TDigest::merge_sorted_centroids(&digest_lock.centroids, &stats.digest.centroids);
+                let delta = digest_lock.delta_partial;
+                digest_lock.centroids = digest_lock.stratified_merge(sorted, delta);
+            } else {
+                error!("Failed to acquire lock for TDigest update");
+            }
      
             // Update last processed block
             checkpoint.last_updated_block.fetch_max(chunk_end - 1, Ordering::Release);
         }
      
         Ok(())
-     }
+    }
 
      fn calculate_interval_metrics(
         &self,

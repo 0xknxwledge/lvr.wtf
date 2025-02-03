@@ -1,6 +1,4 @@
-- Add testing + validation for TDigest
-- Refactor parquet schemas (no need to track percentiles now)
-- Add TDigest periodic merging into processor and/or db
+- How can we trigger a final merge after the last interval is processed?
 - Refactor precomputed quartile and its API handler
 
 
