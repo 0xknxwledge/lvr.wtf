@@ -32,7 +32,7 @@ struct CheckpointData {
     running_total: u64,
     zero_count: u64,
     total_count: u64,
-    tdigest_samples: u64,
+    exact_samples: u64,
 }
 
 #[derive(Debug, Default, Clone)]
@@ -77,7 +77,7 @@ impl Validator {
             };
 
             // Compare TDigest sample count with non-zero samples
-            let sample_count_match = checkpoint.tdigest_samples == interval.non_zero_count;
+            let sample_count_match = checkpoint.exact_samples == interval.non_zero_count;
 
             let stats = ValidationStats {
                 checkpoint_total: checkpoint.running_total,
@@ -88,7 +88,7 @@ impl Validator {
                 interval_zero_count,
                 checkpoint_non_zero_ratio,
                 interval_non_zero_ratio,
-                tdigest_samples: checkpoint.tdigest_samples,
+                tdigest_samples: checkpoint.exact_samples,
                 non_zero_samples: interval.non_zero_count,
                 sample_count_match,
             };
@@ -170,8 +170,8 @@ impl Validator {
             .value(0);
 
         // Get TDigest samples count
-        let tdigest_samples = batch
-            .column(batch.schema().index_of("digest")?)
+        let exact_samples = batch
+            .column(batch.schema().index_of("non_zero_samples")?)
             .as_any()
             .downcast_ref::<arrow::array::UInt64Array>()
             .context("Failed to get digest samples count")?
@@ -185,7 +185,7 @@ impl Validator {
                 running_total,
                 zero_count,
                 total_count,
-                tdigest_samples,
+                exact_samples,
             },
         ))
     }

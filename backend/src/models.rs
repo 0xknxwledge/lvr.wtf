@@ -135,6 +135,7 @@ pub struct CheckpointSnapshot {
     pub percentile_25_cents: u64,
     pub median_cents: u64,
     pub percentile_75_cents: u64,
+    pub non_zero_samples: u64,
 }
 
 #[derive(Debug)]
@@ -167,10 +168,10 @@ impl Checkpoint {
             last_updated_block: AtomicU64::new(0),
 
             digest: Arc::new(Mutex::new(TDigest::new(
-                100,  // delta_partial
-                50,   // delta_final
-                1000, // buffer_capacity
-            ))),
+                200,  // delta_partial
+                1000,   // delta_final
+                10000, // buffer_capacity
+            )))
         }
     }
 
@@ -197,7 +198,7 @@ impl Checkpoint {
         let p25 = digest.quantile(0.25).map(|x| (x * 100.0).round() as u64).unwrap_or(0);
         let p50 = digest.quantile(0.50).map(|x| (x * 100.0).round() as u64).unwrap_or(0);
         let p75 = digest.quantile(0.75).map(|x| (x * 100.0).round() as u64).unwrap_or(0);
-        
+
         CheckpointSnapshot {
             pair_address: self.pair_address.clone(),
             markout_time: self.markout_time,
@@ -216,16 +217,27 @@ impl Checkpoint {
             percentile_25_cents: p25,
             median_cents: p50,
             percentile_75_cents: p75,
+            non_zero_samples: digest.samples(),
         }
     }
 
-    // Add a new method to update the TDigest
-    pub fn update_digest(&self, value: f64) {
+    pub fn update_digest(&self, value: f64) -> Result<(), String> {
         if let Ok(mut digest) = self.digest.lock() {
             digest.add(value);
+            Ok(())
+        } else {
+            Err("Failed to acquire digest lock".to_string())
         }
     }
 
+    pub fn merge_digest(&self, other_digest: &TDigest) -> Result<u64, String> {
+        let mut digest = self.digest.lock()
+            .map_err(|_| "Failed to acquire digest lock".to_string())?;
+        
+        digest.merge(other_digest);
+        Ok(digest.samples())
+    }
+    
     pub fn update_max_lvr(&self, block_number: u64, lvr_cents: u64) {
         let mut max_lvr = self.max_lvr.lock().unwrap();
         if lvr_cents > max_lvr.value {
@@ -233,7 +245,17 @@ impl Checkpoint {
             max_lvr.block = block_number;
         }
     }
+
+    pub fn finalize(&self) -> Result<(), String> {
+        if let Ok(mut digest) = self.digest.lock() {
+            digest.finalize();
+            Ok(())
+        } else {
+            Err("Failed to acquire digest lock for finalization".to_string())
+        }
+    }
 }
+
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct IntervalData {
@@ -305,7 +327,6 @@ impl CheckpointStats {
         if data_point.lvr_cents != 0 {
             // Update TDigest with the non-zero dollar value
             self.digest.add(abs_dollars);
-
         }
         // Update bucket counts
         let bucket_idx = match abs_dollars {
@@ -321,9 +342,11 @@ impl CheckpointStats {
     }
 
     pub fn merge(&mut self, other: CheckpointStats) {
+        // Update basic counters
         self.updates += other.updates;
         self.running_total += other.running_total;
         
+        // Update max LVR if the other stats has a higher value
         if other.max_lvr > self.max_lvr {
             self.max_lvr = other.max_lvr;
             self.max_lvr_block = other.max_lvr_block;
@@ -334,10 +357,25 @@ impl CheckpointStats {
             *self_bucket += other_bucket;
         }
 
-        // Merge TDigests
-        let sorted = TDigest::merge_sorted_centroids(&self.digest.centroids, &other.digest.centroids);
-        self.digest.centroids = self.digest.stratified_merge(sorted, self.digest.delta_partial);
+        // Merge TDigests while maintaining accurate counts
+        let (merged_centroids, total_weight) = TDigest::merge_sorted_centroids(
+            &self.digest.centroids,
+            &other.digest.centroids
+        );
+
+        // Perform stratified merge using the merged centroids
+        self.digest.centroids = self.digest.stratified_merge(
+            merged_centroids, 
+            self.digest.delta_partial
+        );
+
+        // Update total weight tracking
+        self.digest.total_weight = total_weight;
+        
+        // Update exact sample count by combining both digests
+        self.digest.exact_samples += other.digest.exact_samples;
     }
+
 
     pub fn get_percentiles(&mut self) -> (u64, u64, u64) {
         // Finalize the digest before computing percentiles
@@ -358,7 +396,7 @@ mod tests {
     #[test]
     fn test_markout_time_round_trip() {
         // Test all non-Brontes variants
-        let markouts = [
+        let markouts = [ 
             MarkoutTime::Negative2,
             MarkoutTime::Negative15,
             MarkoutTime::Negative1,

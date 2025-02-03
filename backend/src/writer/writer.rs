@@ -185,5 +185,6 @@ fn create_record_batch_from_checkpoint(checkpoint: &CheckpointSnapshot) -> Resul
         ("percentile_25_cents", Arc::new(UInt64Array::from(vec![checkpoint.percentile_25_cents])) as ArrayRef),
         ("median_cents", Arc::new(UInt64Array::from(vec![checkpoint.median_cents])) as ArrayRef),
         ("percentile_75_cents", Arc::new(UInt64Array::from(vec![checkpoint.percentile_75_cents])) as ArrayRef),
+        ("non_zero_samples", Arc::new(UInt64Array::from(vec![checkpoint.non_zero_samples])) as ArrayRef),
     ]).context("Failed to create checkpoint record batch")
 }

@@ -1,5 +1,4 @@
 use crate::{
-    tdigest::*,
     aurora::{AuroraConnection, LVRDetails},
     brontes::{BrontesConnection, LVRAnalysis},
     config::{AuroraConfig, BrontesConfig},
@@ -115,6 +114,19 @@ impl ParallelLVRProcessor {
                 Err(e) => return Err(e),
             }
         }
+
+        // Finalize all checkpoints with delta_final
+        info!("Finalizing checkpoints with delta_final parameter...");
+        for checkpoint in self.checkpoints.iter_mut() {
+            if let Err(e) = checkpoint.value().finalize() {
+                error!("Failed to finalize checkpoint for {}-{}: {}", 
+                    checkpoint.pair_address, checkpoint.markout_time, e);
+            }
+        }
+
+        // Write the finalized checkpoints one last time
+        self.write_checkpoints().await?;
+        info!("Successfully finalized all checkpoints");
         
         info!(
             "Successfully completed processing all blocks from {} to {}", 
@@ -440,49 +452,44 @@ impl ParallelLVRProcessor {
         chunk_start: u64,
         chunk_end: u64,
     ) -> Result<()> {
-        // Get deployment block for this pool
         let deployment_block = self.get_deployment_block(pool_address);
         let effective_start = chunk_start.max(deployment_block);
-     
-        // Skip if chunk is entirely before deployment
+    
         if effective_start >= chunk_end {
             return Ok(());
         }
-     
+    
         let checkpoint = self.checkpoints
             .entry((pool_address.to_string(), markout_time))
             .or_insert_with(|| Checkpoint::new(pool_address.to_string(), markout_time));
-     
-        // Create map of actual data points
+    
         let mut block_data: HashMap<u64, &UnifiedLVRData> = data.iter()
             .filter(|d| d.block_number >= effective_start && d.block_number < chunk_end)
             .map(|d| (d.block_number, d))
             .collect();
-     
-        // Calculate stats including explicit zeros for missing blocks
+    
         let mut stats = CheckpointStats::default();
-        
-        // Process every block in range, treating missing blocks as zeros
+    
         for block_number in effective_start..chunk_end {
             if let Some(data_point) = block_data.remove(&block_number) {
                 stats.update(data_point);
-                stats.updates += 1;
             } else {
-                // Missing block counts as a zero
-                stats.buckets[0] += 1; // Zero bucket
+                stats.buckets[0] += 1;
                 stats.updates += 1;
             }
         }
-     
-        // Apply updates atomically if we processed any blocks
+    
         if stats.updates > 0 {
-            // Update max LVR if needed
+            // Update max LVR value and block
             checkpoint.update_max_lvr(stats.max_lvr_block, stats.max_lvr);
-     
-            // Update running total - only includes non-zero values
-            checkpoint.running_total.fetch_add(stats.running_total.to_i64().unwrap(), Ordering::Release);
-     
-            // Update buckets atomically
+            
+            // Update running total
+            checkpoint.running_total.fetch_add(
+                stats.running_total.to_i64().unwrap(), 
+                Ordering::Release
+            );
+    
+            // Update bucket counts atomically
             let bucket_refs = [
                 &checkpoint.total_bucket_0,
                 &checkpoint.total_bucket_0_10,
@@ -492,25 +499,20 @@ impl ParallelLVRProcessor {
                 &checkpoint.total_bucket_1000_10000,
                 &checkpoint.total_bucket_10000_plus,
             ];
-     
+    
             for (count, bucket) in stats.buckets.iter().zip(bucket_refs.iter()) {
                 bucket.fetch_add(*count, Ordering::Release);
             }
-
-            // Update TDigest 
+    
+            // Merge TDigest data
             if let Ok(mut digest_lock) = checkpoint.digest.lock() {
-                // Merge the new stats' digest into the checkpoint's digest
-                let sorted = TDigest::merge_sorted_centroids(&digest_lock.centroids, &stats.digest.centroids);
-                let delta = digest_lock.delta_partial;
-                digest_lock.centroids = digest_lock.stratified_merge(sorted, delta);
-            } else {
-                error!("Failed to acquire lock for TDigest update");
+                stats.digest.merge_into_locked(&mut digest_lock);
             }
-     
+    
             // Update last processed block
             checkpoint.last_updated_block.fetch_max(chunk_end - 1, Ordering::Release);
         }
-     
+    
         Ok(())
     }
 
