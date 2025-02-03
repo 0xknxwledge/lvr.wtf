@@ -1053,97 +1053,60 @@ impl PrecomputedWriter {
         let mut median_values = Vec::new();
         let mut percentile_75_values = Vec::new();
     
-        // Map to collect segment-level percentiles and weights
-        let mut distribution_data: HashMap<(String, String), Vec<(u64, u64, u64, u64, u64)>> = HashMap::new();
-    
-        let intervals_path = object_store::path::Path::from("intervals");
-        let mut interval_files = self.object_store.list(Some(&intervals_path));
+        // Process checkpoint files
+        let checkpoints_path = object_store::path::Path::from("checkpoints");
+        let mut checkpoint_files = self.object_store.list(Some(&checkpoints_path));
         let valid_pools = get_valid_pools();
     
-        while let Some(meta_result) = interval_files.next().await {
+        while let Some(meta_result) = checkpoint_files.next().await {
             let meta = meta_result.context("Failed to get file metadata")?;
+            let file_path = meta.location.to_string();
+    
+            // Parse pool address and markout time from filename
+            let pool_address = file_path
+                .split('/')
+                .last()
+                .and_then(|s| s.split('_').next())
+                .map(|s| s.to_lowercase())
+                .context("Failed to extract pool address")?;
+    
+            if !valid_pools.contains(&pool_address) {
+                continue;
+            }
+    
+            let markout_time = file_path
+                .split('_')
+                .last()
+                .and_then(|s| s.strip_suffix(".parquet"))
+                .context("Failed to extract markout time")?;
+    
             let bytes = self.object_store.get(&meta.location).await?.bytes().await?;
-            let record_reader = ParquetRecordBatchReader::try_new(bytes, 1024)?;
+            let record_reader = ParquetRecordBatchReader::try_new(bytes, 1)?;
     
             for batch_result in record_reader {
-                let batch = batch_result?; 
-                let markout_times_col = get_string_column(&batch, "markout_time")
-                .map_err(|e| anyhow::anyhow!("Failed to get markout_time column: {}", e))?;
-                let pool_addresses_col = get_string_column(&batch, "pair_address")
-                    .map_err(|e| anyhow::anyhow!("Failed to get pair_address column: {}", e))?;
-                let percentile_25_cents = get_uint64_column(&batch, "percentile_25_cents")
+                let batch = batch_result?;
+                
+                let p25 = get_uint64_column(&batch, "percentile_25_cents")
                     .map_err(|e| anyhow::anyhow!("Failed to get percentile_25_cents column: {}", e))?;
-                let median_cents = get_uint64_column(&batch, "median_lvr_cents")
+                let p50 = get_uint64_column(&batch, "median_cents")
                     .map_err(|e| anyhow::anyhow!("Failed to get median_cents column: {}", e))?;
-                let percentile_75_cents = get_uint64_column(&batch, "percentile_75_cents")
+                let p75 = get_uint64_column(&batch, "percentile_75_cents")
                     .map_err(|e| anyhow::anyhow!("Failed to get percentile_75_cents column: {}", e))?;
-                let non_zero_counts = get_uint64_column(&batch, "non_zero_count")
-                    .map_err(|e| anyhow::anyhow!("Failed to get non_zero_count column: {}", e))?;
-                let total_counts = get_uint64_column(&batch, "total_count")
-                    .map_err(|e| anyhow::anyhow!("Failed to get total_count column: {}", e))?;
-
     
-                for i in 0..batch.num_rows() {
-                    let total_count = total_counts.value(i);
-                    if total_count == 0 {
-                        continue;
-                    }
-    
-                    let pool_address = pool_addresses_col.value(i).to_lowercase();
-                    if !valid_pools.contains(&pool_address) {
-                        continue;
-                    }
-    
-                    let markout_time = markout_times_col.value(i).to_string();
-                    let segment_data = (
-                        percentile_25_cents.value(i),
-                        median_cents.value(i),
-                        percentile_75_cents.value(i),
-                        non_zero_counts.value(i),
-                        total_count,
-                    );
-    
-                    distribution_data
-                        .entry((pool_address, markout_time))
-                        .or_default()
-                        .push(segment_data);
+                if p25.len() > 0 && p50.len() > 0 && p75.len() > 0 {
+                    let pool_name = get_pool_name(&pool_address);
+                    
+                    pool_addresses.push(pool_address.clone());
+                    pool_names.push(pool_name);
+                    markout_times.push(markout_time.to_string());
+                    percentile_25_values.push(p25.value(0));
+                    median_values.push(p50.value(0));
+                    percentile_75_values.push(p75.value(0));
                 }
             }
         }
     
-        for ((pool_address, markout_time), data) in distribution_data {
-            let pool_name = get_pool_name(&pool_address);
-
-            // Changed: Use non_zero_count directly as weights
-            let weighted_25 = Self::calculate_weighted_percentile(
-                &data.iter()
-                    .map(|(p25, _, _, nz_count, _)| (*p25, *nz_count))
-                    .collect::<Vec<_>>(),
-                0.25,
-            );
-            
-            let weighted_50 = Self::calculate_weighted_percentile(
-                &data.iter()
-                    .map(|(_, p50, _, nz_count, _)| (*p50, *nz_count))
-                    .collect::<Vec<_>>(),
-                0.50,
-            );
-            
-            let weighted_75 = Self::calculate_weighted_percentile(
-                &data.iter()
-                    .map(|(_, _, p75, nz_count, _)| (*p75, *nz_count))
-                    .collect::<Vec<_>>(),
-                0.75,
-            );
-    
-            pool_addresses.push(pool_address);
-            pool_names.push(pool_name);
-            markout_times.push(markout_time);
-            percentile_25_values.push(weighted_25);
-            median_values.push(weighted_50);
-            percentile_75_values.push(weighted_75);
-        }
-    
+        // Create record batch
         let batch = RecordBatch::try_new(
             Arc::new(schema),
             vec![
@@ -1156,58 +1119,12 @@ impl PrecomputedWriter {
             ],
         )?;
     
+        // Write to output file
         let output_path = Path::from("precomputed/distributions/quartile_plots.parquet");
         self.write_batch_to_store(output_path, batch).await?;
     
         info!("Successfully wrote precomputed quartile plot distributions");
         Ok(())
-    }
-    
-    pub fn calculate_weighted_percentile(
-        values_weights: &[(u64, u64)],  // (value, non_zero_count)
-        target: f64,
-    ) -> u64 {
-        if values_weights.is_empty() {
-            return 0;
-        }
-    
-        // Convert to (value, weight) with proper types
-        let mut weighted: Vec<(u64, f64)> = values_weights
-            .iter()
-            .map(|(val, nz)| (*val, *nz as f64))
-            .collect();
-    
-        // Sort by value to enable linear interpolation
-        weighted.sort_by_key(|(val, _)| *val);
-    
-        let total_weight: f64 = weighted.iter().map(|(_, w)| w).sum();
-        if total_weight == 0.0 {
-            return 0;
-        }
-    
-        let target_weight = target * total_weight;
-        let mut cumulative = 0.0;
-    
-        for (i, (val, weight)) in weighted.iter().enumerate() {
-            cumulative += weight;
-    
-            if cumulative >= target_weight {
-                // Exact match or last element
-                if i == 0 || i == weighted.len() - 1 {
-                    return *val;
-                }
-    
-                // Calculate interpolation between current and previous
-                let prev_weight = cumulative - weight;
-                let fraction = (target_weight - prev_weight) / weight;
-                let prev_val = weighted[i.saturating_sub(1)].0;
-    
-                return (prev_val as f64 * (1.0 - fraction) + *val as f64 * fraction).round() as u64;
-            }
-        }
-    
-        // Fallback to last value
-        weighted.last().map(|(v, _)| *v).unwrap_or(0)
     }
 
     pub fn calculate_unweighted_percentile(values: &[u64], percentile: u64) -> f64 {

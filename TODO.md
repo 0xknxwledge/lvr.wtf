@@ -1,9 +1,3 @@
-- How can we trigger a final merge after the last interval is processed?
-- Refactor precomputed quartile and its API handler
-
-
-- NORMALIZE CATEGORY TOTALS BY ???
-
 - FLAG THE BIG JUMPS IN RUNNING TOTALS
     1. Terra/Luna & 3AC 
     2. FTX
