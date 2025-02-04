@@ -55,14 +55,16 @@ const NavBar = () => {
 
   return (
     <header className="sticky top-0 z-50 bg-[#0b0b0e] border-b border-[#1a1a1a] font-['Menlo']">
-      <div className="max-w-7xl mx-auto flex items-center justify-between px-4 py-3">
-        {/* Left section with logo */}
-        <Link to="/" className="text-2xl font-semibold text-white">
-          LVR.wtf
-        </Link>
+      <div className="max-w-full mx-auto flex items-center justify-between px-4 lg:px-8 pb-1">
+        <div className="flex items-center h-16">
+          {/* Left section with logo - aligned with sidebar content */}
+          <Link to="/" className="text-2xl font-semibold text-white lg:ml-1">
+            LVR.wtf
+          </Link>
+        </div>
 
         {/* Right section with navigation and partner logos */}
-        <div className="flex items-center space-x-8">
+        <div className="flex items-center space-x-6">
           {/* Desktop Navigation Links */}
           <div className="hidden lg:flex items-center space-x-6">
             <Link 
