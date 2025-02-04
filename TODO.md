@@ -26,3 +26,12 @@ WBTC-WETH-3000       | 0xcbcdf9626bc03e24f779434178a73a0b4bad62ed |    $8,291,12
 DAI-WETH-500         | 0x60594a405d53811d3bc4766596efd80fd545a270 |    $5,259,682.96
 DAI-WETH-3000        | 0xc2e9f25be6257c210d7adf0d4cd6e3e881ba25f8 |    $3,124,656.48
 WETH-USDT-500        | 0x11b815efb8f581194ae79006d24e0d814b7697f6 |    $2,250,486.24
+
+
+- For pools with < 3000 non-zero blocks their TDigest throws zero for all percentiles
+- ^ For observed, affected pools are 
+1. PEPE-WETH-V2
+2. DAI-USDT-100
+3. PEPE-WETH-3000
+4. DAI-USDC-100
+5. USDC-USDT-100

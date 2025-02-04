@@ -66,7 +66,7 @@ const Category: React.FC = () => {
               items={[
                 'USDC/WETH (0.05% fee)',
                 'USDC/WETH (0.30% fee)',
-                'WETH/USDC (Uniswap v2)'
+                'WETH/USDC (Uniswap V2)'
               ]}
             />
           </div>
@@ -78,7 +78,7 @@ const Category: React.FC = () => {
                 'WETH/USDT (0.01% fee)',
                 'WETH/USDT (0.05% fee)',
                 'WETH/USDT (0.30% fee)',
-                'USDT/WETH (Uniswap v2)'
+                'USDT/WETH (Uniswap V2)'
               ]}
             />
             <CategorySection 
@@ -103,7 +103,7 @@ const Category: React.FC = () => {
               items={[
                 'UNI/WETH (0.30% fee)',
                 'PEPE/WETH (0.30% fee)',
-                'PEPE/WETH (Uniswap v2)',
+                'PEPE/WETH (Uniswap V2)',
                 'LINK/WETH (0.30% fee)'
               ]}
             />
