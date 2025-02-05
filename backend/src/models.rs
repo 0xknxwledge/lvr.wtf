@@ -167,11 +167,7 @@ impl Checkpoint {
             total_bucket_10000_plus: AtomicU64::new(0),
             last_updated_block: AtomicU64::new(0),
 
-            digest: Arc::new(Mutex::new(TDigest::new(
-                200,  // delta_partial
-                1000,   // delta_final
-                10000, // buffer_capacity
-            )))
+            digest: Arc::new(Mutex::new(TDigest::new()))
         }
     }
 
@@ -300,7 +296,7 @@ impl Default for CheckpointStats {
             max_lvr: 0,
             max_lvr_block: 0,
             buckets: [0; 7],
-            digest: TDigest::new(100, 50, 1000)
+            digest: TDigest::new()
         }
     }
 }

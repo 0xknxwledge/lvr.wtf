@@ -28,6 +28,31 @@ lazy_static! {
         "0xB4e16d0168e52d35CaCD2c6185b44281Ec28C9Dc",
         "0xa43fe16908251ee70ef74718545e4fe6c5ccec9f"
     ];
+
+    pub static ref BRONTES_ADDRESSES: Vec<&'static str> = vec![
+        "0x88e6a0c2ddd26feeb64f039a2c41296fcb3f5640",
+        "0x3416cf6c708da44db2624d63ea0aaef7113527c6",
+        "0x11b815efb8f581194ae79006d24e0d814b7697f6",
+        "0x4585fe77225b41b697c938b018e2ac67ac5a20c0",
+        "0x8ad599c3a0ff1de082011efddc58f1908eb6e6d8",
+        "0xc7bbec68d12a0d1830360f8ec58fa599ba1b0e9b",
+        "0xcbcdf9626bc03e24f779434178a73a0b4bad62ed",
+        "0x5777d92f208679db4b9778590fa3cab3ac9e2168",
+        "0x4e68ccd3e89f51c3074ca5072bbac773960dfa36",
+        "0x60594a405d53811d3bc4766596efd80fd545a270",
+        "0x7858e59e0c01ea06df3af3d20ac7b0003275d4bf",
+        "0x435664008f38b0650fbc1c9fc971d0a3bc2f1e47",
+        "0xa6cc3c2531fdaa6ae1a3ca84c2855806728693e8",
+        "0x11950d141ecb863f01007add7d1a342041227b58",
+        "0x9a772018fbd77fcd2d25657e5c547baff3fd7d16",
+        "0x99ac8ca7087fa4a2a1fb6357269965a2014abc35",
+        "0x1d42064fc4beb5f8aaf85f4617ae8b3b5b8bd801",
+        "0xc2e9f25be6257c210d7adf0d4cd6e3e881ba25f8",
+        "0x48da0965ab2d2cbf1c17c09cfb5cbe67ad5b1406",
+        "0x0d4a11d5eeaac28ec3f61d100daf4d40471f1852",
+        "0xb4e16d0168e52d35cacd2c6185b44281ec28c9dc",
+        "0xa43fe16908251ee70ef74718545e4fe6c5ccec9f"
+    ];
     
     pub static ref POOL_NAMES: HashMap<&'static str, &'static str> = {
         let mut m = HashMap::new();

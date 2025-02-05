@@ -1,7 +1,7 @@
 use crate::config::BrontesConfig;
 use crate::DatabaseConnection;
 use crate::Error;
-use crate::POOL_ADDRESSES;
+use crate::BRONTES_ADDRESSES;
 use async_trait::async_trait;
 use clickhouse::Client;
 use serde::Deserialize;
@@ -125,7 +125,8 @@ impl BrontesConnection {
     }
 
     async fn try_fetch_lvr_analysis_batch(&self, client: &Client, batch_start: u64, batch_end: u64) -> Result<Vec<LVRAnalysis>> {    
-        let pools: Vec<_> = POOL_ADDRESSES.iter().map(|&s| s).collect();
+        // De-checksum the addresses
+        let pools: Vec<_> = BRONTES_ADDRESSES.iter().map(|&s| s).collect();
         let mut cursor = client
             .query(
                 r#"

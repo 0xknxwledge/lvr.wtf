@@ -1,12 +1,10 @@
 use crate::{
-    aurora::{AuroraConnection, LVRDetails},
-    brontes::{BrontesConnection, LVRAnalysis},
-    config::{AuroraConfig, BrontesConfig},
-    writer::ParallelParquetWriter,
-    models::{Checkpoint, IntervalData, MarkoutTime,UnifiedLVRData, CheckpointStats, DataSource, CheckpointUpdate},
-    api::precompute::PrecomputedWriter,
-    error::Error,
-    MARKOUT_TIMES, MARKOUT_TIME_MAPPING, POOL_ADDRESSES, POOL_NAMES, PEPE_DEPLOYMENT_V2, PEPE_DEPLOYMENT_V3, USDeUSDT_DEPLOYMENT, WETH_USDT_100_DEPLOYMENT
+    api::precompute::PrecomputedWriter, aurora::{AuroraConnection, LVRDetails}, brontes::{BrontesConnection, LVRAnalysis}, config::{AuroraConfig, BrontesConfig}, error::Error, models::{Checkpoint, CheckpointStats, CheckpointUpdate, DataSource, IntervalData, MarkoutTime, UnifiedLVRData},
+     writer::ParallelParquetWriter, 
+     USDeUSDT_DEPLOYMENT, 
+     MARKOUT_TIMES, MARKOUT_TIME_MAPPING, 
+     PEPE_DEPLOYMENT_V2, PEPE_DEPLOYMENT_V3,
+      POOL_ADDRESSES, POOL_NAMES, BRONTES_ADDRESSES, WETH_USDT_100_DEPLOYMENT
 };
 use anyhow::Result;
 use dashmap::DashMap;
@@ -299,7 +297,7 @@ impl ParallelLVRProcessor {
         }
     
         // Process each Brontes pool
-        for pool_address in POOL_ADDRESSES.iter() {
+        for pool_address in BRONTES_ADDRESSES.iter() {
             // Get or create vector for this pool
             let mut pool_data = brontes_data
                 .remove(*pool_address)

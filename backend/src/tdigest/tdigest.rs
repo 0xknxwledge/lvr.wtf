@@ -35,22 +35,69 @@ pub struct TDigest {
 
     /// Exact count of non-zero samples processed
     pub exact_samples: u64,
+
+    /// These fields are set once the number of samples have passed the adaptation threshold
+    pub scaled_delta_partial: u64,
+    pub scaled_delta_final: u64,
+    pub scaled_buffer_capacity: usize,
+    pub adaptation_threshold: u64,
+    pub has_adapted: bool,
 }
 
 impl TDigest {
-    pub fn new(delta_partial: u64, delta_final: u64, buffer_capacity: usize) -> Self {
+    pub fn new() -> Self {
         Self {
             centroids: Vec::new(),
-            buffer: Vec::with_capacity(buffer_capacity),
-            buffer_capacity,
-            delta_partial,
-            delta_final,
+            buffer: Vec::with_capacity(200),  // Initial conservative buffer
+            buffer_capacity: 200,             // Initial conservative buffer size
+            delta_partial: 20,               // Initial conservative compression
+            delta_final: 10,                 // Initial conservative compression
             total_weight: 0.0,
             exact_samples: 0,
+
+            // Scaled parameters once we have enough non-zero blocks
+            scaled_delta_partial: 1000,
+            scaled_delta_final: 200,
+            scaled_buffer_capacity: 2000,
+            
+            adaptation_threshold: 10000,
+            has_adapted: false,
         }
     }
 
+    pub fn adapt_compression_parameters(&mut self) {
+        tracing::info!(
+            "Adapting TDigest parameters at {} samples. Buffer capacity: {} -> {}, Delta partial: {} -> {}, Delta final: {} -> {}",
+            self.exact_samples,
+            self.buffer_capacity,
+            self.scaled_buffer_capacity,
+            self.delta_partial,
+            self.scaled_delta_partial,
+            self.delta_final,
+            self.scaled_delta_final
+        );
+    
+        // Store existing buffer content
+        let existing_buffer = std::mem::take(&mut self.buffer);
+    
+        // Update parameters
+        self.delta_partial = self.scaled_delta_partial;
+        self.delta_final = self.scaled_delta_final;
+        self.buffer_capacity = self.scaled_buffer_capacity;
+        
+        // Create new buffer with increased capacity and transfer existing content
+        self.buffer = Vec::with_capacity(self.scaled_buffer_capacity);
+        self.buffer.extend(existing_buffer);
+        
+        self.has_adapted = true;
+    }
+
     pub fn add(&mut self, x: f64) {
+        // Check for adaptation before adding new value
+        if !self.has_adapted && self.exact_samples >= self.adaptation_threshold {
+            self.adapt_compression_parameters();
+        }
+
         self.buffer.push(x);
         self.exact_samples += 1;
         self.total_weight += 1.0;
@@ -85,6 +132,8 @@ impl TDigest {
         self.exact_samples += total_new;
         self.total_weight += total_new as f64;
     }
+
+
 
     pub fn merge(&mut self, other: &TDigest) -> u64 {
         let (merged_centroids, total_weight) = Self::merge_sorted_centroids(
