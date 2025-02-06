@@ -450,70 +450,45 @@ impl ParallelLVRProcessor {
         chunk_start: u64,
         chunk_end: u64,
     ) -> Result<()> {
+        // Determine effective processing range based on deployment block
         let deployment_block = self.get_deployment_block(pool_address);
         let effective_start = chunk_start.max(deployment_block);
     
+        // Early return if chunk is entirely before deployment
         if effective_start >= chunk_end {
             return Ok(());
         }
     
+        // Get or create checkpoint for this pool and markout time
         let checkpoint = self.checkpoints
             .entry((pool_address.to_string(), markout_time))
             .or_insert_with(|| Checkpoint::new(pool_address.to_string(), markout_time));
     
-        let mut block_data: HashMap<u64, &UnifiedLVRData> = data.iter()
-            .filter(|d| d.block_number >= effective_start && d.block_number < chunk_end)
-            .map(|d| (d.block_number, d))
-            .collect();
-    
-        let mut stats = CheckpointStats::default();
-    
+        // Process data points and zero blocks in chronological order
         for block_number in effective_start..chunk_end {
-            if let Some(data_point) = block_data.remove(&block_number) {
-                stats.update(data_point);
-            } else {
-                stats.buckets[0] += 1;
-                stats.updates += 1;
+            // Find data point for this block if it exists
+            let data_point = data.iter()
+                .find(|d| d.block_number == block_number);
+    
+            match data_point {
+                Some(point) => {
+                    // Update checkpoint with actual data point
+                    checkpoint.update_stats(point.block_number, point.lvr_cents)
+                        .map_err(|e| anyhow::anyhow!("Failed to update checkpoint stats: {}", e))?;
+                },
+                None => {
+                    // Update checkpoint with zero value
+                    checkpoint.update_stats(block_number, 0)
+                        .map_err(|e| anyhow::anyhow!("Failed to update checkpoint with zero value: {}", e))?;
+                }
             }
         }
     
-        if stats.updates > 0 {
-            // Update max LVR value and block
-            checkpoint.update_max_lvr(stats.max_lvr_block, stats.max_lvr);
-            
-            // Update running total
-            checkpoint.running_total.fetch_add(
-                stats.running_total.to_i64().unwrap(), 
-                Ordering::Release
-            );
-    
-            // Update bucket counts atomically
-            let bucket_refs = [
-                &checkpoint.total_bucket_0,
-                &checkpoint.total_bucket_0_10,
-                &checkpoint.total_bucket_10_100,
-                &checkpoint.total_bucket_100_500,
-                &checkpoint.total_bucket_500_1000,
-                &checkpoint.total_bucket_1000_10000,
-                &checkpoint.total_bucket_10000_plus,
-            ];
-    
-            for (count, bucket) in stats.buckets.iter().zip(bucket_refs.iter()) {
-                bucket.fetch_add(*count, Ordering::Release);
-            }
-    
-            // Merge TDigest data
-            if let Ok(mut digest_lock) = checkpoint.digest.lock() {
-                stats.digest.merge_into_locked(&mut digest_lock);
-            }
-    
-            // Update last processed block
-            checkpoint.last_updated_block.fetch_max(chunk_end - 1, Ordering::Release);
-        }
+        // Update last processed block
+        checkpoint.last_updated_block.fetch_max(chunk_end - 1, Ordering::Release);
     
         Ok(())
     }
-
      fn calculate_interval_metrics(
         &self,
         chunk_start: u64,

@@ -1,3 +1,10 @@
+- Look over the assumptions for distribution adapation
+- Make sure to only adapt right before merges
+- Consolidate all the merging methods; some are prolly redundant atp
+- Add testing for adaptation
+
+- Add asterik to realized ratio plot (used beta regression)
+
 - FLAG THE BIG JUMPS IN RUNNING TOTALS
     1. Terra/Luna & 3AC 
     2. FTX
@@ -26,8 +33,4 @@ WETH-USDT-500        | 0x11b815efb8f581194ae79006d24e0d814b7697f6 |    $2,250,48
 
 - For pools with < 3000 non-zero blocks their TDigest throws zero for all percentiles
 - ^ For observed, affected pools are 
-1. PEPE-WETH-V2
-2. DAI-USDT-100
-3. PEPE-WETH-3000
-4. DAI-USDC-100
-5. USDC-USDT-100
+1. DAI-USDT-100
