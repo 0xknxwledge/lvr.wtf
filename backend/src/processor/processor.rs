@@ -1,5 +1,5 @@
 use crate::{
-    api::precompute::PrecomputedWriter, aurora::{AuroraConnection, LVRDetails}, brontes::{BrontesConnection, LVRAnalysis}, config::{AuroraConfig, BrontesConfig}, error::Error, models::{Checkpoint, CheckpointStats, CheckpointUpdate, DataSource, IntervalData, MarkoutTime, UnifiedLVRData},
+    api::precompute::PrecomputedWriter, aurora::{AuroraConnection, LVRDetails}, brontes::{BrontesConnection, LVRAnalysis}, config::{AuroraConfig, BrontesConfig}, error::Error, models::{Checkpoint, CheckpointUpdate, DataSource, IntervalData, MarkoutTime, UnifiedLVRData},
      writer::ParallelParquetWriter, 
      USDeUSDT_DEPLOYMENT, 
      MARKOUT_TIMES, MARKOUT_TIME_MAPPING, 
@@ -17,7 +17,6 @@ use futures::stream::{FuturesOrdered, StreamExt};
 use futures::lock::Mutex;
 use tokio::sync::Barrier;
 use anyhow::Context;
-use num_traits::cast::ToPrimitive;
 
 const BLOCKS_PER_DAY: u64 = 7200;
 const INTERVALS_PER_FILE: u64 = 30;

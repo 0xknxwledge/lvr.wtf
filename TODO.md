@@ -1,8 +1,6 @@
-- Look over the assumptions for distribution adapation
-- Make sure to only adapt right before merges
-- Consolidate all the merging methods; some are prolly redundant atp
-- Add testing for adaptation
-
+- Add testing for tdigest.rs and stats.rs
+- Integrate tdigest quantiles into IQR plot
+- Create a descriptive statistics card
 - Add asterik to realized ratio plot (used beta regression)
 
 - FLAG THE BIG JUMPS IN RUNNING TOTALS

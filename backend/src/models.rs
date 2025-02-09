@@ -233,32 +233,7 @@ impl Checkpoint {
         if abs_dollars == 0.0 {
             self.total_bucket_0.fetch_add(1, Ordering::Release);
         } else {
-            match abs_dollars {
-                x if x <= 10.0 => {
-                    self.total_bucket_0_10.fetch_add(1, Ordering::Release);
-                    digest.add(x, 0);
-                }
-                x if x <= 100.0 => {
-                    self.total_bucket_10_100.fetch_add(1, Ordering::Release);
-                    digest.add(x, 1);
-                }
-                x if x <= 500.0 => {
-                    self.total_bucket_100_500.fetch_add(1, Ordering::Release);
-                    digest.add(x, 2);
-                }
-                x if x <= 1000.0 => {
-                    self.total_bucket_500_1000.fetch_add(1, Ordering::Release);
-                    digest.add(x, 3);
-                }
-                x if x <= 10000.0 => {
-                    self.total_bucket_1000_10000.fetch_add(1, Ordering::Release);
-                    digest.add(x, 4);
-                }
-                _ => {
-                    self.total_bucket_10000_plus.fetch_add(1, Ordering::Release);
-                    digest.add(abs_dollars, 5);
-                }
-            }
+            digest.add(abs_dollars);
         }
 
         Ok(())
@@ -291,7 +266,7 @@ impl Checkpoint {
 
     pub fn finalize(&self) -> Result<(), String> {
         if let Ok(mut digest) = self.digest.lock() {
-            digest.finalize();
+            digest.finalizing_merge();
             Ok(())
         } else {
             Err("Failed to acquire digest lock for finalization".to_string())
@@ -379,29 +354,24 @@ impl CheckpointStats {
         let bucket_idx = if abs_dollars == 0.0 {
             0  // Zero bucket
         } else {
+            self.digest.add(abs_dollars);
             match abs_dollars {
                 x if x <= 10.0 => {
-                    self.digest.add(x, 0);
                     1  // $0-10
                 },
                 x if x <= 100.0 => {
-                    self.digest.add(x, 1);
                     2  // $10-100
                 },
                 x if x <= 500.0 => {
-                    self.digest.add(x, 2);
                     3  // $100-500
                 },
                 x if x <= 1000.0 => {
-                    self.digest.add(x, 3);
                     4  // $500-1000
                 },
                 x if x <= 10000.0 => {
-                    self.digest.add(x, 4);
                     5  // $1000-10000
                 },
                 _ => {
-                    self.digest.add(abs_dollars, 5);
                     6  // $10000+
                 }
             }
@@ -410,44 +380,9 @@ impl CheckpointStats {
         self.buckets[bucket_idx] += 1;
     }
 
-    pub fn merge(&mut self, other: CheckpointStats) {
-        // Update basic counters
-        self.updates += other.updates;
-        self.running_total = self.running_total.saturating_add(other.running_total);
-        
-        // Update max LVR if necessary
-        if other.max_lvr > self.max_lvr {
-            self.max_lvr = other.max_lvr;
-            self.max_lvr_block = other.max_lvr_block;
-        }
-
-        // Merge bucket counts
-        for (self_bucket, other_bucket) in self.buckets.iter_mut().zip(other.buckets.iter()) {
-            *self_bucket += other_bucket;
-        }
-
-        // Merge TDigests while maintaining accurate counts
-        let (merged_centroids, total_weight) = TDigest::merge_sorted_centroids(
-            &self.digest.centroids,
-            &other.digest.centroids
-        );
-
-        // Perform stratified merge using the merged centroids
-        self.digest.centroids = self.digest.stratified_merge(
-            merged_centroids, 
-            self.digest.delta_partial
-        );
-
-        // Update total weight tracking
-        self.digest.total_weight = total_weight;
-        
-        // Update exact sample count
-        self.digest.exact_samples += other.digest.exact_samples;
-    }
-
     pub fn get_percentiles(&mut self) -> (u64, u64, u64) {
         // Finalize the digest before computing percentiles
-        self.digest.finalize();
+        self.digest.finalizing_merge();
         
         // Convert values from dollars back to cents
         let p25 = (self.digest.quantile(0.25).unwrap_or(0.0) * 100.0).round() as u64;
