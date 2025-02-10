@@ -1,4 +1,3 @@
-- Add testing for tdigest.rs and stats.rs
 - Integrate tdigest quantiles into IQR plot
 - Create a descriptive statistics card
 - Add asterik to realized ratio plot (used beta regression)

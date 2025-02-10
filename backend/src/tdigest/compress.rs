@@ -9,20 +9,20 @@ pub struct AdaptiveParameters {
     pub buffer_size: usize,
     
     // Base parameters for small sample sizes
-    base_delta_partial: u64,    // 20
-    base_delta_final: u64,      // 10
-    base_buffer_size: usize,    // 200
+    pub base_delta_partial: u64,    // 20
+    pub base_delta_final: u64,      // 10
+    pub base_buffer_size: usize,    // 200
     
     // Scaled parameters for large sample sizes
-    scaled_delta_partial: u64,  // 1000
-    scaled_delta_final: u64,    // 200
-    scaled_buffer_size: usize,  // 2000
+    pub scaled_delta_partial: u64,  // 1000
+    pub scaled_delta_final: u64,    // 200
+    pub scaled_buffer_size: usize,  // 2000
     
     // Thresholds for adaptation
-    initial_scale_threshold: u64,  // 2000 samples
-    adaptation_threshold: u64,     // 10000 samples
-    samples_seen: u64,
-    adapted: bool,
+    pub initial_scale_threshold: u64,  // 2000 samples
+    pub adaptation_threshold: u64,     // 10000 samples
+    pub samples_seen: u64,
+    pub adapted: bool,
 }
 
 impl AdaptiveParameters {
@@ -148,92 +148,5 @@ impl AdaptiveParameters {
 
     pub fn current_scale_factor(&self) -> f64 {
         self.delta_partial as f64 / self.base_delta_partial as f64
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_initial_parameters() {
-        let params = AdaptiveParameters::new();
-        assert_eq!(params.delta_partial, 20);
-        assert_eq!(params.delta_final, 10);
-        assert_eq!(params.buffer_size, 200);
-    }
-
-    #[test]
-    fn test_initial_scaling() {
-        let mut params = AdaptiveParameters::new();
-        
-        // Create metrics for 2000 samples
-        let stats = DistributionMetrics {
-            mean: 0.0,
-            variance: 1.0,
-            std_dev: 1.0,
-            skewness: 0.0,
-            kurtosis: 0.0,
-            sample_count: 2000,
-        };
-
-        params.adapt(&stats);
-        
-        // Verify scaled up parameters
-        assert!(params.delta_partial > params.base_delta_partial);
-        assert!(params.delta_final > params.base_delta_final);
-        assert!(params.buffer_size > params.base_buffer_size);
-        
-        // Verify within bounds
-        assert!(params.delta_partial <= params.scaled_delta_partial);
-        assert!(params.delta_final <= params.scaled_delta_final);
-        assert!(params.buffer_size <= params.scaled_buffer_size);
-    }
-
-    #[test]
-    fn test_adaptation_for_small_samples() {
-        let mut params = AdaptiveParameters::new();
-        
-        // Test with small sample size
-        let stats = DistributionMetrics {
-            mean: 0.0,
-            variance: 1.0,
-            std_dev: 1.0,
-            skewness: 2.0,  // High skewness
-            kurtosis: -1.0, // Platykurtic
-            sample_count: 1000,
-        };
-
-        params.adapt(&stats);
-        
-        // Should maintain base parameters for small samples
-        assert_eq!(params.delta_partial, params.base_delta_partial);
-        assert_eq!(params.delta_final, params.base_delta_final);
-        assert_eq!(params.buffer_size, params.base_buffer_size);
-    }
-
-    #[test]
-    fn test_reset() {
-        let mut params = AdaptiveParameters::new();
-        
-        // First adapt with large sample size
-        let stats = DistributionMetrics {
-            mean: 0.0,
-            variance: 1.0,
-            std_dev: 1.0,
-            skewness: 0.0,
-            kurtosis: 0.0,
-            sample_count: 10000,
-        };
-
-        params.adapt(&stats);
-        params.reset();
-        
-        // Verify reset to base parameters
-        assert_eq!(params.delta_partial, params.base_delta_partial);
-        assert_eq!(params.delta_final, params.base_delta_final);
-        assert_eq!(params.buffer_size, params.base_buffer_size);
-        assert_eq!(params.samples_seen, 0);
-        assert_eq!(params.adapted, false);
     }
 }

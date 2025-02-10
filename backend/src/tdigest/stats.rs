@@ -123,19 +123,24 @@ impl OnlineStats {
         // Calculate variance with Bessel's correction
         let variance = self.m2 / (n - 1.0);
         let std_dev = variance.sqrt();
+        let n: f64 = self.n as f64;
 
         // Fisher-Pearson Coefficient of Skewness
         let skewness = if self.n < 3 {
             0.0
         } else {
-            self.m3 / (self.n as f64 * variance * std_dev)
+            self.m3 / (n * variance * std_dev)
         };
 
-        // MoM estimator for excess kurtosis 
+        // MoM  estimator for excess kurtosis 
         let kurtosis = if self.n < 4 {
             0.0
         } else {
-            (self.m4 / (self.m2 * self.m2)) - 3.0
+            // Calculate excess kurtosis directly
+            let n = self.n as f64;
+            let variance = self.m2 / n;
+            let m4_normalized = self.m4 / n;
+            (m4_normalized / (variance * variance)) - 3.0
         };
 
         DistributionMetrics {

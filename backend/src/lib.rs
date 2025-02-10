@@ -9,6 +9,7 @@ pub mod writer;
 pub mod validator;
 pub mod api;
 pub mod tdigest;
+pub mod tests;
 
 pub use config::*;
 pub use constants::*;
@@ -21,3 +22,4 @@ pub use writer::*;
 pub use validator::*;
 pub use api::*;
 pub use tdigest::*;
+pub use tests::*;
