@@ -236,7 +236,7 @@ impl TDigest {
         self.centroids.truncate(write_index);
     }
 
-    // Helper functions remain unchanged
+
     pub fn k1(delta: u64, q: f64) -> f64 {
         let z: f64 = (2.0 * q) - 1.0;
         let b: f64 = (delta as f64)/TAU;
@@ -253,6 +253,7 @@ impl TDigest {
         TDigest::inv_k1(TDigest::k1(delta, q_0) + 1.0, delta)
     }
 
+    /// Returns (q * 100)th percentile value in dollars
     pub fn quantile(&self, q: f64) -> Option<f64> {
         if q < 0.0 || q > 1.0 || self.centroids.is_empty() {
             return None;

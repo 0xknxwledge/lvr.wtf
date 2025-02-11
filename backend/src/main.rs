@@ -5,10 +5,9 @@ use futures::future::BoxFuture;
 use object_store::local::LocalFileSystem;
 use object_store::ObjectStore;
 use std::{path::PathBuf, sync::Arc};
-use tokio;
 use tracing::{error, info, warn};
 
-// Block right before merge since SQL queries are lower bound exclusive
+// Block boundaries for processing
 const START_BLOCK: u64 = 15537392;
 const END_BLOCK: u64 = 20000000;
 
@@ -26,31 +25,25 @@ struct Cli {
 enum Commands {
     /// Process LVR data
     Process {
-        /// Starting block number
         #[arg(short, long)]
         start_block: Option<u64>,
 
-        /// Ending block number
         #[arg(short, long)]
         end_block: Option<u64>,
     },
     /// Validate processed data
     Validate {
-        /// Directory containing the data
         #[arg(short, long)]
         data_dir: Option<PathBuf>,
     },
     /// Start the API server
     Serve {
-        /// Port to listen on
         #[arg(short, long, default_value = "50001")]
         port: u16,
 
-        /// Host address to bind to
         #[arg(short = 'b', long, default_value = "127.0.0.1")]
         host: String,
     },
-
     /// Precompute analytical data
     Precompute,
 }
@@ -70,9 +63,9 @@ fn ensure_directories() -> Result<PathBuf> {
     Ok(data_dir)
 }
 
-async fn run_validation(store: &Arc<dyn ObjectStore>) -> Result<()> {
+async fn run_validation(store: Arc<dyn ObjectStore>) -> Result<()> {
     info!("Running data validation");
-    let validator = Validator::new(store.clone());
+    let validator = Validator::new(Arc::clone(&store));
 
     match validator.validate_all().await {
         Ok(results) => {
@@ -98,16 +91,18 @@ async fn run_validation(store: &Arc<dyn ObjectStore>) -> Result<()> {
             }
 
             if has_significant_errors {
-                Err(anyhow::anyhow!(
+                return Err(anyhow::anyhow!(
                     "Validation failed with significant discrepancies"
-                ))
-            } else if has_minor_discrepancies {
+                ));
+            }
+
+            if has_minor_discrepancies {
                 warn!("Validation completed with minor discrepancies");
-                Ok(())
             } else {
                 info!("Validation completed successfully with no discrepancies");
-                Ok(())
             }
+
+            Ok(())
         }
         Err(e) => Err(anyhow::anyhow!("Validation failed: {}", e)),
     }
@@ -116,19 +111,19 @@ async fn run_validation(store: &Arc<dyn ObjectStore>) -> Result<()> {
 #[tokio::main]
 async fn main() -> Result<()> {
     // Initialize logging
-    crate::init_logging();
+    init_logging();
 
     // Parse command line arguments
     let cli = Cli::parse();
 
-    // Load .env file
+    // Load environment variables
     dotenv::dotenv().ok();
 
     // Ensure data directories exist
     let data_dir = ensure_directories()?;
 
     // Initialize object store
-    let store: Arc<dyn object_store::ObjectStore> =
+    let store: Arc<dyn ObjectStore> =
         Arc::new(LocalFileSystem::new_with_prefix(&data_dir)?);
 
     match cli.command {
@@ -141,25 +136,19 @@ async fn main() -> Result<()> {
 
             info!("Starting LVR data processing");
 
-            let processor =
-                ParallelLVRProcessor::new(start_block, end_block, store.clone()).await?;
+            let processor = Arc::new(
+                ParallelLVRProcessor::new(start_block, end_block, Arc::clone(&store)).await?
+            );
 
-            // Create validation callback
+            // Define validation callback
             let validation_callback: Option<ValidationCallback> =
                 Some(|store: &Arc<dyn ObjectStore>| {
-                    Box::pin(async move {
-                        match run_validation(store).await {
-                            Ok(_) => Ok(()),
-                            Err(e) => {
-                                error!("Validation error during processing: {}", e);
-                                Err(e)
-                            }
-                        }
-                    })
+                    Box::pin(async move { run_validation(Arc::clone(store)).await })
                 });
 
             // Process blocks with validation after each chunk
-            match processor.process_blocks(validation_callback).await {
+            let processor_clone = Arc::clone(&processor);
+            match processor_clone.process_blocks(validation_callback).await {
                 Ok(_) => info!("Processing completed successfully"),
                 Err(e) => {
                     error!("Processing failed: {}", e);
@@ -171,10 +160,10 @@ async fn main() -> Result<()> {
             let data_dir = data_dir.unwrap_or_else(|| PathBuf::from("smeed"));
             info!("Starting validation of data in {:?}", data_dir);
 
-            let store: Arc<dyn object_store::ObjectStore> =
+            let store: Arc<dyn ObjectStore> =
                 Arc::new(LocalFileSystem::new_with_prefix(data_dir)?);
 
-            run_validation(&store).await?;
+            run_validation(Arc::clone(&store)).await?;
         }
         Commands::Serve { host, port } => {
             let store: Arc<dyn ObjectStore> = Arc::new(LocalFileSystem::new_with_prefix("smeed")?);
@@ -184,7 +173,8 @@ async fn main() -> Result<()> {
         }
         Commands::Precompute => {
             info!("Starting precomputation of analytical data");
-            let writer = PrecomputedWriter::new(store);
+            
+            let writer = Arc::new(PrecomputedWriter::new(Arc::clone(&store)));
             
             info!("Computing running totals...");
             writer.write_running_totals().await?;
@@ -221,7 +211,10 @@ async fn main() -> Result<()> {
             
             info!("Computing cluster non-zero metrics...");
             writer.write_cluster_non_zero().await?;
-            
+
+            info!("Computing distribution metrics...");
+            writer.write_distribution_metrics().await?;
+    
             info!("Successfully completed all precomputation tasks");
         }
     }

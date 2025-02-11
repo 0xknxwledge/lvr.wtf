@@ -9,14 +9,15 @@ use crate::{
 use anyhow::Result;
 use dashmap::DashMap;
 use ordered_float::OrderedFloat;
-use std::{collections::{HashSet,HashMap}, sync::Arc};
-use tracing::{info, error, warn, debug};
+use std::{collections::HashMap, sync::Arc};
+use tracing::{info, error, warn};
 use object_store::ObjectStore;
 use std::sync::atomic::Ordering;
 use futures::stream::{FuturesOrdered, StreamExt};
 use futures::lock::Mutex;
-use tokio::sync::Barrier;
 use anyhow::Context;
+use futures::future::BoxFuture;
+use tokio::time::{Duration, sleep};
 
 const BLOCKS_PER_DAY: u64 = 7200;
 const INTERVALS_PER_FILE: u64 = 30;
@@ -35,7 +36,6 @@ pub struct ParallelLVRProcessor {
     aurora_connection: Arc<AuroraConnection>,
     brontes_connection: Arc<BrontesConnection>,
     parquet_writer: Arc<Mutex<ParallelParquetWriter>>,
-    update_barrier: Arc<Barrier>,
     object_store: Arc<dyn ObjectStore>
 }
 
@@ -59,7 +59,6 @@ impl ParallelLVRProcessor {
             aurora_connection,
             brontes_connection,
             parquet_writer,
-            update_barrier: Arc::new(Barrier::new(1)),
             object_store
         })
     }
@@ -75,19 +74,20 @@ impl ParallelLVRProcessor {
     }
 
     pub async fn process_blocks(
-        &self,
-        validation_callback: Option<fn(&Arc<dyn ObjectStore>) -> futures::future::BoxFuture<'_, Result<()>>>
+        self: Arc<Self>,
+        validation_callback: Option<fn(&Arc<dyn ObjectStore>) -> BoxFuture<'_, Result<()>>>
     ) -> Result<()> {
         info!("Starting block processing from {} to {}", self.start_block, self.end_block);
         let total_blocks = self.end_block - self.start_block;
         let total_chunks = (total_blocks + BLOCKS_PER_CHUNK - 1) / BLOCKS_PER_CHUNK;
         let mut processed_blocks = 0;
-        
+    
         for chunk_idx in 0..total_chunks {
             let chunk_start = self.start_block + (chunk_idx * BLOCKS_PER_CHUNK);
             let chunk_end = std::cmp::min(chunk_start + BLOCKS_PER_CHUNK, self.end_block);
-            
-            match self.process_chunk_with_retries(chunk_idx, chunk_start, chunk_end, total_chunks).await {
+    
+            let self_clone = Arc::clone(&self); // Clone before passing to async function
+            match self_clone.process_chunk_with_retries(chunk_idx, chunk_start, chunk_end, total_chunks).await {
                 Ok(_) => {
                     processed_blocks += chunk_end - chunk_start;
                     info!(
@@ -99,7 +99,8 @@ impl ParallelLVRProcessor {
     
                     // Run validation after each chunk if callback is provided
                     if let Some(validate) = validation_callback {
-                        match validate(&self.object_store).await {
+                        let store_clone = Arc::clone(&self.object_store); // Clone store to avoid lifetime issues
+                        match validate(&store_clone).await {
                             Ok(_) => info!("Validation passed for chunk {}/{}", chunk_idx + 1, total_chunks),
                             Err(e) => {
                                 error!("Validation failed for chunk {}/{}: {}", chunk_idx + 1, total_chunks, e);
@@ -111,7 +112,7 @@ impl ParallelLVRProcessor {
                 Err(e) => return Err(e),
             }
         }
-
+    
         // Finalize all checkpoints with delta_final
         info!("Finalizing checkpoints with delta_final parameter...");
         for checkpoint in self.checkpoints.iter_mut() {
@@ -120,31 +121,34 @@ impl ParallelLVRProcessor {
                     checkpoint.pair_address, checkpoint.markout_time, e);
             }
         }
-
+    
         // Write the finalized checkpoints one last time
-        self.write_checkpoints().await?;
+        let self_clone = Arc::clone(&self); // Clone before calling async method
+        self_clone.write_checkpoints().await?;
         info!("Successfully finalized all checkpoints");
-        
+    
         info!(
             "Successfully completed processing all blocks from {} to {}", 
             self.start_block, self.end_block
         );
-
+    
         // Run precomputation after successful processing
         info!("Starting precomputation phase...");
-        match self.run_precomputation().await {
+        let self_clone = Arc::clone(&self);
+        match self_clone.run_precomputation().await {
             Ok(_) => info!("Successfully completed precomputation phase"),
             Err(e) => {
                 error!("Failed to run precomputation: {}", e);
                 return Err(e);
             }
         }
-        
+    
         Ok(())
     }
-
+    
+    
     async fn process_chunk_with_retries(
-        &self,
+        self: Arc<Self>,
         chunk_idx: u64,
         chunk_start: u64,
         chunk_end: u64,
@@ -152,15 +156,16 @@ impl ParallelLVRProcessor {
     ) -> Result<()> {
         let max_retries = 20;
         let mut attempt = 0;
-
+    
         loop {
             attempt += 1;
             info!(
                 "Processing chunk {}/{} (blocks {} to {}), attempt {}/{}",
                 chunk_idx + 1, total_chunks, chunk_start, chunk_end, attempt, max_retries
             );
-
-            match self.process_chunk(chunk_start, chunk_end).await {
+    
+            let self_clone = Arc::clone(&self); // Clone Arc<Self> before passing it
+            match self_clone.process_chunk(chunk_start, chunk_end).await {
                 Ok(_) => break Ok(()),
                 Err(e) => {
                     if attempt >= max_retries {
@@ -170,42 +175,41 @@ impl ParallelLVRProcessor {
                         );
                         break Err(e);
                     }
-                    
-                    let delay = std::time::Duration::from_secs(5 * attempt as u64);
+    
+                    let delay = Duration::from_secs(5 * attempt as u64);
                     warn!(
                         "Chunk {}/{} failed (attempt {}/{}): {}. Retrying in {} seconds...",
                         chunk_idx + 1, total_chunks, attempt, max_retries, e, delay.as_secs()
                     );
-                    tokio::time::sleep(delay).await;
+                    sleep(delay).await;
                 }
             }
         }
     }
-
-    async fn process_chunk(&self, chunk_start: u64, chunk_end: u64) -> Result<()> {
-        // Fetch data from both sources concurrently
+    
+    async fn process_chunk(self: Arc<Self>, chunk_start: u64, chunk_end: u64) -> Result<()> {
+        // Fetch data concurrently (keep this parallel since it's I/O bound)
         let (aurora_results, brontes_results) = self.fetch_data(chunk_start, chunk_end).await?;
     
-        // Process the results but don't update checkpoints yet
+        // Process results
         let (processed_data, checkpoint_updates) = self
             .process_results(chunk_start, chunk_end, aurora_results, brontes_results)
             .await?;
     
-        // Write interval data if needed
-        if chunk_end - chunk_start >= BLOCKS_PER_CHUNK || chunk_end == self.end_block {
-            if !processed_data.intervals.is_empty() {
-                let mut writer = self.parquet_writer.lock().await;
-                writer
-                    .write_interval_data(processed_data.intervals, chunk_start, chunk_end)
-                    .await?;
-            }
+        // Write interval data synchronously if needed
+        if (chunk_end - chunk_start >= BLOCKS_PER_CHUNK || chunk_end == self.end_block) 
+            && !processed_data.intervals.is_empty() 
+        {
+            let mut writer_guard = self.parquet_writer.lock().await;
+            writer_guard.write_interval_data(processed_data.intervals, chunk_start, chunk_end).await?;
         }
     
-        // Atomically update and write checkpoints
+        // Update checkpoints
         self.atomic_checkpoint_update(checkpoint_updates).await?;
     
         Ok(())
     }
+    
     
 
     async fn fetch_data(
@@ -244,9 +248,10 @@ impl ParallelLVRProcessor {
         aurora_results: Vec<Vec<LVRDetails>>,
         brontes_results: Vec<LVRAnalysis>
     ) -> Result<(ProcessedData, Vec<CheckpointUpdate>)> {
+        // Pre-allocate with known maximum sizes
         let unified_data = DashMap::new();
-        let mut checkpoint_updates = Vec::new();
-        let mut successful_intervals = Vec::new();
+        let mut checkpoint_updates = Vec::with_capacity(POOL_ADDRESSES.len() * MARKOUT_TIMES.len());
+        let mut successful_intervals = Vec::with_capacity(POOL_ADDRESSES.len());
     
         // Process Aurora data
         for (markout_idx, aurora_markout_data) in aurora_results.into_iter().enumerate() {
@@ -257,18 +262,21 @@ impl ParallelLVRProcessor {
                 let pool_name = POOL_NAMES.get(*pool_address)
                     .context("Unknown pool address")?;
     
-                let aurora_data: Vec<UnifiedLVRData> = aurora_markout_data.iter()
-                    .filter_map(|detail| {
-                        self.parse_lvr_details(&detail.details, pool_name)
-                            .and_then(|lvr| {
-                                self.to_cents(lvr).ok().map(|cents| UnifiedLVRData {
-                                    block_number: detail.block_number,
-                                    lvr_cents: cents,
-                                    source: DataSource::Aurora,
-                                })
-                            })
-                    })
-                    .collect();
+                // Pre-allocate vector based on expected data size
+                let mut aurora_data = Vec::with_capacity(aurora_markout_data.len());
+                
+                // Process data without intermediate collections
+                for detail in &aurora_markout_data {
+                    if let Some(lvr) = self.parse_lvr_details(&detail.details, pool_name) {
+                        if let Ok(cents) = self.to_cents(lvr) {
+                            aurora_data.push(UnifiedLVRData {
+                                block_number: detail.block_number,
+                                lvr_cents: cents,
+                                source: DataSource::Aurora,
+                            });
+                        }
+                    }
+                }
     
                 if !aurora_data.is_empty() {
                     unified_data.insert((pool_address.to_string(), markout_time), aurora_data);
@@ -276,16 +284,17 @@ impl ParallelLVRProcessor {
             }
         }
     
-        // Process Brontes data
-        let mut brontes_data: HashMap<String, Vec<UnifiedLVRData>> = HashMap::new();
+        // Process Brontes data efficiently
+        let chunk_size = (chunk_end - chunk_start) as usize;
+        let mut brontes_data: HashMap<String, Vec<UnifiedLVRData>> = HashMap::with_capacity(BRONTES_ADDRESSES.len());
     
-        // First, collect all actual Brontes events
+        // Collect Brontes events with pre-allocated vectors
         for result in brontes_results {
             if result.block_number >= chunk_start && result.block_number < chunk_end {
                 if let Ok(cents) = self.to_cents(result.lvr) {
                     brontes_data
                         .entry(result.pool_address.to_lowercase())
-                        .or_default()
+                        .or_insert_with(|| Vec::with_capacity(chunk_size))
                         .push(UnifiedLVRData {
                             block_number: result.block_number,
                             lvr_cents: cents,
@@ -297,31 +306,39 @@ impl ParallelLVRProcessor {
     
         // Process each Brontes pool
         for pool_address in BRONTES_ADDRESSES.iter() {
-            // Get or create vector for this pool
-            let mut pool_data = brontes_data
-                .remove(*pool_address)
-                .unwrap_or_default();
+            let mut complete_data = Vec::with_capacity(chunk_size);
             
-            // Sort by block number for efficient lookup
-            pool_data.sort_by_key(|data| data.block_number);
-            let event_blocks: HashSet<u64> = pool_data
-                .iter()
-                .map(|data| data.block_number)
-                .collect();
+            if let Some(mut pool_data) = brontes_data.remove(*pool_address) {
+                pool_data.sort_unstable_by_key(|data| data.block_number);
+                let mut pool_iter = pool_data.iter().peekable();
     
-            // Add zeros for blocks without events
-            let mut complete_data = Vec::with_capacity((chunk_end - chunk_start) as usize);
-            
-            // Add existing events and zeros in sorted order
-            for block in chunk_start..chunk_end {
-                if event_blocks.contains(&block) {
-                    let event = pool_data
-                        .iter()
-                        .find(|data| data.block_number == block)
-                        .unwrap()
-                        .clone();
-                    complete_data.push(event);
-                } else {
+                for block in chunk_start..chunk_end {
+                    if let Some(&&UnifiedLVRData { block_number, lvr_cents, .. }) = pool_iter.peek() {
+                        if block_number == block {
+                            complete_data.push(UnifiedLVRData {
+                                block_number,
+                                lvr_cents,
+                                source: DataSource::Brontes,
+                            });
+                            pool_iter.next();
+                        } else {
+                            complete_data.push(UnifiedLVRData {
+                                block_number: block,
+                                lvr_cents: 0,
+                                source: DataSource::Brontes,
+                            });
+                        }
+                    } else {
+                        complete_data.push(UnifiedLVRData {
+                            block_number: block,
+                            lvr_cents: 0,
+                            source: DataSource::Brontes,
+                        });
+                    }
+                }
+            } else {
+                // Fill with zeros if no data exists
+                for block in chunk_start..chunk_end {
                     complete_data.push(UnifiedLVRData {
                         block_number: block,
                         lvr_cents: 0,
@@ -330,19 +347,17 @@ impl ParallelLVRProcessor {
                 }
             }
     
-            // Insert into unified data (we'll always have at least zeros)
             unified_data.insert(
                 (pool_address.to_string(), MarkoutTime::Brontes),
                 complete_data
             );
         }
     
-        // Process all data
+        // Process unified data and build updates
         for entry in unified_data.iter() {
             let (key, data) = entry.pair();
             let (pool_address, markout_time) = key;
             
-            // Add checkpoint update
             checkpoint_updates.push(CheckpointUpdate {
                 pool_address: pool_address.clone(),
                 markout_time: markout_time.clone(),
@@ -351,19 +366,19 @@ impl ParallelLVRProcessor {
                 chunk_end,
             });
     
-            // Calculate intervals
-            match self.calculate_interval_metrics(
+            if let Ok(intervals) = self.calculate_interval_metrics(
                 chunk_start,
                 chunk_end,
                 &pool_address,
                 markout_time.clone(),
                 &data,
             ) {
-                Ok(intervals) => successful_intervals.extend(intervals),
-                Err(e) => return Err(anyhow::anyhow!(
-                    "Interval calculation failed for {}-{}: {}", 
-                    pool_address, markout_time, e
-                )),
+                successful_intervals.extend(intervals);
+            } else {
+                return Err(anyhow::anyhow!(
+                    "Interval calculation failed for {}-{}", 
+                    pool_address, markout_time
+                ));
             }
         }
     
@@ -373,9 +388,19 @@ impl ParallelLVRProcessor {
         ))
     }
 
-    async fn atomic_checkpoint_update(&self, updates: Vec<CheckpointUpdate>) -> Result<()> {
-        // Apply all updates atomically
+    async fn atomic_checkpoint_update(self: Arc<Self>, updates: Vec<CheckpointUpdate>) -> Result<()> {
+        // Pre-allocate the HashMap
+        let mut updates_by_checkpoint: HashMap<(String, MarkoutTime), CheckpointUpdate> = 
+            HashMap::with_capacity(230);
+        
+        // Group updates by checkpoint
         for update in updates {
+            let key = (update.pool_address.clone(), update.markout_time.clone());
+            updates_by_checkpoint.insert(key, update);
+        }
+    
+        // Process all updates before writing
+        for (_, update) in updates_by_checkpoint {
             self.update_checkpoint(
                 &update.pool_address,
                 update.markout_time,
@@ -384,50 +409,32 @@ impl ParallelLVRProcessor {
                 update.chunk_end,
             ).await?;
         }
-        
-        // Write all updates at once
+    
+        // Write checkpoints in a single operation
         self.write_checkpoints().await?;
-        
         Ok(())
     }
 
     async fn write_checkpoints(&self) -> Result<()> {
-        // Log the start of checkpoint writing
-        info!("Starting to write checkpoints.");
+        info!("Starting checkpoint write operation");
     
-        // Wait for any in-flight updates to complete
-        let barrier = self.update_barrier.clone();
+        // Pre-allocate vector for all checkpoints
+        let mut checkpoints = Vec::with_capacity(230);
+        let mut counter = 0;
+        
+        // Create all snapshots before acquiring writer lock
+        for entry in self.checkpoints.iter() {
+            checkpoints.push(entry.value().to_snapshot());
+            counter += 1;
+        }
     
-        // Spawn a task that waits for all updates
-        let barrier_wait = tokio::spawn(async move {
-            debug!("Waiting for the update barrier to synchronize.");
-            barrier.wait().await;
-        });
+        // Single write operation with minimal lock time
+        let mut writer_guard = self.parquet_writer.lock().await;
+        writer_guard.write_checkpoints(checkpoints).await?;
     
-        // Wait for the barrier
-        barrier_wait.await?;
-    
-        // Now safely collect and write checkpoints
-        let checkpoints: Vec<_> = self
-            .checkpoints
-            .iter()
-            .map(|entry| entry.value().to_snapshot())
-            .collect();
-    
-        debug!(
-            "Collected {} checkpoints to write.",
-            checkpoints.len()
-        );
-    
-        let mut writer = self.parquet_writer.lock().await;
-        writer.write_checkpoints(checkpoints).await?;
-    
-        // Log the successful completion of checkpoint writing
-        info!("Successfully wrote checkpoints.");
-    
+        info!("Successfully wrote {} checkpoint files", counter);
         Ok(())
     }
-    
 
 
     fn to_cents(&self, value: f64) -> Result<u64> {

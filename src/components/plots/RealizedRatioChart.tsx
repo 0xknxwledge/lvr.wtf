@@ -180,7 +180,7 @@ const RealizedRatioChart: React.FC = () => {
   const maxY = Math.max(...yValues, ...yPred);
   const yPadding = (maxY * (isMobile ? 0.1 : 0.15));
 
-  const title = 'Ratio between Total<br>Realized/Maximal LVR by Markout Time';
+  const title = 'Ratio between Total<br>Realized/Maximal LVR by Markout Time*';
   const baseLayout = createBaseLayout(title);
 
   const layout: Partial<Layout> = {
@@ -244,7 +244,7 @@ const RealizedRatioChart: React.FC = () => {
         y: maxY + (yPadding / 2),
         xref: 'x',
         yref: 'y',
-        text: `Avg. Marginal Effect: ${marginalEffect.toFixed(2)}pp/s`,
+        text: `Avg. Marginal Effect: ${marginalEffect.toFixed(2)}% for every +1 second`,
         showarrow: false,
         font: { 
           color: plotColors.accent,

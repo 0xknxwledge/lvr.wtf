@@ -14,7 +14,7 @@ use anyhow::{Result, Context};
 use bytes::Bytes;
 use futures::stream::{FuturesOrdered, StreamExt};
 use crate::models::{IntervalData, CheckpointSnapshot};
-use tracing::{warn, error};
+use tracing::{warn, error, debug};
 
 const MAX_CONCURRENT_WRITES: usize = 8;
 
@@ -52,7 +52,10 @@ impl ParallelParquetWriter {
         chunk_start: u64,
         chunk_end: u64,
     ) -> Result<()> {
+        debug!("Acquiring semaphore for checkpoint writes...");
         let _permit = self.write_semaphore.acquire().await?;
+        debug!("Acquired semaphore, proceeding with checkpoint writes...");
+        
     
         if interval_data.is_empty() {
             warn!("No interval data to write for chunk {}-{}", chunk_start, chunk_end);
@@ -77,7 +80,10 @@ impl ParallelParquetWriter {
         &mut self,
         checkpoints: Vec<CheckpointSnapshot>
     ) -> Result<()> {
+        debug!("Acquiring semaphore for checkpoint writes...");
         let _permit = self.write_semaphore.acquire().await?;
+        debug!("Acquired semaphore, proceeding with checkpoint writes...");
+        
     
         let mut checkpoint_tasks = FuturesOrdered::new();
     
@@ -186,5 +192,9 @@ fn create_record_batch_from_checkpoint(checkpoint: &CheckpointSnapshot) -> Resul
         ("median_cents", Arc::new(UInt64Array::from(vec![checkpoint.median_cents])) as ArrayRef),
         ("percentile_75_cents", Arc::new(UInt64Array::from(vec![checkpoint.percentile_75_cents])) as ArrayRef),
         ("non_zero_samples", Arc::new(UInt64Array::from(vec![checkpoint.non_zero_samples])) as ArrayRef),
+        ("mean", Arc::new(Float64Array::from(vec![checkpoint.mean])) as ArrayRef),
+        ("std_dev", Arc::new(Float64Array::from(vec![checkpoint.std_dev])) as ArrayRef),
+        ("skewness", Arc::new(Float64Array::from(vec![checkpoint.skewness])) as ArrayRef),
+        ("kurtosis", Arc::new(Float64Array::from(vec![checkpoint.kurtosis])) as ArrayRef),
     ]).context("Failed to create checkpoint record batch")
 }

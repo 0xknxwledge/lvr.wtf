@@ -7,7 +7,7 @@ edition = "2021"
 
 [dependencies]
 clickhouse = { version = "0.13.1" }
-mysql_async = "0.35.1"
+mysql_async = { version = "0.35.1", features = ["native-tls-tls"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 chrono = "0.4"

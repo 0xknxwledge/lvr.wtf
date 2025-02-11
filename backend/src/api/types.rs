@@ -261,3 +261,20 @@ pub struct QuartilePlotResponse {
     pub median_cents: u64,
     pub percentile_75_cents: u64,
 }
+
+#[derive(Debug, Deserialize)]
+pub struct DistributionQuery {
+    pub pool_address: String,
+    pub markout_time: String,
+}
+
+#[derive(Debug, Serialize)]
+pub struct DistributionResponse {
+    pub pool_name: String,
+    pub pool_address: String,
+    pub markout_time: String,
+    pub mean: f64,
+    pub std_dev: f64,
+    pub skewness: f64,
+    pub kurtosis: f64
+}

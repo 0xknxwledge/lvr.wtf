@@ -1,6 +1,4 @@
-- Integrate tdigest quantiles into IQR plot
 - Create a descriptive statistics card
-- Add asterik to realized ratio plot (used beta regression)
 
 - FLAG THE BIG JUMPS IN RUNNING TOTALS
     1. Terra/Luna & 3AC 
@@ -28,6 +26,4 @@ DAI-WETH-3000        | 0xc2e9f25be6257c210d7adf0d4cd6e3e881ba25f8 |    $3,124,65
 WETH-USDT-500        | 0x11b815efb8f581194ae79006d24e0d814b7697f6 |    $2,250,486.24
 
 
-- For pools with < 3000 non-zero blocks their TDigest throws zero for all percentiles
-- ^ For observed, affected pools are 
-1. DAI-USDT-100
+- Fuzz test DistributionMetrics and quantile estimates for lognormal, pareto, bimodal, etc. distributions; whats the expected relative error? How consistent is it?

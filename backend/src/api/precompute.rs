@@ -20,7 +20,7 @@ use crate::{
     api::handlers::*,
     MERGE_BLOCK, POOL_NAMES, INTERVAL_RANGES,
     common::{BLOCKS_PER_INTERVAL, FINAL_INTERVAL_FILE, FINAL_PARTIAL_BLOCKS, 
-        get_string_column, get_uint64_column, get_valid_pools, get_column_value, get_pool_name}
+        get_string_column, get_uint64_column, get_valid_pools, get_column_value, get_pool_name, get_float64_column}
 };
 use arrow::array::Array;
 
@@ -1600,6 +1600,117 @@ impl PrecomputedWriter {
         self.write_batch_to_store(output_path, batch).await?;
 
         info!("Successfully wrote precomputed cluster non-zero proportions");
+        Ok(())
+    }
+
+    pub async fn write_distribution_metrics(&self) -> Result<(), anyhow::Error> {
+        info!("Starting precomputation of distribution metrics");
+    
+        let schema = arrow::datatypes::Schema::new(vec![
+            arrow::datatypes::Field::new("pool_address", arrow::datatypes::DataType::Utf8, false),
+            arrow::datatypes::Field::new("pool_name", arrow::datatypes::DataType::Utf8, false),
+            arrow::datatypes::Field::new("markout_time", arrow::datatypes::DataType::Utf8, false),
+            arrow::datatypes::Field::new("mean", arrow::datatypes::DataType::Float64, false),
+            arrow::datatypes::Field::new("std_dev", arrow::datatypes::DataType::Float64, false),
+            arrow::datatypes::Field::new("skewness", arrow::datatypes::DataType::Float64, false),
+            arrow::datatypes::Field::new("kurtosis", arrow::datatypes::DataType::Float64, false),
+        ]);
+    
+        let mut pool_addresses = Vec::new();
+        let mut pool_names = Vec::new();
+        let mut markout_times = Vec::new();
+        let mut means = Vec::new();
+        let mut std_devs = Vec::new();
+        let mut skewness_values = Vec::new();
+        let mut kurtosis_values = Vec::new();
+    
+        // Process checkpoint files
+        let checkpoints_path = object_store::path::Path::from("checkpoints");
+        let mut checkpoint_files = self.object_store.list(Some(&checkpoints_path));
+        let valid_pools = get_valid_pools();
+    
+        while let Some(meta_result) = checkpoint_files.next().await {
+            let meta = meta_result.context("Failed to get file metadata")?;
+    
+            let bytes = self.object_store.get(&meta.location)
+                .await?
+                .bytes()
+                .await?;
+    
+            let reader = ParquetRecordBatchReader::try_new(bytes, 1024)?;
+    
+            for batch_result in reader {
+                let batch = batch_result?;
+    
+                let pool_addresses_col = get_string_column(&batch, "pool_address")
+                    .map_err(|e| anyhow::anyhow!("Failed to get pool_address column: {}", e))?;
+                let markout_times_col = get_string_column(&batch, "markout_time")
+                    .map_err(|e| anyhow::anyhow!("Failed to get markout_time column: {}", e))?;
+                let means_col = get_float64_column(&batch, "mean")
+                    .map_err(|e| anyhow::anyhow!("Failed to get mean column: {}", e))?;
+                let std_devs_col = get_float64_column(&batch, "std_dev")
+                    .map_err(|e| anyhow::anyhow!("Failed to get std_dev column: {}", e))?;
+                let skewness_col = get_float64_column(&batch, "skewness")
+                    .map_err(|e| anyhow::anyhow!("Failed to get skewness column: {}", e))?;
+                let kurtosis_col = get_float64_column(&batch, "kurtosis")
+                    .map_err(|e| anyhow::anyhow!("Failed to get kurtosis column: {}", e))?;
+                let samples_col = get_uint64_column(&batch, "non_zero_samples")
+                    .map_err(|e| anyhow::anyhow!("Failed to get non_zero_samples column: {}", e))?;
+                
+                for i in 0..batch.num_rows() {
+                    let pool_address = pool_addresses_col.value(i).to_lowercase();
+                    
+                    // Skip invalid pools
+                    if !valid_pools.contains(&pool_address) {
+                        continue;
+                    }
+    
+                    // Get or compute pool name
+                    let pool_name = get_pool_name(&pool_address);
+    
+                    // Only add metrics if we have valid samples
+                    let sample_count = samples_col.value(i);
+                    if sample_count > 0 {
+                        pool_addresses.push(pool_address);
+                        pool_names.push(pool_name);
+                        markout_times.push(markout_times_col.value(i).to_string());
+                        means.push(means_col.value(i));
+                        std_devs.push(std_devs_col.value(i));
+                        skewness_values.push(skewness_col.value(i));
+                        kurtosis_values.push(kurtosis_col.value(i));
+                    }
+                }
+            }
+        }
+    
+        if pool_addresses.is_empty() {
+            warn!("No distribution metrics found in checkpoint files");
+            return Ok(());
+        }
+    
+        // Create record batch
+        let batch = RecordBatch::try_new(
+            Arc::new(schema),
+            vec![
+                Arc::new(StringArray::from(pool_addresses.clone())),
+                Arc::new(StringArray::from(pool_names)),
+                Arc::new(StringArray::from(markout_times)),
+                Arc::new(Float64Array::from(means)),
+                Arc::new(Float64Array::from(std_devs)),
+                Arc::new(Float64Array::from(skewness_values)),
+                Arc::new(Float64Array::from(kurtosis_values)),
+            ],
+        )?;
+    
+        // Write to output file
+        let output_path = Path::from("precomputed/distributions/metrics.parquet");
+        self.write_batch_to_store(output_path, batch).await?;
+    
+        info!(
+            "Successfully wrote precomputed distribution metrics for {} pool-markout combinations",
+            pool_addresses.len()
+        );
+    
         Ok(())
     }
 }
