@@ -52,10 +52,8 @@ impl ParallelParquetWriter {
         chunk_start: u64,
         chunk_end: u64,
     ) -> Result<()> {
-        debug!("Acquiring semaphore for checkpoint writes...");
+        debug!("Acquiring semaphore for interval data write...");
         let _permit = self.write_semaphore.acquire().await?;
-        debug!("Acquired semaphore, proceeding with checkpoint writes...");
-        
     
         if interval_data.is_empty() {
             warn!("No interval data to write for chunk {}-{}", chunk_start, chunk_end);
@@ -82,8 +80,6 @@ impl ParallelParquetWriter {
     ) -> Result<()> {
         debug!("Acquiring semaphore for checkpoint writes...");
         let _permit = self.write_semaphore.acquire().await?;
-        debug!("Acquired semaphore, proceeding with checkpoint writes...");
-        
     
         let mut checkpoint_tasks = FuturesOrdered::new();
     
@@ -174,11 +170,14 @@ fn create_record_batch_from_interval_data(data: Vec<IntervalData>) -> Result<Rec
 
 fn create_record_batch_from_checkpoint(checkpoint: &CheckpointSnapshot) -> Result<RecordBatch> {
     RecordBatch::try_from_iter([
+        // Basic metrics
         ("pair_address", Arc::new(StringArray::from(vec![checkpoint.pair_address.clone()])) as ArrayRef),
         ("markout_time", Arc::new(StringArray::from(vec![checkpoint.markout_time.to_string()])) as ArrayRef),
         ("max_lvr_block", Arc::new(UInt64Array::from(vec![checkpoint.max_lvr_block])) as ArrayRef),
         ("max_lvr_value", Arc::new(UInt64Array::from(vec![checkpoint.max_lvr_value])) as ArrayRef),
         ("running_total", Arc::new(UInt64Array::from(vec![checkpoint.running_total])) as ArrayRef),
+        
+        // Bucket distributions
         ("total_bucket_0", Arc::new(UInt64Array::from(vec![checkpoint.total_bucket_0])) as ArrayRef),
         ("total_bucket_0_10", Arc::new(UInt64Array::from(vec![checkpoint.total_bucket_0_10])) as ArrayRef),
         ("total_bucket_10_100", Arc::new(UInt64Array::from(vec![checkpoint.total_bucket_10_100])) as ArrayRef),
@@ -186,12 +185,18 @@ fn create_record_batch_from_checkpoint(checkpoint: &CheckpointSnapshot) -> Resul
         ("total_bucket_500_1000", Arc::new(UInt64Array::from(vec![checkpoint.total_bucket_500_1000])) as ArrayRef),
         ("total_bucket_1000_10000", Arc::new(UInt64Array::from(vec![checkpoint.total_bucket_1000_10000])) as ArrayRef),
         ("total_bucket_10000_plus", Arc::new(UInt64Array::from(vec![checkpoint.total_bucket_10000_plus])) as ArrayRef),
+        
+        // Block and sample metrics
         ("last_updated_block", Arc::new(UInt64Array::from(vec![checkpoint.last_updated_block])) as ArrayRef),
         ("non_zero_proportion", Arc::new(Float64Array::from(vec![checkpoint.non_zero_proportion])) as ArrayRef),
+        ("non_zero_samples", Arc::new(UInt64Array::from(vec![checkpoint.non_zero_samples])) as ArrayRef),
+        
+        // Percentile metrics
         ("percentile_25_cents", Arc::new(UInt64Array::from(vec![checkpoint.percentile_25_cents])) as ArrayRef),
         ("median_cents", Arc::new(UInt64Array::from(vec![checkpoint.median_cents])) as ArrayRef),
         ("percentile_75_cents", Arc::new(UInt64Array::from(vec![checkpoint.percentile_75_cents])) as ArrayRef),
-        ("non_zero_samples", Arc::new(UInt64Array::from(vec![checkpoint.non_zero_samples])) as ArrayRef),
+        
+        // Distribution metrics
         ("mean", Arc::new(Float64Array::from(vec![checkpoint.mean])) as ArrayRef),
         ("std_dev", Arc::new(Float64Array::from(vec![checkpoint.std_dev])) as ArrayRef),
         ("skewness", Arc::new(Float64Array::from(vec![checkpoint.skewness])) as ArrayRef),

@@ -2,7 +2,7 @@ use serde::{Serialize, Deserialize};
 use std::sync::atomic::{AtomicU64, AtomicI64};
 use std::fmt;
 use std::sync::atomic::Ordering;
-use std::sync::{Arc, RwLock};
+use std::sync::{Arc, Mutex};
 use num_traits::cast::ToPrimitive;
 use crate::tdigest::*;
 
@@ -103,7 +103,7 @@ pub struct MaxLVRData {
 pub struct Checkpoint {
     pub pair_address: String,
     pub markout_time: MarkoutTime,
-    pub max_lvr: Arc<RwLock<MaxLVRData>>,
+    pub max_lvr: Arc<Mutex<MaxLVRData>>,
     pub running_total: AtomicI64,
     pub total_bucket_0: AtomicU64,        
     pub total_bucket_0_10: AtomicU64,     
@@ -113,7 +113,7 @@ pub struct Checkpoint {
     pub total_bucket_1000_10000: AtomicU64, 
     pub total_bucket_10000_plus: AtomicU64, 
     pub last_updated_block: AtomicU64,
-    pub digest: Arc<RwLock<TDigest>>,
+    pub digest: Arc<Mutex<TDigest>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -157,7 +157,7 @@ impl Checkpoint {
         Self {
             pair_address,
             markout_time,
-            max_lvr: Arc::new(RwLock::new(MaxLVRData {
+            max_lvr: Arc::new(Mutex::new(MaxLVRData {
                 value: 0,
                 block: 0,
             })),
@@ -171,43 +171,37 @@ impl Checkpoint {
             total_bucket_10000_plus: AtomicU64::new(0),
             last_updated_block: AtomicU64::new(0),
 
-            digest: Arc::new(RwLock::new(TDigest::new()))
+            digest: Arc::new(Mutex::new(TDigest::new()))
         }
     }
 
     pub fn to_snapshot(&self) -> CheckpointSnapshot {
-        let max_lvr_data = self.max_lvr.read().unwrap();
-        let digest = self.digest.read().unwrap();
+        let max_lvr_data = self.max_lvr.lock().unwrap();
+        let digest = self.digest.lock().unwrap();
         
-        // Get bucket counts
-        let total_bucket_0 = self.total_bucket_0.load(Ordering::Acquire);
-        let non_zero_buckets = [
-            self.total_bucket_0_10.load(Ordering::Acquire),
-            self.total_bucket_10_100.load(Ordering::Acquire),
-            self.total_bucket_100_500.load(Ordering::Acquire),
-            self.total_bucket_500_1000.load(Ordering::Acquire),
-            self.total_bucket_1000_10000.load(Ordering::Acquire),
-            self.total_bucket_10000_plus.load(Ordering::Acquire),
-        ];
+        let total_observations = self.total_bucket_0.load(Ordering::Acquire) +
+            self.total_bucket_0_10.load(Ordering::Acquire) +
+            self.total_bucket_10_100.load(Ordering::Acquire) +
+            self.total_bucket_100_500.load(Ordering::Acquire) +
+            self.total_bucket_500_1000.load(Ordering::Acquire) +
+            self.total_bucket_1000_10000.load(Ordering::Acquire) +
+            self.total_bucket_10000_plus.load(Ordering::Acquire);
+
+        let non_zero_observations = total_observations - self.total_bucket_0.load(Ordering::Acquire);
         
-        let total_count = total_bucket_0 + non_zero_buckets.iter().sum::<u64>();
-        let non_zero_count = non_zero_buckets.iter().sum::<u64>();
-        
-        let non_zero_proportion = if total_count > 0 {
-            non_zero_count as f64 / total_count as f64
+        let non_zero_proportion = if total_observations > 0 {
+            non_zero_observations as f64 / total_observations as f64
         } else {
             0.0
         };
 
-        // Get distribution metrics from TDigest
-        let metrics = digest.online_stats.to_metrics();
-
-        // Calculate percentiles using the digest
+        // Calculate percentiles using TDigest
         let p25 = digest.quantile(0.25).map(|x| (x * 100.0).round() as u64).unwrap_or(0);
         let p50 = digest.quantile(0.50).map(|x| (x * 100.0).round() as u64).unwrap_or(0);
         let p75 = digest.quantile(0.75).map(|x| (x * 100.0).round() as u64).unwrap_or(0);
 
-        let digest_samples = digest.samples();
+        // Get distribution metrics from TDigest
+        let distribution_metrics = digest.online_stats.to_metrics();
 
         CheckpointSnapshot {
             pair_address: self.pair_address.clone(),
@@ -215,94 +209,45 @@ impl Checkpoint {
             max_lvr_value: max_lvr_data.value,
             max_lvr_block: max_lvr_data.block,
             running_total: self.running_total.load(Ordering::Acquire).to_u64().unwrap(),
-            total_bucket_0,
-            total_bucket_0_10: non_zero_buckets[0],
-            total_bucket_10_100: non_zero_buckets[1],
-            total_bucket_100_500: non_zero_buckets[2],
-            total_bucket_500_1000: non_zero_buckets[3],
-            total_bucket_1000_10000: non_zero_buckets[4],
-            total_bucket_10000_plus: non_zero_buckets[5],
+            total_bucket_0: self.total_bucket_0.load(Ordering::Acquire),
+            total_bucket_0_10: self.total_bucket_0_10.load(Ordering::Acquire),
+            total_bucket_10_100: self.total_bucket_10_100.load(Ordering::Acquire),
+            total_bucket_100_500: self.total_bucket_100_500.load(Ordering::Acquire),
+            total_bucket_500_1000: self.total_bucket_500_1000.load(Ordering::Acquire),
+            total_bucket_1000_10000: self.total_bucket_1000_10000.load(Ordering::Acquire),
+            total_bucket_10000_plus: self.total_bucket_10000_plus.load(Ordering::Acquire),
             last_updated_block: self.last_updated_block.load(Ordering::Acquire),
             non_zero_proportion,
             percentile_25_cents: p25,
             median_cents: p50,
             percentile_75_cents: p75,
-            non_zero_samples: digest_samples,
-
-            mean: metrics.mean,
-            std_dev: metrics.std_dev,
-            skewness: metrics.skewness,
-            kurtosis: metrics.kurtosis,
+            non_zero_samples: digest.samples(),
+            mean: distribution_metrics.mean,
+            std_dev: distribution_metrics.std_dev,
+            skewness: distribution_metrics.skewness,
+            kurtosis: distribution_metrics.kurtosis,
         }
     }
-
-    fn update_bucket_and_digest(&self, value: f64) -> Result<(), String> {
-        let mut digest = self.digest.write().map_err(|_| "Failed to acquire digest write lock")?;
-        
-        let abs_dollars = value.abs();
-        
-        if abs_dollars == 0.0 
-        {
-            self.total_bucket_0.fetch_add(1, Ordering::Release);
-        } 
-        else 
-        {
-            digest.add(abs_dollars);
-            
-            // Increment the appropriate bucket counter based on dollar value
-            match abs_dollars {
-                x if x <= 10.0 => {
-                    self.total_bucket_0_10.fetch_add(1, Ordering::Release);
-                },
-                x if x <= 100.0 => {
-                    self.total_bucket_10_100.fetch_add(1, Ordering::Release);
-                },
-                x if x <= 500.0 => {
-                    self.total_bucket_100_500.fetch_add(1, Ordering::Release);
-                },
-                x if x <= 1000.0 => {
-                    self.total_bucket_500_1000.fetch_add(1, Ordering::Release);
-                },
-                x if x <= 10000.0 => {
-                    self.total_bucket_1000_10000.fetch_add(1, Ordering::Release);
-                },
-                _ => {
-                    self.total_bucket_10000_plus.fetch_add(1, Ordering::Release);
-                }
-            }
+    pub fn update_digest(&self, value: f64) -> Result<(), String> {
+        if let Ok(mut digest) = self.digest.lock() {
+            digest.add(value);
+            Ok(())
+        } else {
+            Err("Failed to acquire digest lock".to_string())
         }
+    }
     
-        Ok(())
-    }
-
-    pub fn update_stats(&self, block_number: u64, lvr_cents: u64) -> Result<(), String> {
-        // Convert cents to dollars
-        let lvr_dollars = lvr_cents as f64 / 100.0;
-        
-        // Update running total
-        self.running_total.fetch_add(lvr_cents as i64, Ordering::Release);
-        
-        // Update max LVR if necessary
-        if lvr_cents > 0 {
-            let mut max_lvr = self.max_lvr.write().map_err(|_| "Failed to acquire max_lvr write lock")?;
-            if lvr_cents > max_lvr.value {
-                max_lvr.value = lvr_cents;
-                max_lvr.block = block_number;
-            }
+    pub fn update_max_lvr(&self, block_number: u64, lvr_cents: u64) {
+        let mut max_lvr = self.max_lvr.lock().unwrap();
+        if lvr_cents > max_lvr.value {
+            max_lvr.value = lvr_cents;
+            max_lvr.block = block_number;
         }
-        
-        // Update buckets and digest
-        self.update_bucket_and_digest(lvr_dollars)?;
-        
-        // Update last processed block
-        self.last_updated_block.fetch_max(block_number, Ordering::Release);
-        
-        Ok(())
     }
 
     pub fn finalize(&self) -> Result<(), String> {
-        if let Ok(mut digest) = self.digest.write() {
-            digest.finalizing_merge();
+        if let Ok(mut digest) = self.digest.lock() {
+            digest.finalize();
             Ok(())
         } else {
             Err("Failed to acquire digest lock for finalization".to_string())

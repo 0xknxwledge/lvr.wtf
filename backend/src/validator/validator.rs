@@ -20,7 +20,9 @@ pub struct ValidationStats {
     pub interval_non_zero_ratio: f64,
     pub tdigest_samples: u64,
     pub non_zero_samples: u64,
+    pub bucket_sum_non_zero: u64,
     pub sample_count_match: bool,
+    pub non_zero_counts_consistent: bool,
 }
 
 pub struct Validator {
@@ -33,6 +35,7 @@ struct CheckpointData {
     zero_count: u64,
     total_count: u64,
     exact_samples: u64,
+    non_zero_bucket_sum: u64,
 }
 
 #[derive(Debug, Default, Clone)]
@@ -76,8 +79,10 @@ impl Validator {
                 0.0
             };
 
-            // Compare TDigest sample count with non-zero samples
+            // Check consistency between different non-zero count sources
             let sample_count_match = checkpoint.exact_samples == interval.non_zero_count;
+            let non_zero_counts_consistent = checkpoint.exact_samples == checkpoint.non_zero_bucket_sum &&
+                checkpoint.exact_samples == interval.non_zero_count;
 
             let stats = ValidationStats {
                 checkpoint_total: checkpoint.running_total,
@@ -90,7 +95,9 @@ impl Validator {
                 interval_non_zero_ratio,
                 tdigest_samples: checkpoint.exact_samples,
                 non_zero_samples: interval.non_zero_count,
+                bucket_sum_non_zero: checkpoint.non_zero_bucket_sum,
                 sample_count_match,
+                non_zero_counts_consistent,
             };
 
             self.log_validation_results(&key, &stats);
@@ -169,15 +176,15 @@ impl Validator {
             .context("Failed to get total_bucket_0 column")?
             .value(0);
 
-        // Get TDigest samples count
         let exact_samples = batch
             .column(batch.schema().index_of("non_zero_samples")?)
             .as_any()
             .downcast_ref::<arrow::array::UInt64Array>()
-            .context("Failed to get digest samples count")?
+            .context("Failed to get non_zero_samples count")?
             .value(0);
 
-        let total_count = self.get_total_bucket_count(batch)?;
+        // Calculate total count and non-zero bucket sum
+        let (total_count, non_zero_bucket_sum) = self.get_bucket_counts(batch)?;
 
         Ok((
             format!("{}_{}", pair_address, markout_time),
@@ -186,12 +193,15 @@ impl Validator {
                 zero_count,
                 total_count,
                 exact_samples,
+                non_zero_bucket_sum,
             },
         ))
     }
 
-    fn get_total_bucket_count(&self, batch: &arrow::record_batch::RecordBatch) -> Result<u64> {
-        let mut total = 0u64;
+    fn get_bucket_counts(&self, batch: &arrow::record_batch::RecordBatch) -> Result<(u64, u64)> {
+        let mut total_count = 0u64;
+        let mut non_zero_sum = 0u64;
+        
         let bucket_names = [
             "total_bucket_0",
             "total_bucket_0_10",
@@ -202,17 +212,21 @@ impl Validator {
             "total_bucket_10000_plus",
         ];
 
-        for name in bucket_names {
+        for (idx, name) in bucket_names.iter().enumerate() {
             let count = batch
                 .column(batch.schema().index_of(name)?)
                 .as_any()
                 .downcast_ref::<arrow::array::UInt64Array>()
                 .context(format!("Failed to get {} column", name))?
                 .value(0);
-            total += count;
+            
+            total_count += count;
+            if idx > 0 {  // Skip zero bucket when summing non-zero counts
+                non_zero_sum += count;
+            }
         }
 
-        Ok(total)
+        Ok((total_count, non_zero_sum))
     }
 
     fn process_interval_batch(
@@ -263,46 +277,66 @@ impl Validator {
     }
 
     fn log_validation_results(&self, key: &str, stats: &ValidationStats) {
-        let zero_count_difference = if stats.checkpoint_zero_count >= stats.interval_zero_count {
-            stats.checkpoint_zero_count - stats.interval_zero_count
+        let mut errors = Vec::new();
+        
+        // Check for non-zero count inconsistencies
+        if !stats.non_zero_counts_consistent {
+            errors.push(format!(
+                "Non-zero count mismatch: TDigest={}, Intervals={}, Bucket sum={}", 
+                stats.tdigest_samples, 
+                stats.non_zero_samples, 
+                stats.bucket_sum_non_zero
+            ));
+        }
+    
+        // Check for total value discrepancies
+        if stats.difference != 0 {
+            errors.push(format!(
+                "Total mismatch: Checkpoint={}, Intervals={}, Difference={}({:.2}%)", 
+                stats.checkpoint_total, 
+                stats.intervals_total, 
+                stats.difference, 
+                stats.difference_percent
+            ));
+        }
+    
+        // Check for zero count discrepancies
+        let zero_count_difference = (stats.checkpoint_zero_count as i64 - stats.interval_zero_count as i64).abs();
+        if zero_count_difference != 0 {
+            errors.push(format!(
+                "Zero count mismatch: Checkpoint={}, Intervals={}, Difference={}", 
+                stats.checkpoint_zero_count, 
+                stats.interval_zero_count, 
+                zero_count_difference
+            ));
+        }
+    
+        // Log appropriate message based on validation results
+        if errors.is_empty() {
+            info!(
+                "Validation passed for {}: Total {}, Non-zero counts consistent ({} samples), Zero count: {}", 
+                key, 
+                stats.checkpoint_total, 
+                stats.tdigest_samples, 
+                stats.checkpoint_zero_count
+            );
         } else {
-            stats.interval_zero_count - stats.checkpoint_zero_count
-        };
-
-        let has_errors = stats.difference != 0 || 
-                        zero_count_difference != 0 || 
-                        !stats.sample_count_match;
-
-        if has_errors {
-            if stats.difference_percent.abs() > 1.0 || !stats.sample_count_match {
+            // Determine if discrepancies are significant
+            let has_significant_errors = stats.difference_percent.abs() > 1.0 || !stats.non_zero_counts_consistent;
+            
+            if has_significant_errors {
                 error!(
-                    "Significant discrepancy for {}: Checkpoint total: {}, Intervals total: {}, \
-                     Difference: {} ({:.2}%), Zero counts: {} vs {}, Non-zero ratio: {:.2}% vs {:.2}%, \
-                     TDigest samples: {}, Non-zero samples: {} (Match: {})",
-                    key, stats.checkpoint_total, stats.intervals_total, stats.difference, 
-                    stats.difference_percent, stats.checkpoint_zero_count, stats.interval_zero_count,
-                    stats.checkpoint_non_zero_ratio * 100.0, stats.interval_non_zero_ratio * 100.0,
-                    stats.tdigest_samples, stats.non_zero_samples, stats.sample_count_match
+                    "Significant discrepancies for {}:\n{}", 
+                    key,
+                    errors.join("\n")
                 );
             } else {
                 warn!(
-                    "Minor discrepancy for {}: Checkpoint total: {}, Intervals total: {}, \
-                     Difference: {} ({:.2}%), Zero counts: {} vs {}, Non-zero ratio: {:.2}% vs {:.2}%, \
-                     TDigest samples: {}, Non-zero samples: {} (Match: {})",
-                    key, stats.checkpoint_total, stats.intervals_total, stats.difference,
-                    stats.difference_percent, stats.checkpoint_zero_count, stats.interval_zero_count,
-                    stats.checkpoint_non_zero_ratio * 100.0, stats.interval_non_zero_ratio * 100.0,
-                    stats.tdigest_samples, stats.non_zero_samples, stats.sample_count_match
+                    "Minor discrepancies for {}:\n{}", 
+                    key,
+                    errors.join("\n")
                 );
             }
-        } else {
-            info!(
-                "Validation passed for {}: Total {}, Zero count: {}, Non-zero ratio: {:.2}% vs {:.2}%, \
-                 TDigest samples: {} (Match: {})",
-                key, stats.checkpoint_total, stats.checkpoint_zero_count,
-                stats.checkpoint_non_zero_ratio * 100.0, stats.interval_non_zero_ratio * 100.0,
-                stats.tdigest_samples, stats.sample_count_match
-            );
         }
     }
 }
