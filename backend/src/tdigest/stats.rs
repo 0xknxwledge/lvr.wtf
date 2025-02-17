@@ -77,6 +77,7 @@ impl OnlineStats {
     }
 
     /// Batch Implementation of Pebay&Terriberry's general algorithm
+    /// Assumes that we are computing moments for a finite population that we have sampled entirely
     pub fn combine(a: &Self, b: &Self) -> Self {
         
         let delta = b.mean - a .mean;
@@ -120,25 +121,22 @@ impl OnlineStats {
 
         let n = self.n as f64;
         
-        // Calculate variance with Bessel's correction
-        let variance = self.m2 / (n - 1.0);
+        // Calculate population variance
+        let variance = self.m2 / n;
         let std_dev = variance.sqrt();
-        let n: f64 = self.n as f64;
 
-        // Fisher-Pearson Coefficient of Skewness
+        // Population skew
         let skewness = if self.n < 3 {
             0.0
         } else {
             self.m3 / (n * variance * std_dev)
         };
 
-        // MoM  estimator for excess kurtosis 
+        // Population excess kurtosis
         let kurtosis = if self.n < 4 {
             0.0
         } else {
-            // Calculate excess kurtosis directly
             let n = self.n as f64;
-            let variance = self.m2 / n;
             let m4_normalized = self.m4 / n;
             (m4_normalized / (variance * variance)) - 3.0
         };

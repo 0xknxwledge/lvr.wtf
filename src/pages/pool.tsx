@@ -8,6 +8,7 @@ import QuartilePlot from '../components/plots/QuartilePlot';
 import PlotContainer from '../components/PlotContainer';
 import names from '../names';
 import PageLayout from '../components/pagelayout';
+import DistributionMetrics from '../components/plots/DistributionMetrics';
 
 const Pool: React.FC = () => {
   const [selectedMarkout, setSelectedMarkout] = useState('0.0');
@@ -47,6 +48,13 @@ const Pool: React.FC = () => {
               poolAddress={selectedPool}
               markoutTime={selectedMarkout}
             />
+          </PlotContainer>
+
+          <PlotContainer>
+            <DistributionMetrics
+              poolAddress={selectedPool}
+              markoutTime={selectedMarkout}
+              />
           </PlotContainer>
 
           <PlotContainer>

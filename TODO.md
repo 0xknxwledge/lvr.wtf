@@ -1,5 +1,3 @@
-- Create a descriptive statistics card
-
 - FLAG THE BIG JUMPS IN RUNNING TOTALS
     1. Terra/Luna & 3AC 
     3. USDC depeg, Circle
