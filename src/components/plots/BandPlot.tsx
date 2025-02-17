@@ -262,6 +262,11 @@ const PercentileBandChart: React.FC<PercentileBandChartProps> = ({
         }}
         style={{ width: '100%', height: '100%' }}
       />
+      <div className="mt-4 pl-4 text-center">
+        <p className="text-[#B2AC88] text-sm font-['Menlo']">
+          *We excluded days (i.e, 7200-block-long chunks) that had zero simulated/observed LVR. The percentile values here are computed directly from linear interpolation
+        </p>
+      </div>
     </div>
   );
 };

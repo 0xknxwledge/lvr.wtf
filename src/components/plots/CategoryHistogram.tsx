@@ -52,7 +52,7 @@ const CategoryHistogram: React.FC<CategoryHistogramProps> = ({ selectedMarkout }
     return {
       height: isMobile ? 500 : (isTablet ? 550 : 600),
       margin: {
-        l: isMobile ? 90 : (isTablet ? 120 : 100),
+        l: isMobile ? 100 : (isTablet ? 130 : 150),
         r: isMobile ? 20 : (isTablet ? 30 : 40),
         b: isMobile ? 160 : (isTablet ? 180 : 200), // Increased bottom margin
         t: isMobile ? 80 : (isTablet ? 90 : 100)

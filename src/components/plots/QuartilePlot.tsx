@@ -234,7 +234,7 @@ const QuartilePlot: React.FC<QuartilePlotProps> = ({ poolAddress, markoutTime })
   ];
 
   return (
-    <div className="w-full h-full">
+    <div className="w-full h-full bg-black rounded-lg border border-[#212121] p-6">
       <Plot
         data={plotData}
         layout={{
@@ -298,6 +298,11 @@ const QuartilePlot: React.FC<QuartilePlotProps> = ({ poolAddress, markoutTime })
         style={{ width: '100%', height: '100%' }}
         useResizeHandler
       />
+      <div className="mt-4 pl-4 text-center">
+      <p className="text-[#B2AC88] text-sm font-['Menlo']">
+          *The distribution here represents blocks with non-zero LVR. Due to the high volume of non-zero blocks, we estimate percentile values through the t-digest data structure and online algorithm rather than directly interpolating from the complete dataset
+        </p>
+      </div>
     </div>
   );
 };

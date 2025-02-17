@@ -139,7 +139,7 @@ const CategoryStackedBar: React.FC<CategoryStackedBarProps> = ({ selectedMarkout
           title: {
             text: 'Total LVR (USD)',
             font: { color: '#FFFFFF', size: isMobile ? 12 : 14 },
-            standoff: isMobile ? 40 : 100
+            standoff: isMobile ? 20 : 40
           },
           tickfont: { color: '#FFFFFF', size: isMobile ? 8 : 12 },
           tickformat: '$,.0f',
@@ -160,7 +160,7 @@ const CategoryStackedBar: React.FC<CategoryStackedBarProps> = ({ selectedMarkout
         },
         height: isMobile ? 650 : 500,
         margin: { 
-          l: isMobile ? 120 : 150,
+          l: isMobile ? 150 : 180,
           r: isMobile ? 20 : 50, 
           b: isMobile ? 220 : 160, // Increased bottom margin for mobile
           t: isMobile ? 80 : 80 // Increased top margin for title

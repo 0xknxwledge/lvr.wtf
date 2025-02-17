@@ -49,7 +49,7 @@ const HistogramChart: React.FC<HistogramChartProps> = ({ poolAddress, markoutTim
     return {
       height: isMobile ? 400 : 600,
       margin: {
-        l: isMobile ? 60 : (isTablet ? 70 : 80),
+        l: isMobile ? 80 : (isTablet ? 100 : 120),
         r: isMobile ? 30 : (isTablet ? 40 : 50),
         b: isMobile ? 100 : (isTablet ? 110 : 120),
         t: isMobile ? 60 : (isTablet ? 70 : 80),

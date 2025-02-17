@@ -85,7 +85,7 @@ const NavBar = () => {
                   : 'text-[#B2AC88] hover:text-[#b4d838] transition-colors duration-200'
               }`}
             >
-              Data
+              Dashboard
             </Link>
           </div>
 

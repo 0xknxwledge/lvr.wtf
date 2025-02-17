@@ -27,12 +27,6 @@ const Aggregate: React.FC = () => {
           The last two plots are specific to the selected markout time.
         </p>
 
-        <div className="font-['Menlo'] mt-4 mb-12 text-center">
-          <p className="text-sm text-[#B2AC88]/80">
-            *Average marginal effect is estimated through simple beta regression
-          </p>
-        </div>
-
         <div className="flex flex-col">
           <PlotContainer>
             <RunningTotalChart />

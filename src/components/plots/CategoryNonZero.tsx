@@ -154,42 +154,71 @@ const CategoryNonZero: React.FC<CategoryNonZeroProps> = ({ selectedMarkout }) =>
           Percentage of Blocks with Non-Zero LVR by Category {titleSuffix}
         </h2>
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6 lg:gap-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6 lg:gap-8 p-4">
         {data.map((item) => {
           const colors = getColorsForCluster(item.name);
           const displayName = CLUSTER_DISPLAY_NAMES[item.name as ClusterName] || item.name;
           const percentageValue = item.non_zero_proportion * 100;
 
           return (
-            <div 
-              key={item.name}
-              className="relative flex flex-col items-center justify-center p-4 md:p-6 lg:p-8 rounded-xl overflow-hidden transition-all duration-300 hover:scale-105 min-h-[200px]"
-              style={{
-                background: `linear-gradient(135deg, rgba(45, 45, 45, 0.5), rgba(20, 20, 20, 0.8))`,
-                border: `1px solid ${colors.primary}20`,
-                boxShadow: `0 4px 30px ${colors.primary}10`
-              }}
-            >
-              <div className="relative z-10 flex flex-col items-center w-full">
-                <h3 className="text-sm md:text-base lg:text-lg font-medium mb-4 text-center text-white break-words max-w-full px-2">
-                  {displayName}
-                </h3>
-                <p className="text-3xl md:text-4xl lg:text-5xl xl:text-6xl font-bold mb-2 md:mb-4 text-center" 
-                   style={{ color: colors.primary }}>
-                  {percentageValue.toFixed(2)}
-                  <span className="text-xl md:text-2xl lg:text-3xl">%</span>
-                </p>
-                <div className="text-xs md:text-sm text-gray-400 mt-2 text-center w-full">
-                  <div className="flex justify-center items-center space-x-1 break-words px-2">
-                    <span className="font-medium whitespace-nowrap" style={{ color: colors.primary }}>
-                      {item.non_zero_observations.toLocaleString()}
+            <div key={item.name} className="p-4">
+              <div 
+                className="relative flex flex-col items-center justify-center p-4 md:p-6 lg:p-8 rounded-xl overflow-hidden transition-all duration-300 hover:scale-105 min-h-[200px] transform-gpu"
+                style={{
+                  background: `linear-gradient(135deg, rgba(45, 45, 45, 0.5), rgba(20, 20, 20, 0.8))`,
+                  border: `1px solid ${colors.primary}20`,
+                  boxShadow: `0 4px 30px ${colors.primary}10`
+                }}
+              >
+                <div 
+                  className="absolute inset-0 opacity-10 transition-opacity duration-300 hover:opacity-20"
+                  style={{
+                    background: `linear-gradient(135deg, ${colors.primary}, ${colors.secondary})`
+                  }}
+                />
+                
+                <div className="relative z-10 flex flex-col items-center w-full">
+                  {/* Title with improved text wrapping */}
+                  <div className="w-full mb-4">
+                    <h3 className="text-sm md:text-base lg:text-lg font-medium text-center text-white break-words">
+                      {displayName}
+                    </h3>
+                  </div>
+
+                  {/* Percentage display with better spacing */}
+                  <div className="flex items-baseline justify-center mb-2 md:mb-4">
+                    <span 
+                      className="text-3xl md:text-4xl lg:text-5xl xl:text-6xl font-bold"
+                      style={{ color: colors.primary }}
+                    >
+                      {percentageValue.toFixed(2)}
                     </span>
-                    <span>/</span>
-                    <span className="font-medium whitespace-nowrap">
-                      {item.total_observations.toLocaleString()}
+                    <span 
+                      className="text-xl md:text-2xl lg:text-3xl ml-1"
+                      style={{ color: colors.primary }}
+                    >
+                      %
                     </span>
                   </div>
-                  <span className="block mt-1 text-gray-500 text-xs">blocks</span>
+
+                  {/* Statistics with improved layout */}
+                  <div className="flex flex-col items-center text-xs md:text-sm text-gray-400 mt-2">
+                    <div className="flex items-center justify-center space-x-1">
+                      <span 
+                        className="font-medium"
+                        style={{ color: colors.primary }}
+                      >
+                        {item.non_zero_observations.toLocaleString()}
+                      </span>
+                      <span>/</span>
+                      <span className="font-medium">
+                        {item.total_observations.toLocaleString()}
+                      </span>
+                    </div>
+                    <span className="text-gray-500 text-xs mt-1">
+                      blocks
+                    </span>
+                  </div>
                 </div>
               </div>
             </div>

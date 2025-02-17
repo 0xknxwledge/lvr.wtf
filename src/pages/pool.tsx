@@ -33,13 +33,6 @@ const Pool: React.FC = () => {
         <p className="font-['Menlo'] text-[#B2AC88] text-lg mb-8 text-center">
           View data for individual pool and markout time combinations
         </p>
-        
-        <div className="font-['Menlo'] mt-4 mb-12 text-center">
-          <p className="text-sm text-[#B2AC88]/80">
-            *For the interquartile plot, we estimate percentile values through the t-digest algorithm and excluded blocks with zero simulated/observed LVR from the estimated distrbution. 
-            For the bandplot, we excluded days (i.e, 7200-block-long chunks starting from the Merge block) that had zero simulated/observed LVR.
-          </p>
-        </div>
 
         <div className="flex flex-col">
           <PlotContainer>
