@@ -51,6 +51,7 @@ pub async fn serve(host: String, port: u16, store: Arc<dyn ObjectStore>) -> Resu
         .route("/non_zero_proportion", get(get_non_zero_proportion))
         .route("/percentile_band", get(get_percentile_band))
         .route("/quartile_plot", get(get_quartile_plot))
+        .route("/metrics", get(get_distribution_metrics))
         
         // Cluster analysis endpoints
         .route("/clusters/pie", get(get_cluster_proportion))

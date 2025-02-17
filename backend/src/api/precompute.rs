@@ -1642,8 +1642,8 @@ impl PrecomputedWriter {
             for batch_result in reader {
                 let batch = batch_result?;
     
-                let pool_addresses_col = get_string_column(&batch, "pool_address")
-                    .map_err(|e| anyhow::anyhow!("Failed to get pool_address column: {}", e))?;
+                let pool_addresses_col = get_string_column(&batch, "pair_address")
+                    .map_err(|e| anyhow::anyhow!("Failed to get pair_address column: {}", e))?;
                 let markout_times_col = get_string_column(&batch, "markout_time")
                     .map_err(|e| anyhow::anyhow!("Failed to get markout_time column: {}", e))?;
                 let means_col = get_float64_column(&batch, "mean")
