@@ -16,7 +16,7 @@ function DataLayout({ children }: DataLayoutProps) {
   ];
 
   return (
-    <div className="font-['Menlo'] flex bg-[#030304] min-h-screen">
+    <div className="font-['Geist'] flex bg-[#030304] min-h-screen">
       {/* Fixed width sidebar - visible on desktop, hidden on mobile */}
       <div className="hidden lg:block fixed w-64">
         <nav className="bg-[#030304] w-64 h-screen">

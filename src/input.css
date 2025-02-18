@@ -3,6 +3,13 @@
 @tailwind utilities;
 
 @layer base {
+  @font-face {
+    font-family: 'Geist';
+    src: url('../public/fonts/Geist-Regular.woff2') format('woff2');
+    font-weight: 400;
+    font-style: normal;
+  }
+
   html, body {
     @apply h-full;
   }

@@ -8,7 +8,7 @@ interface PageLayoutProps {
 
 const PageLayout: React.FC<PageLayoutProps> = ({ title, controls, children }) => {
   return (
-    <div className="font-['Menlo'] px-4 sm:px-6 md:px-8 py-4 sm:py-6 md:py-8 bg-[#030304] min-h-screen">
+    <div className="font-['Geist'] px-4 sm:px-6 md:px-8 py-4 sm:py-6 md:py-8 bg-[#030304] min-h-screen">
       <div className="max-w-7xl mx-auto">
         {/* Header section with responsive spacing and font sizes */}
         <div className="flex flex-col items-center mb-4 sm:mb-6 md:mb-8">

@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 
 function Overview() {
   return (
-    <div className="py-12 px-6 md:px-12 lg:px-24 font-['Menlo']">
+    <div className="py-12 px-6 md:px-12 lg:px-24 font-['Geist']">
       <h1 className="text-6xl font-bold text-center mb-12">Overview</h1>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-[1600px] mx-auto">
         {/* First card - gradient from dark purple to pink */}

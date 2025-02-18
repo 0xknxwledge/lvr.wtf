@@ -18,7 +18,7 @@ const SelectWrapper: React.FC<SelectWrapperProps> = ({
   className = '' 
 }) => {
   return (
-    <div className={`font-['Menlo'] flex flex-col gap-2 w-full sm:w-auto ${className}`}>
+    <div className={`font-['Geist'] flex flex-col gap-2 w-full sm:w-auto ${className}`}>
       <label 
         htmlFor={id}
         className="text-[#8247E5] text-sm font-medium truncate"

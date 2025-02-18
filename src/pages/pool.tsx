@@ -29,7 +29,7 @@ const Pool: React.FC = () => {
   );
 
   return (
-    <div className="font-['Menlo'] px-4 sm:px-6 md:px-8 py-4 sm:py-6 md:py-8 bg-[#030304] min-h-screen">
+    <div className="font-['Geist'] px-4 sm:px-6 md:px-8 py-4 sm:py-6 md:py-8 bg-[#030304] min-h-screen">
       <div className="max-w-7xl mx-auto">
         <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-[#F651AE] mb-4 text-center">
           Pool Analysis
@@ -37,7 +37,7 @@ const Pool: React.FC = () => {
         
         {controls}
 
-        <p className="font-['Menlo'] text-white text-lg my-8 text-center">
+        <p className="font-['Geist'] text-white text-lg my-8 text-center">
           View data for individual pool and markout time combinations
         </p>
 

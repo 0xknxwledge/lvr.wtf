@@ -20,7 +20,7 @@ const MobileNavigation = ({ isOpen, setIsOpen }: { isOpen: boolean; setIsOpen: (
     <div className={`fixed inset-0 z-40 bg-[#0b0b0e] pt-14 transform transition-transform duration-300 ${
       isOpen ? 'translate-x-0' : '-translate-x-full'
     }`}>
-      <nav className="h-full flex flex-col font-['Menlo']">
+      <nav className="h-full flex flex-col font-['Geist']">
         <div className="flex-1 py-6">
           <ul className="space-y-2">
             {navItems.map((item) => (
@@ -54,17 +54,14 @@ const NavBar = () => {
   const isOverviewPage = location.pathname === '/';
 
   return (
-    <header className="sticky top-0 z-50 bg-[#0b0b0e] border-b border-[#1a1a1a] font-['Menlo']">
+    <header className="sticky top-0 z-50 bg-[#0b0b0e] border-b border-[#1a1a1a] font-['Geist']">
       <div className="max-w-full mx-auto flex items-center justify-between px-4 lg:px-8 pb-1">
-        <div className="flex items-center h-16">
-          {/* Left section with logo - aligned with sidebar content */}
-          <Link to="/" className="text-2xl font-semibold text-white lg:ml-1">
+        <div className="flex items-center h-16 space-x-6">
+          {/* Logo and navigation links */}
+          <Link to="/" className="text-2xl font-semibold text-white">
             LVR.wtf
           </Link>
-        </div>
 
-        {/* Right section with navigation and partner logos */}
-        <div className="flex items-center space-x-6">
           {/* Desktop Navigation Links */}
           <div className="hidden lg:flex items-center space-x-6">
             <Link 
@@ -88,8 +85,11 @@ const NavBar = () => {
               Dashboard
             </Link>
           </div>
+        </div>
 
-          {/* Partner Logos */}
+        {/* Right section with "Built By" text and partner logos */}
+        <div className="flex items-center space-x-4">
+          <span className="hidden lg:block text-white text-lg">Built By</span>
           <a
             href="https://fenbushi.vc"
             target="_blank"
