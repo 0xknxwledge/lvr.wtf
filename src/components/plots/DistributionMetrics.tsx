@@ -92,7 +92,7 @@ const DistributionMetrics: React.FC<DistributionMetricsProps> = ({
     return (
       <div className="w-full p-8 bg-[#030304] rounded-lg border border-[#8247E5]/20 min-h-[280px]">
         <div className="h-32 flex items-center justify-center">
-          <p className="text-white text-base font-['Menlo']">Loading...</p>
+          <p className="text-white text-base font-['Geist']">Loading...</p>
         </div>
       </div>
     );
@@ -114,7 +114,7 @@ const DistributionMetrics: React.FC<DistributionMetricsProps> = ({
     return (
       <div className="w-full p-8 bg-[#030304] rounded-lg border border-[#8247E5]/20 min-h-[280px]">
         <div className="h-32 flex items-center justify-center">
-          <p className="text-white text-base font-['Menlo']">No metrics available</p>
+          <p className="text-white text-base font-['Geist']">No metrics available</p>
         </div>
       </div>
     );
@@ -155,7 +155,7 @@ const DistributionMetrics: React.FC<DistributionMetricsProps> = ({
 
   return (
     <div className="w-full p-8 bg-[#030304] rounded-lg border border-[#8247E5]/20">
-      <h2 className="text-[#F651AE] text-xl mb-8 text-center font-['Menlo']">
+      <h2 className="text-[#F651AE] text-xl mb-8 text-center font-['Geist']">
         Distribution Metrics of Single-Block LVR {titleSuffix}*
       </h2>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 pt-4">

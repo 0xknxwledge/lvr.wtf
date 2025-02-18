@@ -105,7 +105,7 @@ const PercentileBandChart: React.FC<PercentileBandChartProps> = ({
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-96">
-        <p className="text-white font-['Menlo']">Loading...</p>
+        <p className="text-white font-['Geist']">Loading...</p>
       </div>
     );
   }
@@ -113,7 +113,7 @@ const PercentileBandChart: React.FC<PercentileBandChartProps> = ({
   if (error || !data) {
     return (
       <div className="flex items-center justify-center h-96">
-        <p className="text-red-500 font-['Menlo']">{error || 'No data available'}</p>
+        <p className="text-red-500 font-['Geist']">{error || 'No data available'}</p>
       </div>
     );
   }
@@ -257,7 +257,7 @@ const PercentileBandChart: React.FC<PercentileBandChartProps> = ({
         style={{ width: '100%', height: '100%' }}
       />
       <div className="mt-4 pl-4 text-center">
-        <p className="text-[#8247E5] text-sm font-['Menlo']">
+        <p className="text-[#8247E5] text-sm font-['Geist']">
           *We excluded days (i.e, 7200-block-long chunks) that had zero simulated/observed LVR. The percentile values here are computed directly from linear interpolation
         </p>
       </div>

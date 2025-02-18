@@ -87,7 +87,7 @@ const SoleRunningTotal: React.FC<SoleRunningTotalProps> = ({ poolAddress, markou
     return (
       <div className="w-full bg-black rounded-lg md:rounded-2xl border border-[#212121] p-4 md:p-6">
         <div className="h-[400px] md:h-[600px] flex items-center justify-center">
-          <div className="text-white text-base md:text-lg font-['Menlo']">Loading...</div>
+          <div className="text-white text-base md:text-lg font-['Geist']">Loading...</div>
         </div>
       </div>
     );
@@ -97,7 +97,7 @@ const SoleRunningTotal: React.FC<SoleRunningTotalProps> = ({ poolAddress, markou
     return (
       <div className="w-full bg-black rounded-lg md:rounded-2xl border border-[#212121] p-4 md:p-6">
         <div className="h-[400px] md:h-[600px] flex items-center justify-center">
-          <div className="text-white bg-red-600 p-3 md:p-4 rounded text-sm md:text-base font-['Menlo']">{error}</div>
+          <div className="text-white bg-red-600 p-3 md:p-4 rounded text-sm md:text-base font-['Geist']">{error}</div>
         </div>
       </div>
     );
@@ -107,7 +107,7 @@ const SoleRunningTotal: React.FC<SoleRunningTotalProps> = ({ poolAddress, markou
     return (
       <div className="w-full bg-black rounded-lg md:rounded-2xl border border-[#212121] p-4 md:p-6">
         <div className="h-[400px] md:h-[600px] flex items-center justify-center">
-          <div className="text-white text-base md:text-lg font-['Menlo']">No data available</div>
+          <div className="text-white text-base md:text-lg font-['Geist']">No data available</div>
         </div>
       </div>
     );

@@ -128,7 +128,7 @@ const CategoryHistogram: React.FC<CategoryHistogramProps> = ({ selectedMarkout }
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-[400px] md:h-[500px]">
-        <p className="text-white text-base md:text-lg font-['Menlo']">Loading...</p>
+        <p className="text-white text-base md:text-lg font-['Geist']">Loading...</p>
       </div>
     );
   }
@@ -136,7 +136,7 @@ const CategoryHistogram: React.FC<CategoryHistogramProps> = ({ selectedMarkout }
   if (error || !data) {
     return (
       <div className="flex items-center justify-center h-[400px] md:h-[500px]">
-        <p className="text-red-500 text-sm md:text-base font-['Menlo']">{error || 'No data available'}</p>
+        <p className="text-red-500 text-sm md:text-base font-['Geist']">{error || 'No data available'}</p>
       </div>
     );
   }

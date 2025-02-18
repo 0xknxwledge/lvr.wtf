@@ -135,7 +135,7 @@ const HistogramChart: React.FC<HistogramChartProps> = ({ poolAddress, markoutTim
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-[400px] md:h-[600px]">
-        <p className="text-white text-base md:text-lg font-['Menlo']">Loading...</p>
+        <p className="text-white text-base md:text-lg font-['Geist']">Loading...</p>
       </div>
     );
   }
@@ -143,7 +143,7 @@ const HistogramChart: React.FC<HistogramChartProps> = ({ poolAddress, markoutTim
   if (error || !data) {
     return (
       <div className="flex items-center justify-center h-[400px] md:h-[600px]">
-        <p className="text-red-500 text-sm md:text-base font-['Menlo']">{error || 'No data available'}</p>
+        <p className="text-red-500 text-sm md:text-base font-['Geist']">{error || 'No data available'}</p>
       </div>
     );
   }
@@ -297,7 +297,7 @@ const HistogramChart: React.FC<HistogramChartProps> = ({ poolAddress, markoutTim
           <button
             key={label}
             onClick={() => handleLabelClick(label)}
-            className={`px-4 py-2 rounded-lg transition-all duration-200 font-['Menlo'] text-sm md:text-base ${
+            className={`px-4 py-2 rounded-lg transition-all duration-200 font-['Geist'] text-sm md:text-base ${
               selectedBucket?.label === label
                 ? 'bg-[#b4d838] text-black font-medium'
                 : 'bg-[#212121] text-white hover:bg-[#2a2a2a]'

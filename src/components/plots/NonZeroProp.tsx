@@ -55,7 +55,7 @@ const NonZeroProportion: React.FC<NonZeroProportionProps> = ({ poolAddress, sele
     return (
       <div className="w-full">
         <div className="flex items-center justify-center h-48">
-          <p className="text-white text-base md:text-lg font-['Menlo']">Loading...</p>
+          <p className="text-white text-base md:text-lg font-['Geist']">Loading...</p>
         </div>
       </div>
     );
@@ -65,7 +65,7 @@ const NonZeroProportion: React.FC<NonZeroProportionProps> = ({ poolAddress, sele
     return (
       <div className="w-full">
         <div className="flex items-center justify-center h-48">
-          <p className="text-red-500 text-sm md:text-base px-4 py-2 bg-red-500/10 rounded font-['Menlo']">{error}</p>
+          <p className="text-red-500 text-sm md:text-base px-4 py-2 bg-red-500/10 rounded font-['Geist']">{error}</p>
         </div>
       </div>
     );
@@ -75,7 +75,7 @@ const NonZeroProportion: React.FC<NonZeroProportionProps> = ({ poolAddress, sele
     return (
       <div className="w-full">
         <div className="flex items-center justify-center h-48">
-          <p className="text-white text-base md:text-lg font-['Menlo']">No data available</p>
+          <p className="text-white text-base md:text-lg font-['Geist']">No data available</p>
         </div>
       </div>
     );
@@ -92,7 +92,7 @@ const NonZeroProportion: React.FC<NonZeroProportionProps> = ({ poolAddress, sele
   return (
     <div className="w-full">
       <div className="mb-8">
-        <h2 className="text-[#F651AE] text-base md:text-lg text-center px-4 font-['Menlo']">
+        <h2 className="text-[#F651AE] text-base md:text-lg text-center px-4 font-['Geist']">
           Percentage of Blocks with Non-Zero LVR for {names[data.pool_address] || data.pool_name} {titleSuffix}
         </h2>
       </div>

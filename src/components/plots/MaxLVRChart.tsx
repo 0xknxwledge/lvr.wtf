@@ -78,7 +78,7 @@ const MaxLVRChart: React.FC<MaxLVRChartProps> = ({ selectedMarkout }) => {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-[500px] md:h-[600px]">
-        <p className="text-white text-base md:text-lg font-['Menlo']">Loading...</p>
+        <p className="text-white text-base md:text-lg font-['Geist']">Loading...</p>
       </div>
     );
   }
@@ -86,7 +86,7 @@ const MaxLVRChart: React.FC<MaxLVRChartProps> = ({ selectedMarkout }) => {
   if (error || !data || data.length === 0) {
     return (
       <div className="flex items-center justify-center h-[500px] md:h-[600px]">
-        <p className="text-red-500 text-sm md:text-base font-['Menlo']">{error || 'No data available'}</p>
+        <p className="text-red-500 text-sm md:text-base font-['Geist']">{error || 'No data available'}</p>
       </div>
     );
   }

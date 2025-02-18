@@ -122,7 +122,7 @@ const CategoryNonZero: React.FC<CategoryNonZeroProps> = ({ selectedMarkout }) =>
     return (
       <div className="w-full">
         <div className="flex items-center justify-center h-48">
-          <p className="text-white font-['Menlo']">Loading...</p>
+          <p className="text-white font-['Geist']">Loading...</p>
         </div>
       </div>
     );
@@ -132,7 +132,7 @@ const CategoryNonZero: React.FC<CategoryNonZeroProps> = ({ selectedMarkout }) =>
     return (
       <div className="w-full">
         <div className="flex items-center justify-center h-48">
-          <p className="text-red-500 font-['Menlo']">{error}</p>
+          <p className="text-red-500 font-['Geist']">{error}</p>
         </div>
       </div>
     );
@@ -150,7 +150,7 @@ const CategoryNonZero: React.FC<CategoryNonZeroProps> = ({ selectedMarkout }) =>
   return (
     <div className="w-full">
       <div className="mb-8">
-        <h2 className="text-[#F651AE] text-base md:text-lg text-center px-4 font-['Menlo']">
+        <h2 className="text-[#F651AE] text-base md:text-lg text-center px-4 font-['Geist']">
           Percentage of Blocks with Non-Zero LVR by Category {titleSuffix}
         </h2>
       </div>

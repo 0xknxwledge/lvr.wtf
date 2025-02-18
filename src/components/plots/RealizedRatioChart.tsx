@@ -98,7 +98,7 @@ const RealizedRatioChart: React.FC = () => {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-[400px] md:h-[600px]">
-        <p className="text-white text-base md:text-lg font-['Menlo']">Loading...</p>
+        <p className="text-white text-base md:text-lg font-['Geist']">Loading...</p>
       </div>
     );
   }
@@ -106,7 +106,7 @@ const RealizedRatioChart: React.FC = () => {
   if (error) {
     return (
       <div className="flex items-center justify-center h-[400px] md:h-[600px]">
-        <p className="text-red-500 text-sm md:text-base font-['Menlo']">{error}</p>
+        <p className="text-red-500 text-sm md:text-base font-['Geist']">{error}</p>
       </div>
     );
   }
@@ -288,7 +288,7 @@ const RealizedRatioChart: React.FC = () => {
         style={{ width: '100%', height: '100%' }}
       />
       <div className="mt-4 pl-4 text-center">
-        <p className="text-[#8247E5]/80 text-sm font-['Menlo']">
+        <p className="text-[#8247E5]/80 text-sm font-['Geist']">
           *Average marginal effect is estimated through univariate beta regression
         </p>
       </div>
