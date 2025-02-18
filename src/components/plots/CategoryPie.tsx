@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import Plot from 'react-plotly.js';
-import { plotColors, createBaseLayout, commonConfig } from '../plotUtils';
+import type { Data, Layout } from 'plotly.js';
 
 interface CategoryData {
   name: string;
@@ -16,14 +16,15 @@ interface CategoryPieChartProps {
   selectedMarkout: string;
 }
 
+// Updated colors to match the site theme
 const CATEGORY_CONFIG = [
-  { name: "Stable Pairs",   color: '#E2DFC9' },  // Light cream
-  { name: "WBTC-WETH",      color: '#738C3A' },  // Medium olive
-  { name: "USDC-WETH",      color: '#A4C27B' },  // Sage green
-  { name: "USDT-WETH",      color: '#2D3A15' },  // Dark forest
-  { name: "DAI-WETH",       color: '#BAC7A7' },  // Light sage
-  { name: "USDC-WBTC",      color: '#4A5D23' },  // Deep forest
-  { name: "Altcoin-WETH",   color: '#8B9556' }   // Muted olive
+  { name: "Stable Pairs",   color: '#F651AE' },   // Pink
+  { name: "WBTC-WETH",      color: '#8247E5' },   // Purple
+  { name: "USDC-WETH",      color: '#BA8EF7' },   // Light Purple
+  { name: "USDT-WETH",      color: '#30283A' },   // Dark Purple
+  { name: "DAI-WETH",       color: '#FF84C9' },   // Light Pink
+  { name: "USDC-WBTC",      color: '#644AA0' },   // Medium Purple
+  { name: "Altcoin-WETH",   color: '#9B6FE8' }    // Lavender
 ] as const;
 
 const CategoryPieChart: React.FC<CategoryPieChartProps> = ({ selectedMarkout }) => {
@@ -61,7 +62,6 @@ const CategoryPieChart: React.FC<CategoryPieChartProps> = ({ selectedMarkout }) 
     fetchData();
   }, [selectedMarkout]);
 
-  // Calculate responsive values
   const isMobile = windowWidth < 768;
   const isTablet = windowWidth >= 768 && windowWidth <= 1024;
   const isSmallScreen = isMobile || isTablet;
@@ -112,12 +112,38 @@ const CategoryPieChart: React.FC<CategoryPieChartProps> = ({ selectedMarkout }) 
     '(Observed)' : 
     `(Markout ${selectedMarkout}s)`;
 
-  // Create title with conditional line break
   const title = isSmallScreen ? 
     `Total LVR<br>by Category ${titleSuffix}` :
     `Total LVR by Category ${titleSuffix}`;
 
-  const baseLayout = createBaseLayout(title);
+  const layout: Partial<Layout> = {
+    paper_bgcolor: '#030304',
+    plot_bgcolor: '#030304',
+    showlegend: false,
+    height: responsiveLayout.height,
+    margin: responsiveLayout.margin,
+    annotations: [{
+      text: '',
+      showarrow: false,
+      x: 0.5,
+      y: 1.1,
+      xref: 'paper',
+      yref: 'paper',
+      font: {
+        color: '#FFFFFF',
+        size: 16,
+        family: 'Menlo'
+      }
+    }],
+    title: {
+      text: title,
+      font: {
+        color: '#F651AE',
+        size: isSmallScreen ? 14 : 16,
+        family: 'Menlo'
+      }
+    }
+  };
 
   return (
     <Plot
@@ -132,40 +158,33 @@ const CategoryPieChart: React.FC<CategoryPieChartProps> = ({ selectedMarkout }) 
           marker: {
             colors: sortedData.map(d => d.color),
             line: {
-              color: '#000000',
+              color: '#030304',
               width: 2
             }
           },
           textfont: {
             color: '#FFFFFF',
-            size: responsiveLayout.textFont.size
+            size: responsiveLayout.textFont.size,
+            family: 'Menlo'
           },
           hoverlabel: {
-            bgcolor: '#424242',
-            font: { color: '#ffffff' }
+            bgcolor: '#30283A',
+            bordercolor: '#F651AE',
+            font: { 
+              color: '#FFFFFF',
+              family: 'Menlo',
+              size: responsiveLayout.textFont.size
+            }
           },
           hovertemplate: '<b>%{label}</b><br>$%{value:,.2f}<extra></extra>'
         }
       ]}
-      layout={{
-        ...baseLayout,
-        showlegend: false,
-        height: responsiveLayout.height,
-        margin: responsiveLayout.margin,
-        annotations: [{
-          text: '',
-          showarrow: false,
-          x: 0.5,
-          y: 1.1,
-          xref: 'paper',
-          yref: 'paper',
-          font: {
-            color: '#FFFFFF',
-            size: 16
-          }
-        }]
+      layout={layout}
+      config={{
+        responsive: true,
+        displayModeBar: false,
+        scrollZoom: false,
       }}
-      config={commonConfig}
       style={{ width: '100%', height: '100%' }}
       useResizeHandler={true}
     />

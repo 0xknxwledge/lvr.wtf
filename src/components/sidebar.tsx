@@ -5,13 +5,13 @@ const SidebarNavigation: React.FC = () => {
   const location = useLocation();
 
   const navItems = [
-    { name: 'Aggegrate', path: '/aggregate' },
+    { name: 'Aggregate', path: '/aggregate' },
     { name: 'Pool', path: '/pool' },
     { name: 'Category', path: '/category' },
   ];
 
   return (
-    <nav className="font-['Menlo'] bg-[#030304] w-64 h-screen">
+    <nav className="font-['Menlo'] bg-[#30283A] w-64 h-screen">
       <div className="p-4">
         <ul>
           {navItems.map((item) => (
@@ -20,13 +20,13 @@ const SidebarNavigation: React.FC = () => {
                 to={item.path}
                 className={`block py-2 px-4 text-lg transition-all duration-200 ${
                   location.pathname === item.path
-                    ? 'text-[#b4d838] font-semibold'
-                    : 'text-[#B2AC88] hover:text-[#8B9556]'
+                    ? 'text-[#F651AE] font-semibold'
+                    : 'text-white hover:text-[#F651AE]'
                 }`}
               >
                 {item.name}
                 {location.pathname === item.path && (
-                  <div className="absolute left-0 top-0 bottom-0 w-1 bg-[#b4d838]" />
+                  <div className="absolute left-0 top-0 bottom-0 w-1 bg-[#F651AE]" />
                 )}
               </Link>
             </li>

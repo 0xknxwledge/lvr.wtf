@@ -30,13 +30,13 @@ const MobileNavigation = ({ isOpen, setIsOpen }: { isOpen: boolean; setIsOpen: (
                   onClick={() => setIsOpen(false)}
                   className={`block px-6 py-3 text-lg ${
                     location.pathname === item.path
-                      ? 'text-[#b4d838] bg-[#1a1a1a]'
-                      : 'text-white hover:text-[#b4d838]'
+                      ? 'text-[#F651AE] bg-[#1a1a1a]'
+                      : 'text-white hover:text-[#F651AE]'
                   }`}
                 >
                   {item.name}
                   {location.pathname === item.path && (
-                    <div className="absolute left-0 top-0 bottom-0 w-1 bg-[#b4d838]" />
+                    <div className="absolute left-0 top-0 bottom-0 w-1 bg-[#F651AE]" />
                   )}
                 </Link>
               </li>
@@ -71,8 +71,8 @@ const NavBar = () => {
               to="/" 
               className={`text-lg ${
                 location.pathname === '/'
-                  ? 'text-[#b4d838]'
-                  : 'text-[#B2AC88] hover:text-[#b4d838] transition-colors duration-200'
+                  ? 'text-[#F651AE]'
+                  : 'text-white hover:text-[#F651AE] transition-colors duration-200'
               }`}
             >
               Overview
@@ -81,8 +81,8 @@ const NavBar = () => {
               to="/aggregate" 
               className={`text-lg ${
                 location.pathname.includes('/aggregate') || location.pathname.includes('/pool') || location.pathname.includes('/category')
-                  ? 'text-[#b4d838]'
-                  : 'text-[#B2AC88] hover:text-[#b4d838] transition-colors duration-200'
+                  ? 'text-[#F651AE]'
+                  : 'text-white hover:text-[#F651AE] transition-colors duration-200'
               }`}
             >
               Dashboard
@@ -118,7 +118,7 @@ const NavBar = () => {
           {/* Mobile Menu Button */}
           <button
             onClick={() => setIsOpen(!isOpen)}
-            className="lg:hidden p-2 text-white hover:text-[#b4d838] transition-colors duration-200"
+            className="lg:hidden p-2 text-white hover:text-[#F651AE] transition-colors duration-200"
           >
             {isOpen ? <X size={24} /> : <Menu size={24} />}
           </button>

@@ -5,16 +5,20 @@ import CategoryStackedBar from '../components/plots/CategoryStackedBar';
 import CategoryNonZero from '../components/plots/CategoryNonZero';
 import CategoryPieChart from '../components/plots/CategoryPie';
 import PlotContainer from '../components/PlotContainer';
-import PageLayout from '../components/pagelayout';
 
-const CategorySection: React.FC<{ title: string; items: string[] }> = ({ title, items }) => (
-  <div className="bg-[#0b0b0e]/50 p-4 rounded-lg border border-[#B2AC88]/20">
-    <h3 className="text-[#b4d838] font-medium mb-2 text-center">{title}</h3>
+interface CategorySectionProps {
+  title: string;
+  items: string[];
+}
+
+const CategorySection: React.FC<CategorySectionProps> = ({ title, items }) => (
+  <div className="bg-[#30283A]/50 p-4 rounded-lg border border-[#8247E5]/20">
+    <h3 className="text-[#F651AE] font-medium mb-2 text-center">{title}</h3>
     <ul className="list-disc pl-4 space-y-2">
       {items.map((item, index) => (
         <li 
           key={index} 
-          className="text-[#B2AC88]/90 text-sm leading-tight break-words overflow-hidden"
+          className="text-white/90 text-sm leading-tight break-words overflow-hidden"
         >
           {item}
         </li>
@@ -27,7 +31,7 @@ const Category: React.FC = () => {
   const [selectedMarkout, setSelectedMarkout] = useState('0.0');
 
   const controls = (
-    <div className="font-['Menlo'] w-full flex flex-col md:flex-row gap-4 justify-center items-center bg-gradient-to-r from-[#0b0b0e] via-[#B2AC88]/5 to-[#0b0b0e] p-6 rounded-lg">
+    <div className="w-full flex flex-col sm:flex-row gap-4 justify-center items-center bg-[#030304] p-6 rounded-lg">
       <MarkoutSelect
         selectedMarkout={selectedMarkout}
         onChange={setSelectedMarkout}
@@ -36,9 +40,15 @@ const Category: React.FC = () => {
   );
 
   return (
-    <PageLayout title="Category Analysis" controls={controls}>
+    <div className="font-['Menlo'] px-4 sm:px-6 md:px-8 py-4 sm:py-6 md:py-8 bg-[#030304] min-h-screen">
       <div className="max-w-7xl mx-auto">
-        <div className="text-[#B2AC88] text-lg mb-8">
+        <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-[#F651AE] mb-4 text-center">
+          Category Analysis
+        </h1>
+
+        {controls}
+
+        <div className="text-white text-lg my-8">
           <p className="text-center mb-4">
             View data grouped across similar pools. The categories are composed as follows:
           </p>
@@ -97,16 +107,18 @@ const Category: React.FC = () => {
             />
           </div>
 
-          <div className="flex justify-center">
-            <CategorySection 
-              title="Altcoin-WETH Pairs" 
-              items={[
-                'UNI/WETH (0.30% fee)',
-                'PEPE/WETH (0.30% fee)',
-                'PEPE/WETH (Uniswap V2)',
-                'LINK/WETH (0.30% fee)'
-              ]}
-            />
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+            <div className="md:col-start-2">
+              <CategorySection 
+                title="Altcoin-WETH Pairs" 
+                items={[
+                  'UNI/WETH (0.30% fee)',
+                  'PEPE/WETH (0.30% fee)',
+                  'PEPE/WETH (Uniswap V2)',
+                  'LINK/WETH (0.30% fee)'
+                ]}
+              />
+            </div>
           </div>
         </div>
 
@@ -128,7 +140,7 @@ const Category: React.FC = () => {
           </PlotContainer>
         </div>
       </div>
-    </PageLayout>
+    </div>
   );
 };
 

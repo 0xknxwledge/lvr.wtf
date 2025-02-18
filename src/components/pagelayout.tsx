@@ -12,14 +12,14 @@ const PageLayout: React.FC<PageLayoutProps> = ({ title, controls, children }) =>
       <div className="max-w-7xl mx-auto">
         {/* Header section with responsive spacing and font sizes */}
         <div className="flex flex-col items-center mb-4 sm:mb-6 md:mb-8">
-          <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white mb-4 text-center">
+          <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-[#F651AE] mb-4 text-center">
             {title}
           </h1>
           
-          {/* Controls section with improved mobile layout */}
+          {/* Controls section with black background */}
           {controls && (
             <div className="w-full max-w-xl mx-auto">
-              <div className="flex flex-col sm:flex-row gap-4 items-stretch sm:items-center">
+              <div className="w-full flex flex-col sm:flex-row gap-4 justify-center items-center bg-[#030304] p-6 rounded-lg">
                 {controls}
               </div>
             </div>

@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import Plot from 'react-plotly.js';
 import type { Layout } from 'plotly.js';
-import { plotColors, createBaseLayout, commonConfig, fontConfig } from '../plotUtils';
 
 interface HistogramBucket {
   range_start: number;
@@ -20,14 +19,15 @@ interface CategoryHistogramProps {
   selectedMarkout: string;
 }
 
+// Updated to match the new color scheme from CategoryNonZero
 export const CATEGORY_CONFIG = [
-  { name: "Stable Pairs",   label: "Stable Pairs",   color: '#E2DFC9' },
-  { name: "WBTC-WETH",      label: "WBTC-WETH",      color: '#738C3A' },
-  { name: "USDC-WETH",      label: "USDC-WETH",      color: '#A4C27B' },
-  { name: "USDT-WETH",      label: "USDT-WETH",      color: '#2D3A15' },
-  { name: "DAI-WETH",       label: "DAI-WETH",       color: '#BAC7A7' },
-  { name: "USDC-WBTC",      label: "USDC-WBTC",      color: '#4A5D23' },
-  { name: "Altcoin-WETH",   label: "Altcoin-WETH",   color: '#8B9556' }
+  { name: "Stable Pairs",   label: "Stable Pairs",   color: '#F651AE' },   // Pink
+  { name: "WBTC-WETH",      label: "WBTC-WETH",      color: '#8247E5' },   // Purple
+  { name: "USDC-WETH",      label: "USDC-WETH",      color: '#BA8EF7' },   // Light Purple
+  { name: "USDT-WETH",      label: "USDT-WETH",      color: '#30283A' },   // Dark Purple
+  { name: "DAI-WETH",       label: "DAI-WETH",       color: '#FF84C9' },   // Light Pink
+  { name: "USDC-WBTC",      label: "USDC-WBTC",      color: '#644AA0' },   // Medium Purple
+  { name: "Altcoin-WETH",   label: "Altcoin-WETH",   color: '#9B6FE8' }    // Lavender
 ] as const;
 
 const CategoryHistogram: React.FC<CategoryHistogramProps> = ({ selectedMarkout }) => {
@@ -37,14 +37,12 @@ const CategoryHistogram: React.FC<CategoryHistogramProps> = ({ selectedMarkout }
   const [selectedLabel, setSelectedLabel] = useState<string | null>(null);
   const [windowWidth, setWindowWidth] = useState(window.innerWidth);
 
-  // Handle window resize
   useEffect(() => {
     const handleResize = () => setWindowWidth(window.innerWidth);
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  // Calculate responsive dimensions
   const getResponsiveLayout = useCallback(() => {
     const isMobile = windowWidth < 768;
     const isTablet = windowWidth >= 768 && windowWidth <= 1024;
@@ -54,7 +52,7 @@ const CategoryHistogram: React.FC<CategoryHistogramProps> = ({ selectedMarkout }
       margin: {
         l: isMobile ? 100 : (isTablet ? 130 : 150),
         r: isMobile ? 20 : (isTablet ? 30 : 40),
-        b: isMobile ? 160 : (isTablet ? 180 : 200), // Increased bottom margin
+        b: isMobile ? 160 : (isTablet ? 180 : 200),
         t: isMobile ? 80 : (isTablet ? 90 : 100)
       },
       fontSize: {
@@ -66,10 +64,10 @@ const CategoryHistogram: React.FC<CategoryHistogramProps> = ({ selectedMarkout }
       },
       legendPosition: {
         x: isMobile ? 0.5 : 1,
-        y: isMobile ? -0.6 : 1.1, // Adjusted y-position for mobile
+        y: isMobile ? -0.6 : 1.1,
         xanchor: isMobile ? 'center' : 'right',
         yanchor: 'top',
-        orientation: isMobile ? 'h' : 'v' // Horizontal legend on mobile
+        orientation: isMobile ? 'h' : 'v'
       } as const
     };
   }, [windowWidth]);
@@ -127,10 +125,6 @@ const CategoryHistogram: React.FC<CategoryHistogramProps> = ({ selectedMarkout }
     fetchData();
   }, [selectedMarkout]);
 
-  const handleLabelClick = (label: string) => {
-    setSelectedLabel(selectedLabel === label ? null : label);
-  };
-
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-[400px] md:h-[500px]">
@@ -159,16 +153,12 @@ const CategoryHistogram: React.FC<CategoryHistogramProps> = ({ selectedMarkout }
     `(Markout ${selectedMarkout}s)`;
 
   const isMobile = windowWidth < 768;
-  const isTablet = windowWidth >= 768 && windowWidth <= 1024;
   let title;
   if (isMobile) {
     title = `Single Block LVR Histogram<br>Grouped by Category<br>${titleSuffix}`;
-  } else if (isTablet) {
-    title = `Single Block LVR Histogram<br>Grouped by Category ${titleSuffix}`;
   } else {
     title = `Single Block LVR Histogram Grouped by Category ${titleSuffix}`;
   }
-
 
   const traces = data.map((cluster, index) => {
     const orderedBuckets = [...cluster.buckets].sort((a, b) => 
@@ -221,13 +211,13 @@ const CategoryHistogram: React.FC<CategoryHistogramProps> = ({ selectedMarkout }
     arrowhead: 2,
     arrowsize: 1,
     arrowwidth: 2,
-    arrowcolor: '#b4d838',
-    bgcolor: '#424242',
-    bordercolor: '#b4d838',
+    arrowcolor: '#F651AE',
+    bgcolor: '#30283A',
+    bordercolor: '#F651AE',
     font: { 
       color: '#ffffff', 
       size: responsiveLayout.fontSize.annotation,
-      family: fontConfig.family
+      family: 'Menlo'
     },
     borderwidth: 2,
     borderpad: 4,
@@ -236,69 +226,70 @@ const CategoryHistogram: React.FC<CategoryHistogramProps> = ({ selectedMarkout }
     align: 'left' as const
   }] : [];
 
-  const baseLayout = createBaseLayout(title);
-
   const layout: Partial<Layout> = {
-    ...baseLayout,
+    paper_bgcolor: '#030304',
+    plot_bgcolor: '#030304',
     barmode: 'group',
     height: responsiveLayout.height,
     margin: responsiveLayout.margin,
     xaxis: {
-      ...baseLayout.xaxis,
       title: {
         text: 'LVR Range ($)',
         font: { 
-          color: '#FFFFFF', 
+          color: '#F651AE', 
           size: responsiveLayout.fontSize.axis,
-          family: fontConfig.family 
+          family: 'Menlo' 
         },
         standoff: isMobile ? 25 : 30
       },
       tickfont: { 
         color: '#FFFFFF', 
         size: responsiveLayout.fontSize.tick,
-        family: fontConfig.family 
+        family: 'Menlo' 
       },
-      tickangle: isMobile ? -90 : -45, // Vertical labels on mobile
+      tickangle: isMobile ? -90 : -45,
       categoryorder: 'array' as const,
       categoryarray: bucketOrder,
-      fixedrange: true
+      fixedrange: true,
+      showgrid: true,
+      gridcolor: '#30283A'
     },
     yaxis: {
-      ...baseLayout.yaxis,
       title: {
         text: 'Number of Blocks',
         font: { 
-          color: '#FFFFFF', 
+          color: '#F651AE', 
           size: responsiveLayout.fontSize.axis,
-          family: fontConfig.family 
+          family: 'Menlo' 
         },
         standoff: isMobile ? 40 : 50
       },
       tickfont: { 
-        color: '#FFFFFF',
+        color: '#FFFFFF', 
         size: responsiveLayout.fontSize.tick,
-        family: fontConfig.family 
+        family: 'Menlo' 
       },
-      fixedrange: true
+      fixedrange: true,
+      showgrid: true,
+      gridcolor: '#30283A'
     },
     annotations: annotations,
     legend: {
       font: { 
         color: '#FFFFFF',
         size: responsiveLayout.fontSize.legend,
-        family: fontConfig.family 
+        family: 'Menlo' 
       },
-      bgcolor: '#000000',
-      bordercolor: '#212121',
+      bgcolor: '#030304',
+      bordercolor: '#30283A',
       ...responsiveLayout.legendPosition
     },
     title: {
       text: title,
       font: {
-        color: plotColors.accent,
+        color: '#F651AE',
         size: responsiveLayout.fontSize.title,
-        family: fontConfig.family
+        family: 'Menlo'
       }
     }
   };
@@ -309,7 +300,6 @@ const CategoryHistogram: React.FC<CategoryHistogramProps> = ({ selectedMarkout }
         data={traces}
         layout={layout}
         config={{
-          ...commonConfig,
           responsive: true,
           scrollZoom: false,
           displayModeBar: false,
@@ -329,11 +319,11 @@ const CategoryHistogram: React.FC<CategoryHistogramProps> = ({ selectedMarkout }
         {bucketOrder.map((label) => (
           <button
             key={label}
-            onClick={() => handleLabelClick(label)}
+            onClick={() => setSelectedLabel(selectedLabel === label ? null : label)}
             className={`px-4 py-2 rounded-lg transition-all duration-200 text-sm md:text-base ${
               selectedLabel === label
-                ? 'bg-[#b4d838] text-black font-medium'
-                : 'bg-[#212121] text-white hover:bg-[#2a2a2a]'
+                ? 'bg-[#F651AE] text-black font-medium'
+                : 'bg-[#30283A] text-white hover:bg-[#8247E5]/20'
             }`}
           >
             {label}

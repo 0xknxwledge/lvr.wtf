@@ -2,7 +2,6 @@ import React, { useState, useEffect, useCallback } from 'react';
 import Plot from 'react-plotly.js';
 import names from '../../names';
 import dates from '../../dates';
-import { createBaseLayout, plotColors, fontConfig, commonConfig } from '../plotUtils';
 
 interface PercentileDataPoint {
   start_block: number;
@@ -135,7 +134,6 @@ const PercentileBandChart: React.FC<PercentileBandChartProps> = ({
     ? `Monthly LVR Percentile Bandplot<br>for ${titleSuffix}*`
     : `Monthly LVR Percentile Bandplot for ${titleSuffix}*`;
 
-  const baseLayout = createBaseLayout(title);
   const responsiveLayout = getResponsiveLayout();
 
   const plotData: Array<Partial<Plotly.Data>> = [
@@ -143,8 +141,8 @@ const PercentileBandChart: React.FC<PercentileBandChartProps> = ({
       x: [...filteredDates, ...filteredDates.slice().reverse()],
       y: [...percentile75Values, ...percentile25Values.slice().reverse()],
       fill: 'toself',
-      fillcolor: 'rgba(180, 216, 56, 0.2)',
-      line: { color: 'rgba(180, 216, 56, 0.5)' },
+      fillcolor: 'rgba(130, 71, 229, 0.2)', // #8247E5 with opacity
+      line: { color: 'rgba(130, 71, 229, 0.5)' }, // #8247E5 with opacity
       name: '25th-75th Percentile',
       showlegend: false,
       type: 'scatter',
@@ -158,7 +156,7 @@ const PercentileBandChart: React.FC<PercentileBandChartProps> = ({
       mode: 'lines',
       name: 'Median',
       line: {
-        color: plotColors.accent,
+        color: '#F651AE', // Site's pink accent
         width: 2,
       },
       showlegend: false,
@@ -181,89 +179,85 @@ const PercentileBandChart: React.FC<PercentileBandChartProps> = ({
     },
   ];
 
-  const plotLayout = {
-    ...baseLayout,
+  const layout = {
+    paper_bgcolor: '#030304',
+    plot_bgcolor: '#030304',
     title: {
       text: title,
       font: {
-        color: plotColors.accent,
+        color: '#F651AE',
         size: responsiveLayout.fontSize.title,
-        family: fontConfig.family,
+        family: 'Menlo',
       },
     },
-          xaxis: {
-      ...baseLayout.xaxis,
-      fixedrange: true,
+    xaxis: {
       title: {
         text: 'Date Range (UTC)',
         font: { 
-          color: plotColors.accent, 
+          color: '#F651AE', 
           size: responsiveLayout.fontSize.axis, 
-          family: fontConfig.family 
+          family: 'Menlo' 
         },
         standoff: responsiveLayout.standoff.x,
       },
       tickfont: { 
         color: '#ffffff', 
         size: responsiveLayout.fontSize.tick, 
-        family: fontConfig.family 
+        family: 'Menlo' 
       },
       tickangle: 45,
+      showgrid: true,
+      gridcolor: '#30283A',
       automargin: true,
-    },
-          yaxis: {
-      ...baseLayout.yaxis,
       fixedrange: true,
+    },
+    yaxis: {
       title: {
         text: 'Daily Total LVR (USD)',
         font: { 
-          color: plotColors.accent, 
+          color: '#F651AE', 
           size: responsiveLayout.fontSize.axis, 
-          family: fontConfig.family 
+          family: 'Menlo' 
         },
         standoff: responsiveLayout.standoff.y,
       },
       tickfont: { 
         color: '#ffffff', 
         size: responsiveLayout.fontSize.tick, 
-        family: fontConfig.family 
+        family: 'Menlo' 
       },
+      showgrid: true,
+      gridcolor: '#30283A',
       automargin: true,
+      fixedrange: true,
     },
     height: responsiveLayout.height,
     margin: responsiveLayout.margin,
     hoverlabel: {
-      bgcolor: '#424242',
-      bordercolor: plotColors.accent,
+      bgcolor: '#30283A',
+      bordercolor: '#F651AE',
       font: { 
         color: '#ffffff', 
         size: responsiveLayout.fontSize.tick, 
-        family: fontConfig.family 
+        family: 'Menlo' 
       },
     },
   };
 
   return (
-    <div className="w-full bg-black rounded-lg border border-[#212121] p-6">
+    <div className="w-full bg-[#030304] rounded-lg border border-[#8247E5]/20 p-6">
       <Plot
         data={plotData}
-        layout={plotLayout}
+        layout={layout}
         config={{
-          ...commonConfig,
-          scrollZoom: false,
+          responsive: true,
           displayModeBar: false,
-          toImageButtonOptions: {
-            format: 'png',
-            filename: `bandplot_${poolAddress}`,
-            height: responsiveLayout.height,
-            width: windowWidth,
-            scale: 2
-          }
+          scrollZoom: false,
         }}
         style={{ width: '100%', height: '100%' }}
       />
       <div className="mt-4 pl-4 text-center">
-        <p className="text-[#B2AC88] text-sm font-['Menlo']">
+        <p className="text-[#8247E5] text-sm font-['Menlo']">
           *We excluded days (i.e, 7200-block-long chunks) that had zero simulated/observed LVR. The percentile values here are computed directly from linear interpolation
         </p>
       </div>

@@ -288,7 +288,7 @@ const RealizedRatioChart: React.FC = () => {
         style={{ width: '100%', height: '100%' }}
       />
       <div className="mt-4 pl-4 text-center">
-        <p className="text-[#B2AC88] text-sm font-['Menlo']">
+        <p className="text-[#8247E5]/80 text-sm font-['Menlo']">
           *Average marginal effect is estimated through univariate beta regression
         </p>
       </div>

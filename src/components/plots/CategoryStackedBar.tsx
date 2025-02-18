@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import Plot from 'react-plotly.js';
-import { plotColors, createBaseLayout, commonConfig } from '../plotUtils';
+import { Data, Layout } from 'plotly.js';
 
 interface MonthlyData {
   time_range: string;
@@ -17,15 +17,15 @@ interface CategoryStackedBarProps {
   selectedMarkout: string;
 }
 
-// Consistent category configuration with defined order and colors
+// Updated colors to match the new theme
 const CATEGORY_CONFIG = [
-  { name: "Stable Pairs",   color: '#E2DFC9' },  // Light cream
-  { name: "WBTC-WETH",      color: '#738C3A' },  // Medium olive
-  { name: "USDC-WETH",      color: '#A4C27B' },  // Sage green
-  { name: "USDT-WETH",      color: '#2D3A15' },  // Dark forest
-  { name: "DAI-WETH",       color: '#BAC7A7' },  // Light sage
-  { name: "USDC-WBTC",      color: '#4A5D23' },  // Deep forest
-  { name: "Altcoin-WETH",   color: '#8B9556' }   // Muted olive
+  { name: "Stable Pairs",   color: '#F651AE' },   // Pink
+  { name: "WBTC-WETH",      color: '#8247E5' },   // Purple
+  { name: "USDC-WETH",      color: '#BA8EF7' },   // Light Purple
+  { name: "USDT-WETH",      color: '#30283A' },   // Dark Purple
+  { name: "DAI-WETH",       color: '#FF84C9' },   // Light Pink
+  { name: "USDC-WBTC",      color: '#644AA0' },   // Medium Purple
+  { name: "Altcoin-WETH",   color: '#9B6FE8' }    // Lavender
 ] as const;
 
 const CategoryStackedBar: React.FC<CategoryStackedBarProps> = ({ selectedMarkout }) => {
@@ -42,7 +42,6 @@ const CategoryStackedBar: React.FC<CategoryStackedBarProps> = ({ selectedMarkout
 
   const isMobile = windowWidth < 768;
   const isTablet = windowWidth >= 768 && windowWidth <= 1024;
-
 
   useEffect(() => {
     const fetchData = async () => {
@@ -84,7 +83,7 @@ const CategoryStackedBar: React.FC<CategoryStackedBarProps> = ({ selectedMarkout
   }
 
   // Create traces in the order defined by CATEGORY_CONFIG
-  const traces = CATEGORY_CONFIG.map((category, index) => {
+  const traces = CATEGORY_CONFIG.map((category) => {
     const categoryData = {
       name: category.name,
       x: data.monthly_data.map(d => d.time_range),
@@ -101,7 +100,6 @@ const CategoryStackedBar: React.FC<CategoryStackedBarProps> = ({ selectedMarkout
     return categoryData;
   });
 
-  // Split title into two lines for mobile
   const titleSuffix = selectedMarkout === 'brontes' 
     ? '(Observed)' 
     : `(Markout ${selectedMarkout}s)`;
@@ -115,69 +113,81 @@ const CategoryStackedBar: React.FC<CategoryStackedBarProps> = ({ selectedMarkout
     title = `Monthly Total LVR by Category ${titleSuffix}`;
   }
 
-  const baseLayout = createBaseLayout(title);
+  const layout: Partial<Layout> = {
+    paper_bgcolor: '#030304',
+    plot_bgcolor: '#030304',
+    barmode: 'stack',
+    xaxis: {
+      title: {
+        text: 'Date Range (UTC)',
+        font: { color: '#F651AE', size: isMobile ? 12 : 14, family: 'Menlo' },
+        standoff: isMobile ? 15 : 20
+      },
+      tickfont: { color: '#FFFFFF', size: isMobile ? 8 : 10, family: 'Menlo' },
+      tickangle: isMobile ? -90 : -45,
+      fixedrange: true,
+      showgrid: true,
+      gridcolor: '#30283A'
+    },
+    yaxis: {
+      title: {
+        text: 'Total LVR (USD)',
+        font: { color: '#F651AE', size: isMobile ? 12 : 14, family: 'Menlo' },
+        standoff: isMobile ? 20 : 40
+      },
+      tickfont: { color: '#FFFFFF', size: isMobile ? 8 : 12, family: 'Menlo' },
+      tickformat: '$,.0f',
+      fixedrange: true,
+      showgrid: true,
+      gridcolor: '#30283A'
+    },
+    showlegend: true,
+    legend: {
+      font: { color: '#FFFFFF', size: isMobile ? 10 : 12, family: 'Menlo' },
+      bgcolor: '#030304',
+      bordercolor: '#30283A',
+      x: isMobile ? 0.5 : 1,
+      y: isMobile ? -0.6 : 1.1,
+      xanchor: isMobile ? 'center' : 'right',
+      yanchor: 'top',
+      orientation: isMobile ? 'h' : 'v'
+    },
+    height: isMobile ? 650 : 500,
+    margin: { 
+      l: isMobile ? 150 : 180,
+      r: isMobile ? 20 : 50, 
+      b: isMobile ? 220 : 160,
+      t: isMobile ? 80 : 80
+    },
+    hovermode: 'x unified',
+    hoverlabel: {
+      bgcolor: '#30283A',
+      bordercolor: '#F651AE',
+      font: { color: '#FFFFFF', size: isMobile ? 10 : 12, family: 'Menlo' }
+    },
+    title: {
+      text: title,
+      font: {
+        color: '#F651AE',
+        size: isMobile ? 14 : 16,
+        family: 'Menlo'
+      }
+    }
+  };
 
   return (
-    <Plot
-      data={traces}
-      layout={{
-        ...baseLayout,
-        barmode: 'stack',
-        xaxis: {
-          ...baseLayout.xaxis,
-          title: {
-            text: 'Date Range (UTC)',
-            font: { color: '#FFFFFF', size: isMobile ? 12 : 14 },
-            standoff: isMobile ? 15 : 20
-          },
-          tickfont: { color: '#FFFFFF', size: isMobile ? 8 : 10 },
-          tickangle: isMobile ? -90 : -45,
-          fixedrange: true,
-        },
-        yaxis: {
-          ...baseLayout.yaxis,
-          title: {
-            text: 'Total LVR (USD)',
-            font: { color: '#FFFFFF', size: isMobile ? 12 : 14 },
-            standoff: isMobile ? 20 : 40
-          },
-          tickfont: { color: '#FFFFFF', size: isMobile ? 8 : 12 },
-          tickformat: '$,.0f',
-          fixedrange: true,
-          showgrid: true,
-          gridcolor: '#212121',
-        },
-        showlegend: true,
-        legend: {
-          font: { color: '#FFFFFF', size: isMobile ? 10 : 12 },
-          bgcolor: '#000000',
-          bordercolor: '#212121',
-          x: isMobile ? 0.5 : 1,
-          y: isMobile ? -0.6 : 1.1, // Move legend further down on mobile
-          xanchor: isMobile ? 'center' : 'right',
-          yanchor: 'top',
-          orientation: isMobile ? 'h' : 'v'
-        },
-        height: isMobile ? 650 : 500,
-        margin: { 
-          l: isMobile ? 150 : 180,
-          r: isMobile ? 20 : 50, 
-          b: isMobile ? 220 : 160, // Increased bottom margin for mobile
-          t: isMobile ? 80 : 80 // Increased top margin for title
-        },
-        hovermode: 'x unified',
-        hoverlabel: {
-          bgcolor: '#424242',
-          bordercolor: '#b4d838',
-          font: { color: '#FFFFFF', size: isMobile ? 10 : 12 }
-        }
-      }}
-      config={{
-        ...commonConfig,
-        responsive: true
-      }}
-      style={{ width: '100%', height: '100%', minHeight: '500px' }}
-    />
+    <div className="w-full h-full">
+      <Plot
+        data={traces}
+        layout={layout}
+        config={{
+          responsive: true,
+          displayModeBar: false,
+          scrollZoom: false
+        }}
+        style={{ width: '100%', height: '100%', minHeight: '500px' }}
+      />
+    </div>
   );
 };
 

@@ -5,10 +5,7 @@
 
     -USDC DEPEG: 16790192 to 16797392 (March 9th to 10th UTC)
     
-    -New highs for BTC around $38.5k at end of November (roughly around block 18669392)
-
-- Change color palette to angstrom/sorella
-
+    -New highs for BTC around $38.5k at end of November (block 18669392, roughly November 28th-29th)
 
 Pools where observed total > markout 0 total (Difference = observed - markout 0):
 ----------------------------------------------------------------------------------------------------

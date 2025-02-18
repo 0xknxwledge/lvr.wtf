@@ -4,14 +4,13 @@ import EfficiencyRatioChart from '../components/plots/RealizedRatioChart';
 import PoolTotalsPieChart from '../components/plots/PieChart';
 import MaxLVRChart from '../components/plots/MaxLVRChart';
 import { MarkoutSelect } from '../components/LabeledSelect';
-import PageLayout from '../components/pagelayout';
 import PlotContainer from '../components/PlotContainer';
 
 const Aggregate: React.FC = () => {
   const [selectedMarkout, setSelectedMarkout] = useState('0.0');
 
   const controls = (
-    <div className="font-['Menlo'] w-full flex flex-col md:flex-row gap-4 justify-center items-center bg-gradient-to-r from-[#0b0b0e] via-[#B2AC88]/5 to-[#0b0b0e] p-6 rounded-lg">
+    <div className="w-full flex flex-col sm:flex-row gap-4 justify-center items-center bg-[#030304] p-6 rounded-lg">
       <MarkoutSelect 
         selectedMarkout={selectedMarkout} 
         onChange={setSelectedMarkout}
@@ -20,9 +19,15 @@ const Aggregate: React.FC = () => {
   );
 
   return (
-    <PageLayout title="Aggregate Analysis" controls={controls}>
+    <div className="font-['Menlo'] px-4 sm:px-6 md:px-8 py-4 sm:py-6 md:py-8 bg-[#030304] min-h-screen">
       <div className="max-w-7xl mx-auto">
-        <p className="font-['Menlo'] text-[#B2AC88] text-lg mb-8 text-center">
+        <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-[#F651AE] mb-4 text-center">
+          Aggregate Analysis
+        </h1>
+
+        {controls}
+
+        <p className="font-['Menlo'] text-white text-lg my-8 text-center">
           View data aggregated across pools. The first two plots are aggregated across markout times. 
           The last two plots are specific to the selected markout time.
         </p>
@@ -45,7 +50,7 @@ const Aggregate: React.FC = () => {
           </PlotContainer>
         </div>
       </div>
-    </PageLayout>
+    </div>
   );
 };
 

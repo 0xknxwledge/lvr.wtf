@@ -1,27 +1,27 @@
 import { Layout } from 'plotly.js';
 
-// Define color constants
+// Define color constants with new palette
 export const plotColors = {
-  primary: '#B2AC88',     // Sage green
-  secondary: '#8B9556',   // Olive green
-  accent: '#b4d838',      // Bright lime
+  primary: '#8247E5',     // Main purple from image
+  secondary: '#30283A',   // Dark purple from image
+  accent: '#F651AE',      // Pink from image
   chartColors: [
-    '#b4d838',   // Primary lime
-    '#9fc732',   // Secondary lime
-    '#8ab62c',   // Tertiary lime
-    '#75a526',   // Deep lime
-    '#609420',   // Forest lime
-    '#4b831a',   // Dark lime
-    '#367214'    // Very dark lime
+    '#8247E5',   // Main purple
+    '#F651AE',   // Pink
+    '#2F69ED',   // Blue
+    '#30283A',   // Dark purple
+    '#9B6FE8',   // Light purple (derived)
+    '#FF7BC5',   // Light pink (derived)
+    '#5785F0'    // Light blue (derived)
   ],
   categoryPalette: {
-    'Stable Pairs': '#B2AC88',      // Sage green
-    'WBTC-WETH': '#8B9556',         // Olive green
-    'USDC-WETH': '#4A5D23',         // Deep forest green
-    'USDT-WETH': '#6B705C',         // Muted olive
-    'DAI-WETH': '#A3B18A',          // Light sage
-    'USDC-WBTC': '#588157',         // Forest green
-    'Altcoin-WETH': '#344E41'       // Dark forest green
+    'Stable Pairs': '#8247E5',      // Purple
+    'WBTC-WETH': '#F651AE',         // Pink
+    'USDC-WETH': '#2F69ED',         // Blue
+    'USDT-WETH': '#30283A',         // Dark purple
+    'DAI-WETH': '#9B6FE8',          // Light purple
+    'USDC-WBTC': '#FF7BC5',         // Light pink
+    'Altcoin-WETH': '#5785F0'       // Light blue
   }
 };
 

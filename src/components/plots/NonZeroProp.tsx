@@ -30,7 +30,9 @@ const NonZeroProportion: React.FC<NonZeroProportionProps> = ({ poolAddress, sele
           markout_time: selectedMarkout
         });
 
-        const response = await fetch(`https://lvr-wtf-568975696472.us-central1.run.app/non_zero_proportion?${params.toString()}`);
+        const response = await fetch(
+          `https://lvr-wtf-568975696472.us-central1.run.app/non_zero_proportion?${params.toString()}`
+        );
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
         }
@@ -83,14 +85,14 @@ const NonZeroProportion: React.FC<NonZeroProportionProps> = ({ poolAddress, sele
     '(Observed)' : 
     `(Markout ${selectedMarkout}s)`;
   const colors = {
-    primary: '#b4d838',
-    secondary: '#9fc732'
+    primary: '#F651AE',    // Pink accent
+    secondary: '#8247E5'   // Purple accent
   };
 
   return (
     <div className="w-full">
       <div className="mb-8">
-        <h2 className="text-[#b4d838] text-base md:text-lg text-center px-4">
+        <h2 className="text-[#F651AE] text-base md:text-lg text-center px-4">
           Percentage of Blocks with Non-Zero LVR for {names[data.pool_address] || data.pool_name} {titleSuffix}
         </h2>
       </div>
@@ -101,9 +103,9 @@ const NonZeroProportion: React.FC<NonZeroProportionProps> = ({ poolAddress, sele
           <div 
             className="relative flex flex-col items-center justify-center p-4 md:p-6 lg:p-8 rounded-xl overflow-hidden transition-all duration-300 hover:scale-105 min-h-[200px] transform-gpu"
             style={{
-              background: `linear-gradient(135deg, rgba(45, 45, 45, 0.5), rgba(20, 20, 20, 0.8))`,
-              border: `1px solid ${colors.primary}20`,
-              boxShadow: `0 4px 30px ${colors.primary}10`
+              background: `linear-gradient(135deg, rgba(48, 40, 58, 0.5), rgba(3, 3, 4, 0.8))`,
+              border: `1px solid ${colors.secondary}20`,
+              boxShadow: `0 4px 30px ${colors.secondary}10`
             }}
           >
             {/* Gradient background overlay */}

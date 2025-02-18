@@ -15,7 +15,7 @@ const Pool: React.FC = () => {
   const [selectedPool, setSelectedPool] = useState('0x88e6a0c2ddd26feeb64f039a2c41296fcb3f5640');
 
   const controls = (
-    <div className="font-['Menlo'] w-full flex flex-col md:flex-row gap-4 justify-center items-center bg-gradient-to-r from-[#0b0b0e] via-[#B2AC88]/5 to-[#0b0b0e] p-6 rounded-lg">
+    <div className="w-full flex flex-col sm:flex-row gap-4 justify-center items-center bg-[#030304] p-6 rounded-lg">
       <PoolSelect
         selectedPool={selectedPool}
         onChange={setSelectedPool}
@@ -29,9 +29,15 @@ const Pool: React.FC = () => {
   );
 
   return (
-    <PageLayout title="Pool Analysis" controls={controls}>
+    <div className="font-['Menlo'] px-4 sm:px-6 md:px-8 py-4 sm:py-6 md:py-8 bg-[#030304] min-h-screen">
       <div className="max-w-7xl mx-auto">
-        <p className="font-['Menlo'] text-[#B2AC88] text-lg mb-8 text-center">
+        <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-[#F651AE] mb-4 text-center">
+          Pool Analysis
+        </h1>
+        
+        {controls}
+
+        <p className="font-['Menlo'] text-white text-lg my-8 text-center">
           View data for individual pool and markout time combinations
         </p>
 
@@ -54,7 +60,7 @@ const Pool: React.FC = () => {
             <DistributionMetrics
               poolAddress={selectedPool}
               markoutTime={selectedMarkout}
-              />
+            />
           </PlotContainer>
 
           <PlotContainer>
@@ -79,8 +85,7 @@ const Pool: React.FC = () => {
           </PlotContainer>
         </div>
       </div>
-    </PageLayout>
+    </div>
   );
 };
-
 export default Pool;

@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { plotColors } from '../plotUtils';
 
 interface CategoryNonZero {
   name: string;
@@ -49,40 +48,41 @@ const CLUSTER_DISPLAY_NAMES: Record<ClusterName, DisplayName> = {
   "altcoin_weth": "Altcoin-WETH"
 };
 
+// Updated color palette to match site theme
 const CLUSTER_COLORS: Record<DisplayName, ColorSet> = {
   "Stable Pairs": { 
-    primary: '#E2DFC9',
-    secondary: '#d4d1b8'
+    primary: '#F651AE',
+    secondary: '#D33D97'
   },
   "WBTC-WETH": { 
-    primary: '#738C3A',
-    secondary: '#5d7030'
+    primary: '#8247E5',
+    secondary: '#6A35CC'
   },
   "USDC-WETH": { 
-    primary: '#A4C27B',
-    secondary: '#8ba665'
+    primary: '#BA8EF7',
+    secondary: '#A276E5'
   },
   "USDT-WETH": { 
-    primary: '#2D3A15',
-    secondary: '#1a2209'
+    primary: '#30283A',
+    secondary: '#1E1825'
   },
   "DAI-WETH": { 
-    primary: '#BAC7A7',
-    secondary: '#a1b189'
+    primary: '#FF84C9',
+    secondary: '#E66DB2'
   },
   "USDC-WBTC": { 
-    primary: '#4A5D23',
-    secondary: '#384819'
+    primary: '#644AA0',
+    secondary: '#4C3587'
   },
   "Altcoin-WETH": { 
-    primary: '#8B9556',
-    secondary: '#737b47'
+    primary: '#9B6FE8',
+    secondary: '#835AD0'
   }
 };
 
 const DEFAULT_COLORS: ColorSet = {
-  primary: '#B2AC88',
-  secondary: '#8B9556'
+  primary: '#F651AE',
+  secondary: '#8247E5'
 };
 
 const CategoryNonZero: React.FC<CategoryNonZeroProps> = ({ selectedMarkout }) => {
@@ -150,7 +150,7 @@ const CategoryNonZero: React.FC<CategoryNonZeroProps> = ({ selectedMarkout }) =>
   return (
     <div className="w-full">
       <div className="mb-8">
-        <h2 className="text-[#b4d838] text-base md:text-lg text-center px-4">
+        <h2 className="text-[#F651AE] text-base md:text-lg text-center px-4">
           Percentage of Blocks with Non-Zero LVR by Category {titleSuffix}
         </h2>
       </div>
@@ -165,7 +165,7 @@ const CategoryNonZero: React.FC<CategoryNonZeroProps> = ({ selectedMarkout }) =>
               <div 
                 className="relative flex flex-col items-center justify-center p-4 md:p-6 lg:p-8 rounded-xl overflow-hidden transition-all duration-300 hover:scale-105 min-h-[200px] transform-gpu"
                 style={{
-                  background: `linear-gradient(135deg, rgba(45, 45, 45, 0.5), rgba(20, 20, 20, 0.8))`,
+                  background: `linear-gradient(135deg, rgba(48, 40, 58, 0.5), rgba(3, 3, 4, 0.8))`,
                   border: `1px solid ${colors.primary}20`,
                   boxShadow: `0 4px 30px ${colors.primary}10`
                 }}
@@ -178,14 +178,12 @@ const CategoryNonZero: React.FC<CategoryNonZeroProps> = ({ selectedMarkout }) =>
                 />
                 
                 <div className="relative z-10 flex flex-col items-center w-full">
-                  {/* Title with improved text wrapping */}
                   <div className="w-full mb-4">
                     <h3 className="text-sm md:text-base lg:text-lg font-medium text-center text-white break-words">
                       {displayName}
                     </h3>
                   </div>
 
-                  {/* Percentage display with better spacing */}
                   <div className="flex items-baseline justify-center mb-2 md:mb-4">
                     <span 
                       className="text-3xl md:text-4xl lg:text-5xl xl:text-6xl font-bold"
@@ -201,7 +199,6 @@ const CategoryNonZero: React.FC<CategoryNonZeroProps> = ({ selectedMarkout }) =>
                     </span>
                   </div>
 
-                  {/* Statistics with improved layout */}
                   <div className="flex flex-col items-center text-xs md:text-sm text-gray-400 mt-2">
                     <div className="flex items-center justify-center space-x-1">
                       <span 

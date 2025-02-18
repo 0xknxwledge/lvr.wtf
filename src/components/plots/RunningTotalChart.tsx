@@ -32,7 +32,7 @@ const EVENT_ANNOTATIONS: EventAnnotation[] = [
   {
     blockStart: 18669392,
     blockEnd: 18669392,
-    text: "Bull run(?)",
+    text: "Microstrategy buys $600M of BTC",
     description: "Late November 2023"
   }
 ];
@@ -69,8 +69,8 @@ const AnnotatedRunningTotal: React.FC = () => {
     return {
       height: isMobile ? 500 : 700,
       margin: {
-        l: isMobile ? 40 : (isTablet ? 60 : 80),
-        r: isMobile ? 70 : (isTablet ? 85 : 100),
+        l: isMobile ? 60 : (isTablet ? 80 : 100),  // Increased left margin
+        r: isMobile ? 90 : (isTablet ? 105 : 120),  // Increased right margin
         b: isMobile ? 60 : (isTablet ? 80 : 100),
         t: isMobile ? 100 : (isTablet ? 120 : 140),
         pad: 4
@@ -81,9 +81,14 @@ const AnnotatedRunningTotal: React.FC = () => {
         tick: isMobile ? 8 : (isTablet ? 9 : 10),
         legend: isMobile ? 8 : (isTablet ? 10 : 12),
         annotation: isMobile ? 10 : (isTablet ? 12 : 14)
+      },
+      standoff: {
+        x: isMobile ? 20 : (isTablet ? 25 : 30),
+        y: isMobile ? 5 : (isTablet ? 10 : 20)  // Increased y-axis standoff
       }
     };
   }, [windowWidth]);
+
 
   useEffect(() => {
     const fetchData = async () => {
@@ -170,9 +175,19 @@ const AnnotatedRunningTotal: React.FC = () => {
     const seriesData = Object.values(groupedData)[0];
     const xIndex = seriesData.x.findIndex(x => x >= event.blockStart);
     const yValue = seriesData.y[xIndex];
-    
+  
+    // By default, place each annotation above the data point, staggered by index:
     const yOffset = index * (isMobile ? 40 : 60);
-    
+    let ax = 0;
+    let ay = -60 - yOffset;
+  
+    // If it's the "SEC charges Terraform Labs..." annotation,
+    // move it to the bottom-right instead:
+    if (event.text.includes("SEC charges")) {
+      ax = 60;  // Shift annotation to the right
+      ay = 60;  // Shift annotation down (positive ay = below the point)
+    }
+  
     return {
       x: event.blockStart,
       y: yValue,
@@ -182,8 +197,8 @@ const AnnotatedRunningTotal: React.FC = () => {
       arrowsize: 1,
       arrowwidth: 2,
       arrowcolor: plotColors.accent,
-      ax: 0,
-      ay: -60 - yOffset,
+      ax,
+      ay,
       font: {
         size: responsiveLayout.fontSize.annotation,
         color: '#ffffff',
@@ -195,20 +210,15 @@ const AnnotatedRunningTotal: React.FC = () => {
       borderpad: 4
     };
   });
+  
 
   const layout: Partial<Layout> = {
     paper_bgcolor: '#000000',
     plot_bgcolor: '#000000',
     height: responsiveLayout.height,
     margin: responsiveLayout.margin,
-    title: {
-      text: 'Cumulative LVR over Time',
-      font: {
-        color: plotColors.accent,
-        size: responsiveLayout.fontSize.title,
-        family: fontConfig.family
-      }
-    },
+    autosize: true,
+    showlegend: true,
     xaxis: {
       title: {
         text: 'Block Number',
@@ -216,18 +226,19 @@ const AnnotatedRunningTotal: React.FC = () => {
           color: plotColors.accent, 
           size: responsiveLayout.fontSize.axis,
           family: fontConfig.family 
-        },
-        standoff: isMobile ? 15 : 20
+        }
       },
       tickformat: ',d',
       tickfont: { 
-        color: '#ffffff',
+        color: '#ffffff', 
         size: responsiveLayout.fontSize.tick,
         family: fontConfig.family 
       },
       tickangle: isMobile ? 45 : 0,
-      showgrid: false,
-      gridcolor: '#212121'
+      showgrid: true,
+      gridcolor: '#30283A',
+      gridwidth: 1,
+      zeroline: false
     },
     yaxis: {
       title: {
@@ -237,7 +248,7 @@ const AnnotatedRunningTotal: React.FC = () => {
           size: responsiveLayout.fontSize.axis,
           family: fontConfig.family 
         },
-        standoff: isMobile ? 30 : 40
+        standoff: responsiveLayout.standoff.y
       },
       tickformat: '$,.0f',
       tickfont: { 
@@ -246,10 +257,11 @@ const AnnotatedRunningTotal: React.FC = () => {
         family: fontConfig.family 
       },
       side: 'right',
-      showgrid: false,
-      rangemode: 'tozero'
+      showgrid: true,
+      gridcolor: '#30283A',
+      gridwidth: 1,
+      zeroline: false,
     },
-    showlegend: true,
     legend: {
       x: isMobile ? 0 : 0,
       y: isMobile ? -0.2 : 1,
@@ -265,6 +277,14 @@ const AnnotatedRunningTotal: React.FC = () => {
       }
     },
     annotations: annotations,
+    title: {
+      text: 'Cumulative LVR over Time',
+      font: {
+        color: plotColors.accent,
+        size: responsiveLayout.fontSize.title,
+        family: fontConfig.family
+      }
+    },
     hovermode: 'closest'
   };
 
