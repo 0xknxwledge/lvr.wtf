@@ -55,7 +55,7 @@ const NonZeroProportion: React.FC<NonZeroProportionProps> = ({ poolAddress, sele
     return (
       <div className="w-full">
         <div className="flex items-center justify-center h-48">
-          <p className="text-white text-base md:text-lg">Loading...</p>
+          <p className="text-white text-base md:text-lg font-['Menlo']">Loading...</p>
         </div>
       </div>
     );
@@ -65,7 +65,7 @@ const NonZeroProportion: React.FC<NonZeroProportionProps> = ({ poolAddress, sele
     return (
       <div className="w-full">
         <div className="flex items-center justify-center h-48">
-          <p className="text-red-500 text-sm md:text-base px-4 py-2 bg-red-500/10 rounded">{error}</p>
+          <p className="text-red-500 text-sm md:text-base px-4 py-2 bg-red-500/10 rounded font-['Menlo']">{error}</p>
         </div>
       </div>
     );
@@ -75,7 +75,7 @@ const NonZeroProportion: React.FC<NonZeroProportionProps> = ({ poolAddress, sele
     return (
       <div className="w-full">
         <div className="flex items-center justify-center h-48">
-          <p className="text-white text-base md:text-lg">No data available</p>
+          <p className="text-white text-base md:text-lg font-['Menlo']">No data available</p>
         </div>
       </div>
     );
