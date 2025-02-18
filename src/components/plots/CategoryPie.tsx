@@ -138,7 +138,7 @@ const CategoryPieChart: React.FC<CategoryPieChartProps> = ({ selectedMarkout }) 
     title: {
       text: title,
       font: {
-        color: '#F651AE',
+        color: '#FFFFFF',
         size: isSmallScreen ? 14 : 16,
         family: 'Geist'
       }

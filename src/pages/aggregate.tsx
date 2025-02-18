@@ -28,17 +28,13 @@ const Aggregate: React.FC = () => {
         {controls}
 
         <p className="font-['Geist'] text-white text-lg my-8 text-center">
-          View data aggregated across pools. The first two plots are aggregated across markout times. 
+          View data aggregated across pools. 
           The last two plots are specific to the selected markout time.
         </p>
 
         <div className="flex flex-col">
           <PlotContainer>
             <RunningTotalChart />
-          </PlotContainer>
-
-          <PlotContainer>
-            <EfficiencyRatioChart />
           </PlotContainer>
 
           <PlotContainer>

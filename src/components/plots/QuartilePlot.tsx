@@ -278,7 +278,7 @@ const QuartilePlot: React.FC<QuartilePlotProps> = ({ poolAddress, markoutTime })
           title: {
             text: title,
             font: {
-              color: plotColors.accent,
+              color: '#FFFFFF',
               size: responsiveLayout.fontSize.title,
               family: fontConfig.family
             }

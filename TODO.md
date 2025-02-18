@@ -23,3 +23,7 @@ WBTC-USDC-3000       | 0x99ac8ca7087fa4a2a1fb6357269965a2014abc35 |     +403,890
 
 
 - Fuzz test DistributionMetrics and quantile estimates for lognormal, pareto, bimodal, etc. distributions; whats the expected relative error? How consistent is it?
+
+- MOVE RUNNING TOTAL ANNOTATIONS TO THE BOTTOM AND CHANGE COLOR FROM PINK
+- CHANGE "OBERSVED" to "BRONTES"
+- BOLD PLOT TITLES

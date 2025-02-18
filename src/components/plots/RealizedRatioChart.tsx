@@ -233,7 +233,7 @@ const RealizedRatioChart: React.FC = () => {
     title: {
       text: isMobile ? title : title.replace('<br>', ' '),
       font: {
-        color: plotColors.accent,
+        color: '#FFFFFF',
         size: responsiveLayout.fontSize.title,
         family: fontConfig.family
       }

@@ -185,7 +185,7 @@ const PercentileBandChart: React.FC<PercentileBandChartProps> = ({
     title: {
       text: title,
       font: {
-        color: '#F651AE',
+        color: '#FFFFFF',
         size: responsiveLayout.fontSize.title,
         family: 'Geist',
       },

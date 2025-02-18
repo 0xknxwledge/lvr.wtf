@@ -280,7 +280,7 @@ const AnnotatedRunningTotal: React.FC = () => {
     title: {
       text: 'Cumulative LVR over Time',
       font: {
-        color: plotColors.accent,
+        color: '#FFFFFF',
         size: responsiveLayout.fontSize.title,
         family: fontConfig.family
       }

@@ -184,7 +184,7 @@ const SoleRunningTotal: React.FC<SoleRunningTotalProps> = ({ poolAddress, markou
     title: {
       text: title,
       font: {
-        color: plotColors.accent,
+        color: '#FFFFFF',
         size: responsiveLayout.fontSize.title,
         family: fontConfig.family
       }

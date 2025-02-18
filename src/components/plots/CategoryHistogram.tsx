@@ -287,7 +287,7 @@ const CategoryHistogram: React.FC<CategoryHistogramProps> = ({ selectedMarkout }
     title: {
       text: title,
       font: {
-        color: '#F651AE',
+        color: '#FFFFFF',
         size: responsiveLayout.fontSize.title,
         family: 'Geist'
       }

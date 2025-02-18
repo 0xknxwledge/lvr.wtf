@@ -175,7 +175,7 @@ const MaxLVRChart: React.FC<MaxLVRChartProps> = ({ selectedMarkout }) => {
     title: {
       text: title,
       font: {
-        color: plotColors.accent,
+        color: '#FFFFFF',
         size: responsiveLayout.fontSize.title,
         family: fontConfig.family
       }
