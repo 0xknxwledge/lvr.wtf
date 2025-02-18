@@ -132,7 +132,7 @@ const CategoryPieChart: React.FC<CategoryPieChartProps> = ({ selectedMarkout }) 
       font: {
         color: '#FFFFFF',
         size: 16,
-        family: 'Menlo'
+        family: 'Geist'
       }
     }],
     title: {
@@ -140,7 +140,7 @@ const CategoryPieChart: React.FC<CategoryPieChartProps> = ({ selectedMarkout }) 
       font: {
         color: '#F651AE',
         size: isSmallScreen ? 14 : 16,
-        family: 'Menlo'
+        family: 'Geist'
       }
     }
   };
@@ -165,14 +165,14 @@ const CategoryPieChart: React.FC<CategoryPieChartProps> = ({ selectedMarkout }) 
           textfont: {
             color: '#FFFFFF',
             size: responsiveLayout.textFont.size,
-            family: 'Menlo'
+            family: 'Geist'
           },
           hoverlabel: {
             bgcolor: '#30283A',
             bordercolor: '#F651AE',
             font: { 
               color: '#FFFFFF',
-              family: 'Menlo',
+              family: 'Geist',
               size: responsiveLayout.textFont.size
             }
           },

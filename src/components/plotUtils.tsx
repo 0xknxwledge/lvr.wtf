@@ -27,7 +27,7 @@ export const plotColors = {
 
 // Font configuration
 export const fontConfig = {
-  family: 'Menlo',
+  family: 'Geist',
   sizes: {
     title: 16,
     axisTitle: 14,

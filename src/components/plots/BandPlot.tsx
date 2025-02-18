@@ -187,7 +187,7 @@ const PercentileBandChart: React.FC<PercentileBandChartProps> = ({
       font: {
         color: '#F651AE',
         size: responsiveLayout.fontSize.title,
-        family: 'Menlo',
+        family: 'Geist',
       },
     },
     xaxis: {
@@ -196,14 +196,14 @@ const PercentileBandChart: React.FC<PercentileBandChartProps> = ({
         font: { 
           color: '#F651AE', 
           size: responsiveLayout.fontSize.axis, 
-          family: 'Menlo' 
+          family: 'Geist' 
         },
         standoff: responsiveLayout.standoff.x,
       },
       tickfont: { 
         color: '#ffffff', 
         size: responsiveLayout.fontSize.tick, 
-        family: 'Menlo' 
+        family: 'Geist' 
       },
       tickangle: 45,
       showgrid: true,
@@ -217,14 +217,14 @@ const PercentileBandChart: React.FC<PercentileBandChartProps> = ({
         font: { 
           color: '#F651AE', 
           size: responsiveLayout.fontSize.axis, 
-          family: 'Menlo' 
+          family: 'Geist' 
         },
         standoff: responsiveLayout.standoff.y,
       },
       tickfont: { 
         color: '#ffffff', 
         size: responsiveLayout.fontSize.tick, 
-        family: 'Menlo' 
+        family: 'Geist' 
       },
       showgrid: true,
       gridcolor: '#30283A',
@@ -239,7 +239,7 @@ const PercentileBandChart: React.FC<PercentileBandChartProps> = ({
       font: { 
         color: '#ffffff', 
         size: responsiveLayout.fontSize.tick, 
-        family: 'Menlo' 
+        family: 'Geist' 
       },
     },
   };

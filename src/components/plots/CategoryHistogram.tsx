@@ -217,7 +217,7 @@ const CategoryHistogram: React.FC<CategoryHistogramProps> = ({ selectedMarkout }
     font: { 
       color: '#ffffff', 
       size: responsiveLayout.fontSize.annotation,
-      family: 'Menlo'
+      family: 'Geist'
     },
     borderwidth: 2,
     borderpad: 4,
@@ -238,14 +238,14 @@ const CategoryHistogram: React.FC<CategoryHistogramProps> = ({ selectedMarkout }
         font: { 
           color: '#F651AE', 
           size: responsiveLayout.fontSize.axis,
-          family: 'Menlo' 
+          family: 'Geist' 
         },
         standoff: isMobile ? 25 : 30
       },
       tickfont: { 
         color: '#FFFFFF', 
         size: responsiveLayout.fontSize.tick,
-        family: 'Menlo' 
+        family: 'Geist' 
       },
       tickangle: isMobile ? -90 : -45,
       categoryorder: 'array' as const,
@@ -260,14 +260,14 @@ const CategoryHistogram: React.FC<CategoryHistogramProps> = ({ selectedMarkout }
         font: { 
           color: '#F651AE', 
           size: responsiveLayout.fontSize.axis,
-          family: 'Menlo' 
+          family: 'Geist' 
         },
         standoff: isMobile ? 40 : 50
       },
       tickfont: { 
         color: '#FFFFFF', 
         size: responsiveLayout.fontSize.tick,
-        family: 'Menlo' 
+        family: 'Geist' 
       },
       fixedrange: true,
       showgrid: true,
@@ -278,7 +278,7 @@ const CategoryHistogram: React.FC<CategoryHistogramProps> = ({ selectedMarkout }
       font: { 
         color: '#FFFFFF',
         size: responsiveLayout.fontSize.legend,
-        family: 'Menlo' 
+        family: 'Geist' 
       },
       bgcolor: '#030304',
       bordercolor: '#30283A',
@@ -289,7 +289,7 @@ const CategoryHistogram: React.FC<CategoryHistogramProps> = ({ selectedMarkout }
       font: {
         color: '#F651AE',
         size: responsiveLayout.fontSize.title,
-        family: 'Menlo'
+        family: 'Geist'
       }
     }
   };

@@ -120,10 +120,10 @@ const CategoryStackedBar: React.FC<CategoryStackedBarProps> = ({ selectedMarkout
     xaxis: {
       title: {
         text: 'Date Range (UTC)',
-        font: { color: '#F651AE', size: isMobile ? 12 : 14, family: 'Menlo' },
+        font: { color: '#F651AE', size: isMobile ? 12 : 14, family: 'Geist' },
         standoff: isMobile ? 15 : 20
       },
-      tickfont: { color: '#FFFFFF', size: isMobile ? 8 : 10, family: 'Menlo' },
+      tickfont: { color: '#FFFFFF', size: isMobile ? 8 : 10, family: 'Geist' },
       tickangle: isMobile ? -90 : -45,
       fixedrange: true,
       showgrid: true,
@@ -132,10 +132,10 @@ const CategoryStackedBar: React.FC<CategoryStackedBarProps> = ({ selectedMarkout
     yaxis: {
       title: {
         text: 'Total LVR (USD)',
-        font: { color: '#F651AE', size: isMobile ? 12 : 14, family: 'Menlo' },
+        font: { color: '#F651AE', size: isMobile ? 12 : 14, family: 'Geist' },
         standoff: isMobile ? 20 : 40
       },
-      tickfont: { color: '#FFFFFF', size: isMobile ? 8 : 12, family: 'Menlo' },
+      tickfont: { color: '#FFFFFF', size: isMobile ? 8 : 12, family: 'Geist' },
       tickformat: '$,.0f',
       fixedrange: true,
       showgrid: true,
@@ -143,7 +143,7 @@ const CategoryStackedBar: React.FC<CategoryStackedBarProps> = ({ selectedMarkout
     },
     showlegend: true,
     legend: {
-      font: { color: '#FFFFFF', size: isMobile ? 10 : 12, family: 'Menlo' },
+      font: { color: '#FFFFFF', size: isMobile ? 10 : 12, family: 'Geist' },
       bgcolor: '#030304',
       bordercolor: '#30283A',
       x: isMobile ? 0.5 : 1,
@@ -163,14 +163,14 @@ const CategoryStackedBar: React.FC<CategoryStackedBarProps> = ({ selectedMarkout
     hoverlabel: {
       bgcolor: '#30283A',
       bordercolor: '#F651AE',
-      font: { color: '#FFFFFF', size: isMobile ? 10 : 12, family: 'Menlo' }
+      font: { color: '#FFFFFF', size: isMobile ? 10 : 12, family: 'Geist' }
     },
     title: {
       text: title,
       font: {
         color: '#F651AE',
         size: isMobile ? 14 : 16,
-        family: 'Menlo'
+        family: 'Geist'
       }
     }
   };
