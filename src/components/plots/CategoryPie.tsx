@@ -108,13 +108,13 @@ const CategoryPieChart: React.FC<CategoryPieChartProps> = ({ selectedMarkout }) 
     };
   }).filter((item): item is NonNullable<typeof item> => item !== null);
 
-  const titleSuffix = selectedMarkout === 'brontes' ? 
-    '(Brontes)' : 
-    `(Markout ${selectedMarkout}s)`;
+  const titleSuffix = selectedMarkout === 'brontes' 
+    ? '(Brontes)' 
+    : `(Markout ${selectedMarkout}s)`;
 
-  const title = isSmallScreen ? 
-    `Total LVR<br>by Category ${titleSuffix}` :
-    `Total LVR by Category ${titleSuffix}`;
+  const title = isSmallScreen 
+    ? `Total LVR<br>by Category ${titleSuffix}`
+    : `Total LVR by Category ${titleSuffix}`;
 
   const layout: Partial<Layout> = {
     paper_bgcolor: '#030304',
@@ -136,7 +136,7 @@ const CategoryPieChart: React.FC<CategoryPieChartProps> = ({ selectedMarkout }) 
       }
     }],
     title: {
-      text: title,
+      text: `<b>${title}</b>`,
       font: {
         color: '#FFFFFF',
         size: isSmallScreen ? 14 : 16,
@@ -186,7 +186,7 @@ const CategoryPieChart: React.FC<CategoryPieChartProps> = ({ selectedMarkout }) 
         scrollZoom: false,
       }}
       style={{ width: '100%', height: '100%' }}
-      useResizeHandler={true}
+      useResizeHandler
     />
   );
 };

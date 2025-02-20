@@ -12,7 +12,6 @@ interface RunningTotal {
   running_total_cents: number;
 }
 
-
 interface SoleRunningTotalProps {
   poolAddress: string;
   markoutTime: string;
@@ -37,7 +36,6 @@ const SoleRunningTotal: React.FC<SoleRunningTotalProps> = ({ poolAddress, markou
 
   // Calculate responsive dimensions
   const getResponsiveLayout = useCallback(() => {
-
     return {
       height: isMobile ? 400 : 600,
       margin: {
@@ -97,7 +95,9 @@ const SoleRunningTotal: React.FC<SoleRunningTotalProps> = ({ poolAddress, markou
     return (
       <div className="w-full bg-black rounded-lg md:rounded-2xl border border-[#212121] p-4 md:p-6">
         <div className="h-[400px] md:h-[600px] flex items-center justify-center">
-          <div className="text-white bg-red-600 p-3 md:p-4 rounded text-sm md:text-base font-['Geist']">{error}</div>
+          <div className="text-white bg-red-600 p-3 md:p-4 rounded text-sm md:text-base font-['Geist']">
+            {error}
+          </div>
         </div>
       </div>
     );
@@ -107,7 +107,9 @@ const SoleRunningTotal: React.FC<SoleRunningTotalProps> = ({ poolAddress, markou
     return (
       <div className="w-full bg-black rounded-lg md:rounded-2xl border border-[#212121] p-4 md:p-6">
         <div className="h-[400px] md:h-[600px] flex items-center justify-center">
-          <div className="text-white text-base md:text-lg font-['Geist']">No data available</div>
+          <div className="text-white text-base md:text-lg font-['Geist']">
+            No data available
+          </div>
         </div>
       </div>
     );
@@ -120,14 +122,16 @@ const SoleRunningTotal: React.FC<SoleRunningTotalProps> = ({ poolAddress, markou
   const magnitude = Math.pow(10, Math.floor(Math.log10(maxY)));
   const tickSpacing = magnitude / 2;
   const numTicks = Math.ceil(maxY / tickSpacing);
-  
 
   const title = shouldBreakTitle
     ? `Cumulative LVR over Time <br> for ${poolName} ${titleSuffix}`
     : `Cumulative LVR over Time for ${poolName} ${titleSuffix}`;
+
+  // Base layout plus responsive
   const baseLayout = createBaseLayout(title);
   const responsiveLayout = getResponsiveLayout();
 
+  // ***** ONLY CHANGE HERE: Wrap the existing `title.text` in <b>...</b> *****
   const layout: Partial<Layout> = {
     ...baseLayout,
     height: responsiveLayout.height,
@@ -182,7 +186,7 @@ const SoleRunningTotal: React.FC<SoleRunningTotalProps> = ({ poolAddress, markou
     showlegend: false,
     autosize: true,
     title: {
-      text: title,
+      text: `<b>${title}</b>`, // Wrap with <b>...</b>
       font: {
         color: '#FFFFFF',
         size: responsiveLayout.fontSize.title,
@@ -203,7 +207,7 @@ const SoleRunningTotal: React.FC<SoleRunningTotalProps> = ({ poolAddress, markou
             name: `${poolName} ${titleSuffix}`,
             line: {
               color: plotColors.accent,
-              width: windowWidth <= 768 ? 1.5 : 2,
+              width: windowWidth <= 768 ? 1.5 : 2
             },
             hoverinfo: 'x+y' as const,
             hoverlabel: {

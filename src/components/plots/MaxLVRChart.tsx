@@ -173,7 +173,7 @@ const MaxLVRChart: React.FC<MaxLVRChartProps> = ({ selectedMarkout }) => {
     hoverdistance: 50,
     bargap: 0.2,
     title: {
-      text: title,
+      text: `<b>${title}</b>`,
       font: {
         color: '#FFFFFF',
         size: responsiveLayout.fontSize.title,

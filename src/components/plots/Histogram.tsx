@@ -11,16 +11,37 @@ interface HistogramBucket {
   label: string;
 }
 
+interface BucketWithPercentage extends HistogramBucket {
+  percentage: number;
+}
+
 interface HistogramResponse {
   pool_name: string;
   pool_address: string;
-  buckets: HistogramBucket[];
+  buckets: BucketWithPercentage[];
   total_observations: number;
 }
 
 interface HistogramChartProps {
   poolAddress: string;
   markoutTime: string;
+}
+
+// Helper function to compute exact percentages
+function computeExactPercentages(buckets: HistogramBucket[], total: number): BucketWithPercentage[] {
+  if (total === 0) {
+    return buckets.map(bucket => ({ ...bucket, percentage: 0 }));
+  }
+  const rawPercentages = buckets.map(bucket => (bucket.count / total) * 100);
+  const rounded = rawPercentages.map(p => Math.round(p * 100) / 100);
+  const sumRounded = rounded.reduce((acc, p) => acc + p, 0);
+  const delta = Math.round((100 - sumRounded) * 100) / 100;
+  const maxIndex = buckets.reduce((maxIdx, bucket, idx) => bucket.count > buckets[maxIdx].count ? idx : maxIdx, 0);
+  rounded[maxIndex] += delta;
+  return buckets.map((bucket, idx) => ({
+    ...bucket,
+    percentage: rounded[idx]
+  }));
 }
 
 const HistogramChart: React.FC<HistogramChartProps> = ({ poolAddress, markoutTime }) => {
@@ -78,12 +99,12 @@ const HistogramChart: React.FC<HistogramChartProps> = ({ poolAddress, markoutTim
         
         const jsonData: HistogramResponse = await response.json();
         
-        // Process the data to consolidate all buckets above $500
+        // Consolidate buckets (all buckets with range_start >= 500 are merged into one labeled ">$500")
         const consolidatedBuckets = jsonData.buckets.reduce((acc: HistogramBucket[], bucket: HistogramBucket) => {
           if (bucket.range_start < 500) {
             acc.push(bucket);
           } else {
-            let consolidatedBucket = acc.find(b => b.label === '$500+');
+            let consolidatedBucket = acc.find(b => b.label === '>$500');
             if (!consolidatedBucket) {
               consolidatedBucket = {
                 range_start: 500,
@@ -97,10 +118,13 @@ const HistogramChart: React.FC<HistogramChartProps> = ({ poolAddress, markoutTim
           }
           return acc;
         }, []);
+        
+        // Compute exact percentages that sum exactly to 100%
+        const bucketsWithPercentages = computeExactPercentages(consolidatedBuckets, jsonData.total_observations);
 
         setData({
           ...jsonData,
-          buckets: consolidatedBuckets
+          buckets: bucketsWithPercentages
         });
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to fetch histogram data');
@@ -120,11 +144,10 @@ const HistogramChart: React.FC<HistogramChartProps> = ({ poolAddress, markoutTim
     } else {
       const bucket = data.buckets.find(b => b.label === label);
       if (bucket) {
-        const percentage = (bucket.count / data.total_observations) * 100;
         setSelectedBucket({
           label: bucket.label,
           count: bucket.count,
-          percentage: percentage
+          percentage: bucket.percentage
         });
       }
     }
@@ -160,7 +183,7 @@ const HistogramChart: React.FC<HistogramChartProps> = ({ poolAddress, markoutTim
   // Ensure unique buckets in sorted data
   const uniqueBuckets = Array.from(new Set(sortedBuckets.map(b => b.label)))
     .map(label => sortedBuckets.find(b => b.label === label))
-    .filter((b): b is HistogramBucket => b !== undefined);
+    .filter((b): b is HistogramBucket & { percentage: number } => b !== undefined);
 
   const xValues = uniqueBuckets.map(bucket => bucket.label);
   const yValues = uniqueBuckets.map(bucket => bucket.count);
@@ -248,12 +271,12 @@ const HistogramChart: React.FC<HistogramChartProps> = ({ poolAddress, markoutTim
     },
     bargap: 0.1,
     title: {
-      text: title,
       font: {
         color: '#FFFFFF',
         size: responsiveLayout.fontSize.title,
         family: fontConfig.family
-      }
+      },
+      text:`<b>${title}</b>`,
     },
     annotations: annotations,
     hovermode: false
@@ -264,7 +287,7 @@ const HistogramChart: React.FC<HistogramChartProps> = ({ poolAddress, markoutTim
       {/* User instruction text */}
       <div className="mb-6 text-center">
         <p className="text-white/80 text-sm md:text-base font-['Geist'] bg-[#30283A]/50 inline-block px-4 py-2 rounded-lg">
-        Click on the bin buttons below the chart to view exact counts and percentages for a given LVR range
+          Click on the bin buttons below the chart to view exact counts and percentages for a given LVR range
         </p>
       </div>
 

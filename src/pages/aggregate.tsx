@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import RunningTotalChart from '../components/plots/RunningTotalChart';
-import EfficiencyRatioChart from '../components/plots/RealizedRatioChart';
 import PoolTotalsPieChart from '../components/plots/PieChart';
 import MaxLVRChart from '../components/plots/MaxLVRChart';
 import { MarkoutSelect } from '../components/LabeledSelect';

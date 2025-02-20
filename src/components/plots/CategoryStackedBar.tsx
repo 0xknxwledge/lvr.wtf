@@ -166,7 +166,7 @@ const CategoryStackedBar: React.FC<CategoryStackedBarProps> = ({ selectedMarkout
       font: { color: '#FFFFFF', size: isMobile ? 10 : 12, family: 'Geist' }
     },
     title: {
-      text: title,
+      text: `<b>${title}</b>`,
       font: {
         color: '#FFFFFF',
         size: isMobile ? 14 : 16,

@@ -2,7 +2,6 @@ import React, { useState, useEffect, useCallback } from 'react';
 import Plot from 'react-plotly.js';
 import type { Data, Layout, Dash } from 'plotly.js';
 import { plotColors, fontConfig, commonConfig } from '../plotUtils';
-import { Bold } from 'lucide-react';
 
 interface RunningTotal {
   block_number: number;
@@ -170,7 +169,7 @@ const AnnotatedRunningTotal: React.FC = () => {
     };
   });
 
-  // Create event annotations - now all positioned below the curve
+  // Create event annotations - positioned below the curve
   const annotations = EVENT_ANNOTATIONS.map((event) => {
     const seriesData = Object.values(groupedData)[0];
     const xIndex = seriesData.x.findIndex(x => x >= event.blockStart);
@@ -184,9 +183,9 @@ const AnnotatedRunningTotal: React.FC = () => {
       arrowhead: 2,
       arrowsize: 1,
       arrowwidth: 2,
-      arrowcolor: '#FFFFFF',  // Bright white arrows for better visibility
-      ax: 60,  // Shift annotation to the right
-      ay: 60,  // Shift annotation down
+      arrowcolor: '#FFFFFF',
+      ax: 60,
+      ay: 60,
       font: {
         size: responsiveLayout.fontSize.annotation,
         color: '#ffffff',
@@ -199,6 +198,7 @@ const AnnotatedRunningTotal: React.FC = () => {
     };
   });
 
+  // ***** ONLY CHANGE HERE: Wrap the text in <b>...</b> for a bold title *****
   const layout: Partial<Layout> = {
     paper_bgcolor: '#000000',
     plot_bgcolor: '#000000',
@@ -267,7 +267,7 @@ const AnnotatedRunningTotal: React.FC = () => {
     },
     annotations: annotations,
     title: {
-      text: 'Cumulative LVR over Time',
+      text: '<b>Cumulative LVR over Time</b>',
       font: {
         color: '#FFFFFF',
         size: responsiveLayout.fontSize.title,
@@ -276,7 +276,6 @@ const AnnotatedRunningTotal: React.FC = () => {
     },
     hovermode: 'closest'
   };
-  
 
   return (
     <Plot

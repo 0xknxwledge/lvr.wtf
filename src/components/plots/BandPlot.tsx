@@ -156,7 +156,7 @@ const PercentileBandChart: React.FC<PercentileBandChartProps> = ({
       mode: 'lines',
       name: 'Median',
       line: {
-        color: '#F651AE', // Site's pink accent
+        color: '#F651AE',
         width: 2,
       },
       showlegend: false,
@@ -171,7 +171,7 @@ const PercentileBandChart: React.FC<PercentileBandChartProps> = ({
       hovertemplate:
         '<b>%{x}</b><br>' +
         'Blocks: %{customdata[3]} - %{customdata[4]}<br>' +
-        'Total LVR: $%{customdata[5]:,.2f}<br>' +
+        'Total LVR within Date Range: $%{customdata[5]:,.2f}<br>' +
         '75th Percentile: $%{customdata[2]:,.2f}<br>' +
         'Median: $%{customdata[1]:,.2f}<br>' +
         '25th Percentile: $%{customdata[0]:,.2f}' +
@@ -182,8 +182,9 @@ const PercentileBandChart: React.FC<PercentileBandChartProps> = ({
   const layout = {
     paper_bgcolor: '#030304',
     plot_bgcolor: '#030304',
+    // **** ONLY CHANGE HERE: Wrap title in <b>...</b> to make it bold
     title: {
-      text: title,
+      text: `<b>${title}</b>`,
       font: {
         color: '#FFFFFF',
         size: responsiveLayout.fontSize.title,
@@ -258,7 +259,7 @@ const PercentileBandChart: React.FC<PercentileBandChartProps> = ({
       />
       <div className="mt-4 pl-4 text-center">
         <p className="text-[#8247E5] text-sm font-['Geist']">
-          *We excluded days (i.e, 7200-block-long chunks) that had zero LVR. The percentile values here are computed directly from linear interpolation
+          *Note that the y-axis here is in terms of total LVR over an entire day. We excluded days (i.e, 7200-block-long chunks) that had zero LVR. The percentile values here are computed directly from linear interpolation
         </p>
       </div>
     </div>

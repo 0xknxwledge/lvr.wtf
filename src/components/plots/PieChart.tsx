@@ -130,7 +130,7 @@ const PoolTotalsPieChart: React.FC<PoolTotalsPieChartProps> = ({ selectedMarkout
       size: responsiveLayout.fontSize.text
     },
     title: {
-      text: title,
+      text: `<b>${title}</b>`,
       font: {
         color: '#FFFFFF',
         size: responsiveLayout.fontSize.title,

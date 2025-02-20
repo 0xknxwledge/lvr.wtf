@@ -156,7 +156,7 @@ const DistributionMetrics: React.FC<DistributionMetricsProps> = ({
   return (
     <div className="w-full p-8 bg-[#030304] rounded-lg border border-[#8247E5]/20">
       <h2 className="text-[#FFFFFF] text-xl mb-8 text-center font-['Geist']">
-        Distribution Metrics of Single-Block LVR {titleSuffix}*
+        <b>Distribution Metrics of Single-Block LVR {titleSuffix}*</b>
       </h2>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 pt-4">
         {metrics.map((metric) => (
