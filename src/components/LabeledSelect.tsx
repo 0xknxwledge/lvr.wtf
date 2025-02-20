@@ -74,7 +74,7 @@ export const MarkoutSelect: React.FC<MarkoutSelectProps> = ({
   className 
 }) => {
   const markoutOptions = [
-    { value: 'brontes', label: 'Observed' },
+    { value: 'brontes', label: 'Brontes' },
     { value: '-2.0', label: '-2.0s' },
     { value: '-1.5', label: '-1.5s' },
     { value: '-1.0', label: '-1.0s' },

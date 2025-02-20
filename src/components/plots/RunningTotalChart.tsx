@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import Plot from 'react-plotly.js';
 import type { Data, Layout, Dash } from 'plotly.js';
 import { plotColors, fontConfig, commonConfig } from '../plotUtils';
+import { Bold } from 'lucide-react';
 
 interface RunningTotal {
   block_number: number;
@@ -69,8 +70,8 @@ const AnnotatedRunningTotal: React.FC = () => {
     return {
       height: isMobile ? 500 : 700,
       margin: {
-        l: isMobile ? 60 : (isTablet ? 80 : 100),  // Increased left margin
-        r: isMobile ? 90 : (isTablet ? 105 : 120),  // Increased right margin
+        l: isMobile ? 60 : (isTablet ? 80 : 100),
+        r: isMobile ? 90 : (isTablet ? 105 : 120),
         b: isMobile ? 60 : (isTablet ? 80 : 100),
         t: isMobile ? 100 : (isTablet ? 120 : 140),
         pad: 4
@@ -84,11 +85,10 @@ const AnnotatedRunningTotal: React.FC = () => {
       },
       standoff: {
         x: isMobile ? 20 : (isTablet ? 25 : 30),
-        y: isMobile ? 5 : (isTablet ? 10 : 20)  // Increased y-axis standoff
+        y: isMobile ? 5 : (isTablet ? 10 : 20)
       }
     };
   }, [windowWidth]);
-
 
   useEffect(() => {
     const fetchData = async () => {
@@ -150,7 +150,7 @@ const AnnotatedRunningTotal: React.FC = () => {
       y: series.y,
       type: 'scatter',
       mode: 'lines',
-      name: isBrontes ? 'Observed' : `${series.markout}s`,
+      name: isBrontes ? 'Brontes' : `${series.markout}s`,
       line: {
         color: markoutColors[series.markout],
         width: isBrontes ? (isMobile ? 2 : 3) : (isMobile ? 1 : 2),
@@ -170,23 +170,11 @@ const AnnotatedRunningTotal: React.FC = () => {
     };
   });
 
-  // Create event annotations
-  const annotations = EVENT_ANNOTATIONS.map((event, index) => {
+  // Create event annotations - now all positioned below the curve
+  const annotations = EVENT_ANNOTATIONS.map((event) => {
     const seriesData = Object.values(groupedData)[0];
     const xIndex = seriesData.x.findIndex(x => x >= event.blockStart);
     const yValue = seriesData.y[xIndex];
-  
-    // By default, place each annotation above the data point, staggered by index:
-    const yOffset = index * (isMobile ? 40 : 60);
-    let ax = 0;
-    let ay = -60 - yOffset;
-  
-    // If it's the "SEC charges Terraform Labs..." annotation,
-    // move it to the bottom-right instead:
-    if (event.text.includes("SEC charges")) {
-      ax = 60;  // Shift annotation to the right
-      ay = 60;  // Shift annotation down (positive ay = below the point)
-    }
   
     return {
       x: event.blockStart,
@@ -196,9 +184,9 @@ const AnnotatedRunningTotal: React.FC = () => {
       arrowhead: 2,
       arrowsize: 1,
       arrowwidth: 2,
-      arrowcolor: plotColors.accent,
-      ax,
-      ay,
+      arrowcolor: '#FFFFFF',  // Bright white arrows for better visibility
+      ax: 60,  // Shift annotation to the right
+      ay: 60,  // Shift annotation down
       font: {
         size: responsiveLayout.fontSize.annotation,
         color: '#ffffff',
@@ -210,7 +198,6 @@ const AnnotatedRunningTotal: React.FC = () => {
       borderpad: 4
     };
   });
-  
 
   const layout: Partial<Layout> = {
     paper_bgcolor: '#000000',
@@ -238,7 +225,8 @@ const AnnotatedRunningTotal: React.FC = () => {
       showgrid: true,
       gridcolor: '#30283A',
       gridwidth: 1,
-      zeroline: false
+      zeroline: false,
+      range: [15537393, 20000000]
     },
     yaxis: {
       title: {
@@ -246,7 +234,8 @@ const AnnotatedRunningTotal: React.FC = () => {
         font: { 
           color: plotColors.accent,
           size: responsiveLayout.fontSize.axis,
-          family: fontConfig.family 
+          family: fontConfig.family,
+          weight: 700
         },
         standoff: responsiveLayout.standoff.y
       },
@@ -287,6 +276,7 @@ const AnnotatedRunningTotal: React.FC = () => {
     },
     hovermode: 'closest'
   };
+  
 
   return (
     <Plot

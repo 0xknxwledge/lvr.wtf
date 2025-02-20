@@ -98,7 +98,7 @@ const MaxLVRChart: React.FC<MaxLVRChartProps> = ({ selectedMarkout }) => {
   const numTicks = Math.ceil(maxY / tickSpacing);
 
   const titleSuffix = selectedMarkout === 'brontes' ? 
-    '(Observed)' : 
+    '(Brontes)' : 
     `(Markout ${selectedMarkout}s)`;
 
   const isMobile = windowWidth <= 768;

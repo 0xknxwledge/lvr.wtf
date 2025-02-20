@@ -15,19 +15,22 @@ export const plotColors = {
     '#5785F0'    // Light blue (derived)
   ],
   categoryPalette: {
-    'Stable Pairs': '#8247E5',      // Purple
-    'WBTC-WETH': '#F651AE',         // Pink
-    'USDC-WETH': '#2F69ED',         // Blue
-    'USDT-WETH': '#30283A',         // Dark purple
-    'DAI-WETH': '#9B6FE8',          // Light purple
-    'USDC-WBTC': '#FF7BC5',         // Light pink
-    'Altcoin-WETH': '#5785F0'       // Light blue
+    'Stable Pairs': '#8247E5',      
+    'WBTC-WETH':    '#F651AE',      
+    'USDC-WETH':    '#2F69ED',      
+    'USDT-WETH':    '#30283A',      
+    'DAI-WETH':     '#9B6FE8',      
+    'USDC-WBTC':    '#FF7BC5',      
+    'Altcoin-WETH': '#5785F0'
   }
 };
 
 // Font configuration
+//  - family: normal-weight Geist
+//  - familyBold: same 'Geist', but will use 700 weight
 export const fontConfig = {
-  family: 'Geist',
+  family: 'Geist',      
+  familyBold: 'Geist',  // The same family name, since we declared both weights in input.css
   sizes: {
     title: 16,
     axisTitle: 14,
@@ -38,13 +41,14 @@ export const fontConfig = {
   }
 };
 
-// Helper function to create base layout
+// Helper function to create a base layout with bold titles
 export function createBaseLayout(title: string): Partial<Layout> {
   return {
     title: {
       text: title,
       font: { 
-        family: fontConfig.family,
+        // Chart title uses the bold variant
+        family: fontConfig.familyBold,
         color: plotColors.accent,
         size: fontConfig.sizes.title 
       },
@@ -53,18 +57,21 @@ export function createBaseLayout(title: string): Partial<Layout> {
     },
     paper_bgcolor: '#000000',
     plot_bgcolor: '#000000',
+    // General text uses normal-weight Geist
     font: {
       family: fontConfig.family
     },
     xaxis: {
+      // Axis titles also bold
       title: {
         font: { 
-          family: fontConfig.family,
+          family: fontConfig.familyBold,
           color: plotColors.accent,
           size: fontConfig.sizes.axisTitle 
         },
         standoff: 20
       },
+      // Axis labels remain normal weight
       tickfont: { 
         family: fontConfig.family,
         color: '#ffffff',
@@ -75,14 +82,16 @@ export function createBaseLayout(title: string): Partial<Layout> {
       zeroline: false
     },
     yaxis: {
+      // Axis titles also bold
       title: {
         font: { 
-          family: fontConfig.family,
+          family: fontConfig.familyBold,
           color: plotColors.accent,
           size: fontConfig.sizes.axisTitle 
         },
         standoff: 40
       },
+      // Axis labels remain normal weight
       tickfont: { 
         family: fontConfig.family,
         color: '#ffffff',
@@ -94,6 +103,7 @@ export function createBaseLayout(title: string): Partial<Layout> {
     },
     showlegend: true,
     legend: {
+      // Legend font is normal weight
       font: { 
         family: fontConfig.family,
         color: '#ffffff',
@@ -126,6 +136,7 @@ export function createBaseLayout(title: string): Partial<Layout> {
 export function createAnnotationConfig(overrides = {}) {
   return {
     font: {
+      // If you want annotation text bold, set `familyBold` here too
       family: fontConfig.family,
       color: '#ffffff',
       size: fontConfig.sizes.annotation
@@ -141,7 +152,9 @@ export function createAnnotationConfig(overrides = {}) {
 // Helper function for creating hover template configurations
 export function createHoverTemplate(includeFields: string[] = []): string {
   const baseTemplate = '<b>%{x}</b><br>';
-  const fields = includeFields.map(field => `${field}: %{${field}:,.2f}<br>`).join('');
+  const fields = includeFields.map(
+    field => `${field}: %{${field}:,.2f}<br>`
+  ).join('');
   return baseTemplate + fields + '<extra></extra>';
 }
 

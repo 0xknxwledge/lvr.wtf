@@ -127,7 +127,7 @@ const PercentileBandChart: React.FC<PercentileBandChartProps> = ({
 
   const titleSuffix =
     markoutTime === 'brontes'
-      ? `${data.pool_name} (Observed)`
+      ? `${data.pool_name} (Brontes)`
       : `${data.pool_name} (Markout ${markoutTime}s)`;
 
   const title = shouldBreakTitle
@@ -258,7 +258,7 @@ const PercentileBandChart: React.FC<PercentileBandChartProps> = ({
       />
       <div className="mt-4 pl-4 text-center">
         <p className="text-[#8247E5] text-sm font-['Geist']">
-          *We excluded days (i.e, 7200-block-long chunks) that had zero simulated/observed LVR. The percentile values here are computed directly from linear interpolation
+          *We excluded days (i.e, 7200-block-long chunks) that had zero LVR. The percentile values here are computed directly from linear interpolation
         </p>
       </div>
     </div>

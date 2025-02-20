@@ -36,7 +36,7 @@ function Overview() {
             For each block, the simulation checks the pool price against the best bid or ask in the CEX orderbooks and calculates how much volume needs to trade on both venues to eliminate any price gap exceeding the pool's fee range. 
             The approach accounts for slippage and a taker fee of 0.01725% to reflect realistic conditions for professional arbitrageurs. 
             <br/><br/>This is repeated for nine different orderbook snapshots at and around the block time (T ± 0.5, 1, 1.5, 2 seconds), then aggregated across every block up to block 20,000,000. 
-            The resultant data quantifies the maximum profit potential for CEX-DEX arbitrage across all combinations of pool and markout time. Future updates will expand the historical coverage on a rolling basis. The "Observed" markout time uses Brontes CEX-DEX arbitrage data.
+            The resultant data quantifies the maximum profit potential for CEX-DEX arbitrage across all combinations of pool and markout time. Future updates will expand the historical coverage on a rolling basis. The "Brontes" markout time uses Brontes CEX-DEX arbitrage data.
             <br/><br/>The <a href="https://lvr-wtf.gitbook.io/lvr.wtf-doc" target="_blank" rel="noopener noreferrer" className="text-[#F651AE] hover:text-[#FF7BC5] transition-colors duration-200">gitbook</a> provides comprehensive details about our simulator's methodology.
             </p>
           </div>

@@ -9,6 +9,7 @@ export default {
       fontFamily: {
         sans: ['Geist', 'system-ui', 'sans-serif'],
         mono: ['Menlo', 'monospace'],
+        geistBold: ['Geist', 'system-ui', 'sans-serif'],
       },
     },
   },

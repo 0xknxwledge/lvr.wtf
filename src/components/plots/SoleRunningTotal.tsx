@@ -114,7 +114,7 @@ const SoleRunningTotal: React.FC<SoleRunningTotalProps> = ({ poolAddress, markou
   }
 
   const poolName = data[0].pool_name;
-  const titleSuffix = markoutTime === 'brontes' ? '(Observed)' : `(Markout ${markoutTime}s)`;
+  const titleSuffix = markoutTime === 'brontes' ? '(Brontes)' : `(Markout ${markoutTime}s)`;
   
   const maxY = Math.max(...data.map(point => point.running_total_cents / 100));
   const magnitude = Math.pow(10, Math.floor(Math.log10(maxY)));

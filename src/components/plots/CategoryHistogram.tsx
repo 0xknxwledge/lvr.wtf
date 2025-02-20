@@ -30,13 +30,30 @@ export const CATEGORY_CONFIG = [
   { name: "Altcoin-WETH",   label: "Altcoin-WETH",   color: '#9B6FE8' }    // Lavender
 ] as const;
 
+const bucketOrder = [
+  '$0.01-$10',
+  '$10-$100',
+  '$100-$500',
+  '>$500'
+];
+
 const CategoryHistogram: React.FC<CategoryHistogramProps> = ({ selectedMarkout }) => {
   const [data, setData] = useState<CategoryData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Which bin is selected?
   const [selectedLabel, setSelectedLabel] = useState<string | null>(null);
+
+  // Which categories should be visible?
+  // If you want them all visible initially, seed the set with every label.
+  const [visibleTraces, setVisibleTraces] = useState<Set<string>>(
+    new Set(CATEGORY_CONFIG.map(c => c.label))
+  );
+
   const [windowWidth, setWindowWidth] = useState(window.innerWidth);
 
+  // Responsive sizing
   useEffect(() => {
     const handleResize = () => setWindowWidth(window.innerWidth);
     window.addEventListener('resize', handleResize);
@@ -72,12 +89,15 @@ const CategoryHistogram: React.FC<CategoryHistogramProps> = ({ selectedMarkout }
     };
   }, [windowWidth]);
 
+  // Fetch data
   useEffect(() => {
     const fetchData = async () => {
       try {
         setIsLoading(true);
         const params = new URLSearchParams({ markout_time: selectedMarkout });
-        const response = await fetch(`https://lvr-wtf-568975696472.us-central1.run.app/clusters/histogram?${params.toString()}`);
+        const response = await fetch(
+          `https://lvr-wtf-568975696472.us-central1.run.app/clusters/histogram?${params.toString()}`
+        );
         
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
@@ -85,24 +105,28 @@ const CategoryHistogram: React.FC<CategoryHistogramProps> = ({ selectedMarkout }
         
         const jsonData = await response.json();
         const processedCategories = jsonData.clusters.map((cluster: CategoryData) => {
-          const consolidatedBuckets = cluster.buckets.reduce((acc: HistogramBucket[], bucket: HistogramBucket) => {
-            if (bucket.range_start < 500) {
-              acc.push(bucket);
-            } else {
-              let consolidatedBucket = acc.find(b => b.label === '$500+');
-              if (!consolidatedBucket) {
-                consolidatedBucket = {
-                  range_start: 500,
-                  range_end: null,
-                  count: 0,
-                  label: '$500+'
-                };
-                acc.push(consolidatedBucket);
+          // Consolidate any buckets >= $500 into a single bucket
+          const consolidatedBuckets = cluster.buckets.reduce(
+            (acc: HistogramBucket[], bucket: HistogramBucket) => {
+              if (bucket.range_start < 500) {
+                acc.push(bucket);
+              } else {
+                let consolidatedBucket = acc.find(b => b.label === '>$500');
+                if (!consolidatedBucket) {
+                  consolidatedBucket = {
+                    range_start: 500,
+                    range_end: null,
+                    count: 0,
+                    label: '>$500'
+                  };
+                  acc.push(consolidatedBucket);
+                }
+                consolidatedBucket.count += bucket.count;
               }
-              consolidatedBucket.count += bucket.count;
-            }
-            return acc;
-          }, []);
+              return acc;
+            },
+            []
+          );
           
           return {
             ...cluster,
@@ -110,9 +134,10 @@ const CategoryHistogram: React.FC<CategoryHistogramProps> = ({ selectedMarkout }
           };
         });
 
+        // Sort to match CATEGORY_CONFIG order
         const sortedCategories = CATEGORY_CONFIG
           .map(config => processedCategories.find((cat: CategoryData) => cat.name === config.name))
-          .filter((cat: CategoryData | undefined): cat is CategoryData => cat !== undefined);
+          .filter((cat): cat is CategoryData => !!cat);
 
         setData(sortedCategories);
       } catch (err) {
@@ -125,6 +150,63 @@ const CategoryHistogram: React.FC<CategoryHistogramProps> = ({ selectedMarkout }
     fetchData();
   }, [selectedMarkout]);
 
+  // If you no longer want toggling from the legend, remove onClick entirely or disable legend events.
+  // For example:
+  const layoutOverrides = {
+    // This disables itemclick in the legend so it no longer toggles traces:
+    legend: {
+      itemclick: false,
+      itemdoubleclick: false
+    }
+  };
+
+  // Instead, you could remove the legend completely with:
+  // const layoutOverrides = { showlegend: false };
+
+  // If you still want a legend for *visible* categories but never want them toggled, 
+  // do "itemclick: false" and generate only the visible traces.
+
+  // Let’s create a simple function to toggle categories from some external UI (if desired).
+  // For example, if you have checkboxes or other toggles, you might do:
+  const toggleCategory = (label: string) => {
+    setVisibleTraces(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(label)) {
+        newSet.delete(label);
+        // Also clear the bin selection if it no longer has visible data
+        if (selectedLabel) {
+          const stillVisibleData = data.some(cluster => {
+            const c = CATEGORY_CONFIG.find(cfg => cfg.name === cluster.name);
+            if (!c || !newSet.has(c.label)) return false;
+            return cluster.buckets.some(b => b.label === selectedLabel && b.count > 0);
+          });
+          if (!stillVisibleData) {
+            setSelectedLabel(null);
+          }
+        }
+      } else {
+        newSet.add(label);
+      }
+      return newSet;
+    });
+  };
+
+  // Handle bin selection
+  const handleBinClick = useCallback((label: string) => {
+    setSelectedLabel(prev => {
+      if (prev === label) {
+        return null; // deselect if already selected
+      }
+      // Only select if there's at least one visible trace with data
+      const hasVisibleData = data.some(cluster => {
+        const catConfig = CATEGORY_CONFIG.find(c => c.name === cluster.name);
+        if (!catConfig || !visibleTraces.has(catConfig.label)) return false;
+        return cluster.buckets.some(b => b.label === label && b.count > 0);
+      });
+      return hasVisibleData ? label : null;
+    });
+  }, [data, visibleTraces]);
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-[400px] md:h-[500px]">
@@ -136,96 +218,108 @@ const CategoryHistogram: React.FC<CategoryHistogramProps> = ({ selectedMarkout }
   if (error || !data) {
     return (
       <div className="flex items-center justify-center h-[400px] md:h-[500px]">
-        <p className="text-red-500 text-sm md:text-base font-['Geist']">{error || 'No data available'}</p>
+        <p className="text-red-500 text-sm md:text-base font-['Geist']">
+          {error || 'No data available'}
+        </p>
       </div>
     );
   }
 
-  const bucketOrder = [
-    '$0.01-$10',
-    '$10-$100',
-    '$100-$500',
-    '$500+'
-  ];
-
-  const titleSuffix = selectedMarkout === 'brontes' ? 
-    '(Observed)' : 
-    `(Markout ${selectedMarkout}s)`;
-
   const isMobile = windowWidth < 768;
-  let title;
-  if (isMobile) {
-    title = `Single Block LVR Histogram<br>Grouped by Category<br>${titleSuffix}`;
-  } else {
-    title = `Single Block LVR Histogram Grouped by Category ${titleSuffix}`;
-  }
+  const titleSuffix = selectedMarkout === 'brontes'
+    ? '(Brontes)'
+    : `(Markout ${selectedMarkout}s)`;
 
-  const traces = data.map((cluster, index) => {
-    const orderedBuckets = [...cluster.buckets].sort((a, b) => 
-      bucketOrder.indexOf(a.label) - bucketOrder.indexOf(b.label)
+  const title = isMobile
+    ? `Single Block LVR Histogram<br>Grouped by Category<br>${titleSuffix}`
+    : `Single Block LVR Histogram Grouped by Category ${titleSuffix}`;
+
+  // Build the final Plotly traces, but *only* for categories in visibleTraces.
+  const traces = data.reduce((acc, cluster) => {
+    // Find matching config
+    const categoryConfig = CATEGORY_CONFIG.find(c => c.name === cluster.name);
+    if (!categoryConfig) return acc;
+
+    // If the category is not in visibleTraces, skip it entirely
+    if (!visibleTraces.has(categoryConfig.label)) {
+      return acc;
+    }
+
+    // Sort buckets by bucketOrder
+    const orderedBuckets = [...cluster.buckets].sort(
+      (a, b) => bucketOrder.indexOf(a.label) - bucketOrder.indexOf(b.label)
     );
 
-    const categoryConfig = CATEGORY_CONFIG[index];
-
-    return {
+    acc.push({
       name: categoryConfig.label,
-      x: orderedBuckets.map(bucket => bucket.label),
-      y: orderedBuckets.map(bucket => bucket.count),
+      x: orderedBuckets.map(b => b.label),
+      y: orderedBuckets.map(b => b.count),
       type: 'bar',
       marker: { color: categoryConfig.color },
-      hoverinfo: 'none'
-    } as const;
-  });
+      hoverinfo: 'none',
+      // No 'legendonly' or 'false' here — if it's visible, we pass it in.
+      // showlegend defaults to true if name is set, so it appears in the legend.
+    });
+    return acc;
+  }, [] as Partial<Plotly.PlotData>[]);
 
+  // Build the annotation if a bin is selected
   const responsiveLayout = getResponsiveLayout();
+  const annotations = selectedLabel
+    ? [
+        {
+          x: selectedLabel,
+          y: Math.max(
+            ...traces.map(trace => {
+              // Each trace is definitely visible now
+              const bucketIndex = bucketOrder.indexOf(selectedLabel);
+              return (trace.y?.[bucketIndex] as number) || 0;
+            })
+          ),
+          text: data
+            .map(cluster => {
+              // Only consider visible categories
+              const catConfig = CATEGORY_CONFIG.find(c => c.name === cluster.name);
+              if (!catConfig || !visibleTraces.has(catConfig.label)) return null;
+              // Find the relevant bin
+              const bucketData = cluster.buckets.find(b => b.label === selectedLabel);
+              if (!bucketData || bucketData.count === 0) return null;
 
-  const annotations = selectedLabel ? [{
-    x: selectedLabel,
-    y: Math.max(...traces.map(trace => {
-      const bucketIndex = bucketOrder.indexOf(selectedLabel);
-      return (trace.y?.[bucketIndex] as number) || 0;
-    })),
-    text: data
-      .map((cluster, index) => {
-        const bucketData = cluster.buckets.find(b => b.label === selectedLabel);
-        if (!bucketData || bucketData.count === 0) return null;
-        
-        const percentage = (bucketData.count / cluster.total_observations) * 100;
-        const categoryConfig = CATEGORY_CONFIG[index];
-        
-        return {
-          color: categoryConfig.color,
-          name: categoryConfig.label,
-          count: bucketData.count,
-          percentage: percentage,
-          order: index
-        };
-      })
-      .filter(Boolean)
-      .sort((a, b) => a!.order - b!.order)
-      .map(item => 
-        `<span style="color:${item!.color}">■</span> <b>${item!.name}</b>: ${item!.count.toLocaleString()} (${item!.percentage.toFixed(2)}%)`
-      )
-      .join('<br>'),
-    showarrow: true,
-    arrowhead: 2,
-    arrowsize: 1,
-    arrowwidth: 2,
-    arrowcolor: '#F651AE',
-    bgcolor: '#30283A',
-    bordercolor: '#F651AE',
-    font: { 
-      color: '#ffffff', 
-      size: responsiveLayout.fontSize.annotation,
-      family: 'Geist'
-    },
-    borderwidth: 2,
-    borderpad: 4,
-    ay: -40,
-    ax: 0,
-    align: 'left' as const
-  }] : [];
+              const pct = (bucketData.count / cluster.total_observations) * 100;
+              return {
+                color: catConfig.color,
+                name: catConfig.label,
+                count: bucketData.count,
+                pct
+              };
+            })
+            .filter(Boolean)
+            .map(item =>
+              `<span style="color:${item!.color}">■</span> <b>${item!.name}</b>: ${item!.count.toLocaleString()} (${item!.pct.toFixed(2)}%)`
+            )
+            .join('<br>'),
+          showarrow: true,
+          arrowhead: 2,
+          arrowsize: 1,
+          arrowwidth: 2,
+          arrowcolor: '#FFFFFF',
+          bgcolor: '#30283A',
+          bordercolor: '#F651AE',
+          font: {
+            color: '#ffffff',
+            size: responsiveLayout.fontSize.annotation,
+            family: 'Geist'
+          },
+          borderwidth: 2,
+          borderpad: 4,
+          ay: -40,
+          ax: 0,
+          align: 'left' as const
+        }
+      ]
+    : [];
 
+  // Layout
   const layout: Partial<Layout> = {
     paper_bgcolor: '#030304',
     plot_bgcolor: '#030304',
@@ -235,17 +329,17 @@ const CategoryHistogram: React.FC<CategoryHistogramProps> = ({ selectedMarkout }
     xaxis: {
       title: {
         text: 'LVR Range ($)',
-        font: { 
-          color: '#F651AE', 
+        font: {
+          color: '#F651AE',
           size: responsiveLayout.fontSize.axis,
-          family: 'Geist' 
+          family: 'Geist'
         },
         standoff: isMobile ? 25 : 30
       },
-      tickfont: { 
-        color: '#FFFFFF', 
+      tickfont: {
+        color: '#FFFFFF',
         size: responsiveLayout.fontSize.tick,
-        family: 'Geist' 
+        family: 'Geist'
       },
       tickangle: isMobile ? -90 : -45,
       categoryorder: 'array' as const,
@@ -257,33 +351,23 @@ const CategoryHistogram: React.FC<CategoryHistogramProps> = ({ selectedMarkout }
     yaxis: {
       title: {
         text: 'Number of Blocks',
-        font: { 
-          color: '#F651AE', 
+        font: {
+          color: '#F651AE',
           size: responsiveLayout.fontSize.axis,
-          family: 'Geist' 
+          family: 'Geist'
         },
         standoff: isMobile ? 40 : 50
       },
-      tickfont: { 
-        color: '#FFFFFF', 
+      tickfont: {
+        color: '#FFFFFF',
         size: responsiveLayout.fontSize.tick,
-        family: 'Geist' 
+        family: 'Geist'
       },
       fixedrange: true,
       showgrid: true,
       gridcolor: '#30283A'
     },
-    annotations: annotations,
-    legend: {
-      font: { 
-        color: '#FFFFFF',
-        size: responsiveLayout.fontSize.legend,
-        family: 'Geist' 
-      },
-      bgcolor: '#030304',
-      bordercolor: '#30283A',
-      ...responsiveLayout.legendPosition
-    },
+    annotations,
     title: {
       text: title,
       font: {
@@ -291,11 +375,19 @@ const CategoryHistogram: React.FC<CategoryHistogramProps> = ({ selectedMarkout }
         size: responsiveLayout.fontSize.title,
         family: 'Geist'
       }
-    }
+    },
+    // If you want to hide the legend entirely, uncomment:
+    // showlegend: false
   };
 
   return (
     <div className="w-full">
+      <div className="mb-6 text-center">
+        <p className="text-white/80 text-sm md:text-base font-['Geist'] bg-[#30283A]/50 inline-block px-4 py-2 rounded-lg">
+          Click on the bin buttons to view exact counts and percentages. Toggle the category buttons to add/remove categories from view
+        </p>
+      </div>
+
       <Plot
         data={traces}
         layout={layout}
@@ -313,20 +405,39 @@ const CategoryHistogram: React.FC<CategoryHistogramProps> = ({ selectedMarkout }
         }}
         style={{ width: '100%', height: '100%' }}
         useResizeHandler
+        // onClick can be removed or repurposed if you like
       />
-      
+
+      {/* Bin Selection Buttons */}
       <div className="flex flex-wrap justify-center mt-8 gap-4">
-        {bucketOrder.map((label) => (
+        {bucketOrder.map(label => (
           <button
             key={label}
-            onClick={() => setSelectedLabel(selectedLabel === label ? null : label)}
+            onClick={() => handleBinClick(label)}
             className={`px-4 py-2 rounded-lg transition-all duration-200 text-sm md:text-base ${
               selectedLabel === label
                 ? 'bg-[#F651AE] text-black font-medium'
                 : 'bg-[#30283A] text-white hover:bg-[#8247E5]/20'
-            }`}
+            } hover:scale-105 cursor-pointer`}
           >
             {label}
+          </button>
+        ))}
+      </div>
+
+      {/* Example: External category toggles (optional) */}
+      <div className="flex flex-wrap justify-center mt-8 gap-4">
+        {CATEGORY_CONFIG.map(cfg => (
+          <button
+            key={cfg.label}
+            onClick={() => toggleCategory(cfg.label)}
+            className={`px-4 py-2 rounded-lg transition-all duration-200 text-sm md:text-base ${
+              visibleTraces.has(cfg.label)
+                ? 'bg-[#F651AE] text-black font-medium'
+                : 'bg-[#30283A] text-white hover:bg-[#8247E5]/20'
+            } hover:scale-105 cursor-pointer`}
+          >
+            {cfg.label}
           </button>
         ))}
       </div>

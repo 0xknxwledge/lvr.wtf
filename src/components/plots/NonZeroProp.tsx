@@ -82,7 +82,7 @@ const NonZeroProportion: React.FC<NonZeroProportionProps> = ({ poolAddress, sele
   }
 
   const titleSuffix = selectedMarkout === 'brontes' ? 
-    '(Observed)' : 
+    '(Brontes)' : 
     `(Markout ${selectedMarkout}s)`;
   const colors = {
     primary: '#F651AE',    // Pink accent

@@ -109,7 +109,7 @@ const PoolTotalsPieChart: React.FC<PoolTotalsPieChartProps> = ({ selectedMarkout
 
   const customColors = plotColors.chartColors;
   const titleSuffix = selectedMarkout === 'brontes' ? 
-    '(Observed)' : 
+    '(Brontes)' : 
     `(Markout ${selectedMarkout}s)`;
 
   const title = isMobile ? 

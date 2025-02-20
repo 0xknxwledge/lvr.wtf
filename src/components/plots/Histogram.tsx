@@ -34,14 +34,12 @@ const HistogramChart: React.FC<HistogramChartProps> = ({ poolAddress, markoutTim
   } | null>(null);
   const [windowWidth, setWindowWidth] = useState(window.innerWidth);
 
-  // Handle window resize
   useEffect(() => {
     const handleResize = () => setWindowWidth(window.innerWidth);
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  // Calculate responsive dimensions
   const getResponsiveLayout = useCallback(() => {
     const isMobile = windowWidth < 768;
     const isTablet = windowWidth >= 768 && windowWidth < 1024;
@@ -91,7 +89,7 @@ const HistogramChart: React.FC<HistogramChartProps> = ({ poolAddress, markoutTim
                 range_start: 500,
                 range_end: null,
                 count: 0,
-                label: '$500+'
+                label: '>$500'
               };
               acc.push(consolidatedBucket);
             }
@@ -152,19 +150,24 @@ const HistogramChart: React.FC<HistogramChartProps> = ({ poolAddress, markoutTim
     '$0.01-$10',
     '$10-$100',
     '$100-$500',
-    '$500+'
+    '>$500'
   ];
 
   const sortedBuckets = [...data.buckets].sort((a, b) => 
     bucketOrder.indexOf(a.label) - bucketOrder.indexOf(b.label)
   );
 
-  const xValues = sortedBuckets.map(bucket => bucket.label);
-  const yValues = sortedBuckets.map(bucket => bucket.count);
+  // Ensure unique buckets in sorted data
+  const uniqueBuckets = Array.from(new Set(sortedBuckets.map(b => b.label)))
+    .map(label => sortedBuckets.find(b => b.label === label))
+    .filter((b): b is HistogramBucket => b !== undefined);
+
+  const xValues = uniqueBuckets.map(bucket => bucket.label);
+  const yValues = uniqueBuckets.map(bucket => bucket.count);
 
   const poolName = names[data.pool_address] || data.pool_name;
   const titleSuffix = markoutTime === 'brontes' ? 
-    '(Observed)' : 
+    '(Brontes)' : 
     `(Markout ${markoutTime}s)`;
 
   const isMobile = windowWidth <= 768;
@@ -175,7 +178,6 @@ const HistogramChart: React.FC<HistogramChartProps> = ({ poolAddress, markoutTim
   const baseLayout = createBaseLayout(title);
   const responsiveLayout = getResponsiveLayout();
 
-  // Create annotation for selected bucket
   const annotations = selectedBucket ? [{
     ...createAnnotationConfig({
       x: selectedBucket.label,
@@ -186,7 +188,7 @@ const HistogramChart: React.FC<HistogramChartProps> = ({ poolAddress, markoutTim
       arrowhead: 2,
       arrowsize: 1,
       arrowwidth: 2,
-      arrowcolor: plotColors.accent,
+      arrowcolor: '#FFFFFF',
       ay: -40,
       ax: 0,
       font: {
@@ -259,6 +261,14 @@ const HistogramChart: React.FC<HistogramChartProps> = ({ poolAddress, markoutTim
 
   return (
     <div className="w-full">
+      {/* User instruction text */}
+      <div className="mb-6 text-center">
+        <p className="text-white/80 text-sm md:text-base font-['Geist'] bg-[#30283A]/50 inline-block px-4 py-2 rounded-lg">
+        Click on the bin buttons below the chart to view exact counts and percentages for a given LVR range
+        </p>
+      </div>
+
+      {/* Main histogram plot */}
       <Plot
         data={[
           {
@@ -291,17 +301,17 @@ const HistogramChart: React.FC<HistogramChartProps> = ({ poolAddress, markoutTim
         useResizeHandler
       />
       
-      {/* Clickable labels below the chart */}
+      {/* Interactive bucket selection buttons */}
       <div className="flex flex-wrap justify-center mt-8 gap-4">
         {xValues.map((label) => (
           <button
             key={label}
             onClick={() => handleLabelClick(label)}
-            className={`px-4 py-2 rounded-lg transition-all duration-200 font-['Geist'] text-sm md:text-base ${
-              selectedBucket?.label === label
-                ? 'bg-[#b4d838] text-black font-medium'
-                : 'bg-[#212121] text-white hover:bg-[#2a2a2a]'
-            }`}
+            className={`px-4 py-2 rounded-lg transition-all duration-200 text-sm md:text-base
+              ${selectedBucket?.label === label
+                ? 'bg-[#F651AE] text-black font-medium'
+                : 'bg-[#30283A] text-white hover:bg-[#8247E5]/20'
+              } hover:scale-105 cursor-pointer`}
           >
             {label}
           </button>

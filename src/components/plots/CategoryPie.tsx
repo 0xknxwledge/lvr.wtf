@@ -109,7 +109,7 @@ const CategoryPieChart: React.FC<CategoryPieChartProps> = ({ selectedMarkout }) 
   }).filter((item): item is NonNullable<typeof item> => item !== null);
 
   const titleSuffix = selectedMarkout === 'brontes' ? 
-    '(Observed)' : 
+    '(Brontes)' : 
     `(Markout ${selectedMarkout}s)`;
 
   const title = isSmallScreen ? 

@@ -150,7 +150,7 @@ const DistributionMetrics: React.FC<DistributionMetricsProps> = ({
   ];
 
   const titleSuffix = markoutTime === 'brontes' ? 
-    `for ${data.pool_name} (Observed)` : 
+    `for ${data.pool_name} (Brontes)` : 
     `for ${data.pool_name} (Markout ${markoutTime}s)`;
 
   return (
@@ -173,7 +173,7 @@ const DistributionMetrics: React.FC<DistributionMetricsProps> = ({
       <div className="mt-8 text-center">
         <p className="text-xs text-[#8247E5]/80">
           *We compute central moments using the pairwise update algorithm defined in "Formulas for the Computation of Higher-Order Central Moments" by Pébay et al. 
-          The displayed metrics are population-level statistics rather than sample estimates, with the population being all blocks with non-zero simulated/observed LVR since the Merge
+          The displayed metrics are population-level statistics rather than sample estimates, with the population being all blocks with non-zero LVR since the Merge
         </p>
       </div>
     </div>

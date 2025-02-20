@@ -183,7 +183,7 @@ const QuartilePlot: React.FC<QuartilePlotProps> = ({ poolAddress, markoutTime })
   ];
 
   const poolName = names[data.pool_address] || data.pool_name;
-  const titleSuffix = markoutTime === 'brontes' ? '(Observed)' : `(Markout ${markoutTime}s)`;
+  const titleSuffix = markoutTime === 'brontes' ? '(Brontes)' : `(Markout ${markoutTime}s)`;
 
   const title = shouldBreakTitle 
     ? `Single-Block LVR<br>Interquartile Plot for<br>${poolName}<br>${titleSuffix}*`

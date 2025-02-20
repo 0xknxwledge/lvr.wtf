@@ -101,7 +101,7 @@ const CategoryStackedBar: React.FC<CategoryStackedBarProps> = ({ selectedMarkout
   });
 
   const titleSuffix = selectedMarkout === 'brontes' 
-    ? '(Observed)' 
+    ? '(Brontes)' 
     : `(Markout ${selectedMarkout}s)`;
 
   let title;
@@ -177,6 +177,11 @@ const CategoryStackedBar: React.FC<CategoryStackedBarProps> = ({ selectedMarkout
 
   return (
     <div className="w-full h-full">
+      <div className="mb-6 text-center">
+        <p className="text-white/80 text-sm md:text-base font-['Geist'] bg-[#30283A]/50 inline-block px-4 py-2 rounded-lg">
+          Click on categories in the legend to remove/add them from view
+        </p>
+    </div>
       <Plot
         data={traces}
         layout={layout}
