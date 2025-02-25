@@ -635,17 +635,14 @@ impl ParallelLVRProcessor {
         Ok(result)
     }
 
-    async fn run_precomputation(&self) -> Result<()> {
-        info!("Starting precomputation of all metrics...");
+    pub async fn run_precomputation(&self) -> Result<()> {
+        info!("Starting precomputation phase...");
         
         let precomputed_writer = PrecomputedWriter::new(self.object_store.clone());
         
         // Run all precomputation methods sequentially
         precomputed_writer.write_running_totals().await?;
         info!("Completed running totals precomputation");
-        
-        precomputed_writer.write_lvr_ratios().await?;
-        info!("Completed LVR ratios precomputation");
         
         precomputed_writer.write_pool_totals().await?;
         info!("Completed pool totals precomputation");
@@ -665,6 +662,9 @@ impl ParallelLVRProcessor {
         precomputed_writer.write_quartile_plots().await?;
         info!("Completed quartile plots precomputation");
         
+        precomputed_writer.write_daily_time_series().await?;
+        info!("Completed daily time series precomputation");
+        
         precomputed_writer.write_cluster_proportions().await?;
         info!("Completed cluster proportions precomputation");
         
@@ -677,10 +677,12 @@ impl ParallelLVRProcessor {
         precomputed_writer.write_cluster_non_zero().await?;
         info!("Completed cluster non-zero precomputation");
     
+        precomputed_writer.write_distribution_metrics().await?;
+        info!("Completed distribution metrics precomputation");
+    
         info!("Successfully completed all metric precomputations");
         Ok(())
     }
-    
     fn parse_lvr_details(&self, details_str: &str, target_pool_name: &str) -> Option<f64> {
         // Attempt to parse as a vector of vectors of strings
         if let Ok(details) = serde_json::from_str::<Vec<Vec<String>>>(details_str) {

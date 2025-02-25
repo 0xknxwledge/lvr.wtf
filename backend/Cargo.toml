@@ -36,6 +36,8 @@ futures-util = "0.3.31"
 time = "0.3.36"
 num-traits = "0.2.19"
 actix-cors = "0.7.0"
+nalgebra = "0.33.2"
+smartcore = "0.4.0"
 
 [dev-dependencies]
 statrs = "0.17.1"

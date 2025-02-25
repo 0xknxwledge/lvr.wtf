@@ -15,10 +15,10 @@ function Overview() {
             <h2 className="text-4xl font-semibold mb-8 text-[#F651AE] text-center">What is LVR.wtf?</h2>
             <hr className="border-[#8247E5]/20 mb-8" />
             <p className="text-white/90 text-base">
-              Loss-Versus-Rebalancing (LVR), as defined by Millonis et al., measures the cost on-chain liquidity providers (LPs) face from trading at outdated prices compared to centralized exchanges (CEXs). While AMMs update prices every 12 seconds, CEXs operate in real-time, enabling arbitrageurs to profit from price gaps.
-               <br/> <br/>To quantify this, Brontes flagged potential CEX-DEX arbitrage trades on Ethereum and estimated profits using T+X markouts against Binance mid-prices. However, its accuracy depends on correctly identifying arbitrage trades. 
+              Loss-Versus-Rebalancing (LVR), as defined by Millonis et al., measures the cost on-chain liquidity providers (LPs) face from trading at outdated prices compared to centralized exchanges (CEXs). While Automated Market Makers (AMMs) update prices every 12 seconds, CEXs operate in real-time, enabling arbitrageurs to profit from price gaps.
+               <br/> <br/>To quantify this, Brontes flagged potential CEX-DEX arbitrage trades on Ethereum and estimated profits using T+0 markouts against Binance mid-prices. However, its accuracy depends on correctly identifying arbitrage trades. 
                <br/><br/>LVR.wtf builds on this by comparing Brontes with alternative methods, 
-               offering a new perspective on LVR through empirical simulation that attempts to capture the observable maximum LVR. This reveals the true scale of value leakage from LPs and highlights the opportunities to address it.
+               offering a new perspective on LVR through empirical simulation that attempts to capture the observable LVR. This reveals the true scale of value leakage from LPs and highlights the opportunities to address it.
             </p>
           </div>
         </div>
@@ -32,12 +32,11 @@ function Overview() {
             <h2 className="text-4xl font-semibold mb-8 text-[#F651AE] text-center">Methodology</h2>
             <hr className="border-[#8247E5]/20 mb-8" />
             <p className="text-white/90 text-base">
-            LVR.wtf empirically simulates how much CEX-DEX arbitrage can be extracted across the top 22 token pairs by comparing pool prices on V2/V3 pools to historical orderbook data from Binance, OKX, Bybit, and Coinbase. 
-            For each block, the simulation checks the pool price against the best bid or ask in the CEX orderbooks and calculates how much volume needs to trade on both venues to eliminate any price gap exceeding the pool's fee range. 
-            The approach accounts for slippage and a taker fee of 0.01725% to reflect realistic conditions for professional arbitrageurs. 
-            <br/><br/>This is repeated for nine different orderbook snapshots at and around the block time (T ± 0.5, 1, 1.5, 2 seconds), then aggregated across every block up to block 20,000,000. 
-            The resultant data quantifies the maximum profit potential for CEX-DEX arbitrage across all combinations of pool and markout time. Future updates will expand the historical coverage on a rolling basis. The "Brontes" markout time uses Brontes CEX-DEX arbitrage data.
-            <br/><br/>The <a href="https://lvr-wtf.gitbook.io/lvr.wtf-doc" target="_blank" rel="noopener noreferrer" className="text-[#F651AE] hover:text-[#FF7BC5] transition-colors duration-200">gitbook</a> provides comprehensive details about our simulator's methodology.
+            LVR.wtf measures potential CEX–DEX arbitrage by empirically simulating trades across the top 22 token pairs. For each block, we compare the V2/V3 pool price to the best bid or ask from Binance, OKX, Bybit, and Coinbase. If a price gap exceeds the pool’s fee range, the simulation calculates how much volume must trade on both the CEX and the DEX to eliminate it. This process accounts for slippage and a 0.01725% taker fee, emulating realistic market liquidity.
+
+            <br/><br/>We repeat this process for nine different orderbook snapshots around the block time (T + 0, ± 0.5s, ±1s, ±1.5s, ±2s), then aggregate results for every block up to block 20,000,000. The outcome reveals the observable profit potential for CEX–DEX arbitrage across each pool at its corresponding markout. 
+
+            <br/><br/> Brontes data is also available in the dashboard for comparison. We plan to extend historical coverage on a rolling basis. For more in-depth details on our simulation methodology and architecture, refer to our <a href="https://lvr-wtf.gitbook.io/lvr.wtf-doc" target="_blank" rel="noopener noreferrer" className="text-[#F651AE] hover:text-[#FF7BC5] transition-colors duration-200">GitBook</a>
             </p>
           </div>
         </div>

@@ -16,7 +16,6 @@ use bytes::Bytes;
 use tracing::{info, warn, debug, error};
 use futures::StreamExt;
 use crate::{
-    api::types::*,
     api::handlers::*,
     MERGE_BLOCK, POOL_NAMES, INTERVAL_RANGES,
     common::{BLOCKS_PER_INTERVAL, FINAL_INTERVAL_FILE, FINAL_PARTIAL_BLOCKS, 
@@ -268,104 +267,6 @@ impl PrecomputedWriter {
         self.write_batch_to_store(output_path, batch).await?;
     
         info!("Successfully wrote precomputed aggregate running totals");
-        Ok(())
-    }
-
-    pub async fn write_lvr_ratios(&self) -> Result<(), anyhow::Error> {
-        info!("Starting precomputation of LVR ratios");
-        
-        // Create schema for LVR ratios
-        let schema = arrow::datatypes::Schema::new(vec![
-            arrow::datatypes::Field::new("markout_time", arrow::datatypes::DataType::Utf8, false),
-            arrow::datatypes::Field::new("ratio", arrow::datatypes::DataType::Float64, false),
-            arrow::datatypes::Field::new("realized_lvr_cents", arrow::datatypes::DataType::UInt64, false),
-            arrow::datatypes::Field::new("theoretical_lvr_cents", arrow::datatypes::DataType::UInt64, false),
-        ]);
-
-        // Initialize totals structure
-        let mut totals = LVRTotals {
-            realized: 0,
-            theoretical: HashMap::new(),
-        };
-
-        // Process all interval files
-        let intervals_path = object_store::path::Path::from("intervals");
-        let mut interval_files = self.object_store.list(Some(&intervals_path));
-        let valid_pools = get_valid_pools();
-
-        while let Some(meta_result) = interval_files.next().await {
-            let meta = meta_result.context("Failed to get file metadata")?;
-            let bytes = self.object_store.get(&meta.location)
-                .await?
-                .bytes()
-                .await?;
-
-            let record_reader = ParquetRecordBatchReader::try_new(bytes, 1024)?;
-
-            for batch_result in record_reader {
-                let batch = batch_result?;
-                
-                let markout_times = get_string_column(&batch, "markout_time")
-                    .map_err(|e| anyhow::anyhow!("Failed to get markout_time column: {}", e))?;
-                let pool_addresses = get_string_column(&batch, "pair_address")
-                    .map_err(|e| anyhow::anyhow!("Failed to get pair_address column: {}", e))?;
-                let total_lvr_cents = get_uint64_column(&batch, "total_lvr_cents")
-                    .map_err(|e| anyhow::anyhow!("Failed to get total_lvr_cents column: {}", e))?;
-                let non_zero_counts = get_uint64_column(&batch, "non_zero_count")
-                    .map_err(|e| anyhow::anyhow!("Failed to get non_zero_count column: {}", e))?;
-
-                for i in 0..batch.num_rows() {
-                    if total_lvr_cents.is_null(i) || non_zero_counts.value(i) == 0 {
-                        continue;
-                    }
-
-                    let pool_address = pool_addresses.value(i).to_lowercase();
-                    if !valid_pools.contains(&pool_address) {
-                        continue;
-                    }
-
-                    let markout_time = markout_times.value(i);
-                    let lvr_cents = total_lvr_cents.value(i);
-
-                    if lvr_cents > 0 {
-                        if markout_time == "brontes" {
-                            totals.realized = totals.realized.saturating_add(lvr_cents);
-                        } else {
-                            totals.theoretical
-                                .entry(markout_time.to_string())
-                                .and_modify(|e| *e = e.saturating_add(lvr_cents))
-                                .or_insert(lvr_cents);
-                        }
-                    }
-                }
-            }
-        }
-
-        // Calculate ratios
-        let ratios = ratios::calculate_lvr_ratios(totals);
-
-        // Prepare arrays for the record batch
-        let markout_times: Vec<String> = ratios.iter().map(|r| r.markout_time.clone()).collect();
-        let ratio_values: Vec<f64> = ratios.iter().map(|r| r.ratio).collect();
-        let realized_cents: Vec<u64> = ratios.iter().map(|r| r.realized_lvr_cents).collect();
-        let theoretical_cents: Vec<u64> = ratios.iter().map(|r| r.theoretical_lvr_cents).collect();
-
-        // Create record batch
-        let batch = RecordBatch::try_new(
-            Arc::new(schema),
-            vec![
-                Arc::new(StringArray::from(markout_times)),
-                Arc::new(Float64Array::from(ratio_values)),
-                Arc::new(UInt64Array::from(realized_cents)),
-                Arc::new(UInt64Array::from(theoretical_cents)),
-            ],
-        )?;
-
-        // Write to output file
-        let output_path = Path::from("precomputed/ratios/lvr_ratios.parquet");
-        self.write_batch_to_store(output_path, batch).await?;
-
-        info!("Successfully wrote precomputed LVR ratios");
         Ok(())
     }
 
@@ -1650,4 +1551,124 @@ impl PrecomputedWriter {
     
         Ok(())
     }
+
+    pub async fn write_daily_time_series(&self) -> Result<(), anyhow::Error> {
+        info!("Starting aggregation of total LVR across pools for daily time series");
+    
+        // Output schema: markout_time, start_block, end_block, total_lvr_dollars.
+        let schema = arrow::datatypes::Schema::new(vec![
+            arrow::datatypes::Field::new("markout_time", arrow::datatypes::DataType::Utf8, false),
+            arrow::datatypes::Field::new("start_block", arrow::datatypes::DataType::UInt64, false),
+            arrow::datatypes::Field::new("end_block", arrow::datatypes::DataType::UInt64, false),
+            arrow::datatypes::Field::new("total_lvr_dollars", arrow::datatypes::DataType::Float64, false),
+        ]);
+    
+        // Vectors to hold our aggregated results.
+        let mut markout_times = Vec::new();
+        let mut start_blocks = Vec::new();
+        let mut end_blocks = Vec::new();
+        let mut total_lvr_values = Vec::new();
+    
+        let valid_pools = get_valid_pools();
+    
+        // Process each interval file (monthly file).
+        let intervals_path = object_store::path::Path::from("intervals");
+        let mut interval_files = self.object_store.list(Some(&intervals_path));
+    
+        while let Some(meta_result) = interval_files.next().await {
+            let meta = meta_result.context("Failed to get file metadata")?;
+            let file_path = meta.location.to_string();
+    
+            // Extract the overall block range from the file name.
+            let (file_start, _file_end) = if let Some(file_name) = file_path.split('/').last() {
+                let parts: Vec<&str> = file_name.split('_').collect();
+                if parts.len() == 2 {
+                    let start = parts[0]
+                        .parse::<u64>()
+                        .context("Failed to parse start block")?;
+                    let end = parts[1]
+                        .trim_end_matches(".parquet")
+                        .parse::<u64>()
+                        .context("Failed to parse end block")?;
+                    (start, end)
+                } else {
+                    continue;
+                }
+            } else {
+                continue;
+            };
+    
+            let bytes = self.object_store.get(&meta.location).await?.bytes().await?;
+            let record_reader = ParquetRecordBatchReader::try_new(bytes, 1024)?;
+    
+            // Use a HashMap to aggregate LVR per (interval_id, markout_time) combination.
+            let mut aggregation: std::collections::HashMap<(u64, String), u64> = std::collections::HashMap::new();
+    
+            for batch_result in record_reader {
+                let batch = batch_result?;
+    
+                let markout_times_col = get_string_column(&batch, "markout_time")
+                    .map_err(|e| anyhow::anyhow!("Failed to get markout_time column: {}", e))?;
+                let pool_addresses_col = get_string_column(&batch, "pair_address")
+                    .map_err(|e| anyhow::anyhow!("Failed to get pair_address column: {}", e))?;
+                let total_lvr_cents = get_uint64_column(&batch, "total_lvr_cents")
+                    .map_err(|e| anyhow::anyhow!("Failed to get total_lvr_cents column: {}", e))?;
+                let total_counts = get_uint64_column(&batch, "total_count")
+                    .map_err(|e| anyhow::anyhow!("Failed to get total_count column: {}", e))?;
+                let interval_ids_col = get_uint64_column(&batch, "interval_id")
+                    .map_err(|e| anyhow::anyhow!("Failed to get interval_id column: {}", e))?;
+    
+                for i in 0..batch.num_rows() {
+                    let pool_address = pool_addresses_col.value(i).to_lowercase();
+                    if !valid_pools.contains(&pool_address) {
+                        continue;
+                    }
+    
+                    let interval_id = interval_ids_col.value(i);
+                    let markout_time = markout_times_col.value(i).to_string();
+                    let lvr_cents = total_lvr_cents.value(i);
+                    let total_count = total_counts.value(i);
+    
+                    // Only include valid rows.
+                    if lvr_cents > 0 && total_count > 0 {
+                        *aggregation.entry((interval_id, markout_time)).or_insert(0) += lvr_cents;
+                    }
+                }
+            }
+    
+            // For each (interval_id, markout_time) combination, compute the daily block range.
+            // Here we assume each interval covers 7200 blocks.
+            let interval_length = 7200;
+            for ((interval_id, markout_time), lvr_sum_cents) in aggregation {
+                let day_start = file_start + (interval_id * interval_length);
+                let day_end = day_start + interval_length - 1;
+    
+                markout_times.push(markout_time);
+                start_blocks.push(day_start);
+                end_blocks.push(day_end);
+                total_lvr_values.push(lvr_sum_cents as f64 / 100.0);
+            }
+        }
+    
+        // Create the record batch with the aggregated data.
+        let batch = RecordBatch::try_new(
+            Arc::new(schema),
+            vec![
+                Arc::new(StringArray::from(markout_times)),
+                Arc::new(UInt64Array::from(start_blocks)),
+                Arc::new(UInt64Array::from(end_blocks)),
+                Arc::new(Float64Array::from(total_lvr_values)),
+            ],
+        )?;
+    
+        // Write the batch to the output file.
+        let output_path = Path::from("precomputed/distributions/daily_ts.parquet");
+        self.write_batch_to_store(output_path, batch).await?;
+    
+        info!("Successfully wrote daily total LVR time series");
+        Ok(())
+    }
+    
+    
 }
+

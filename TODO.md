@@ -13,6 +13,13 @@ WETH-USDT-500        | 0x11b815efb8f581194ae79006d24e0d814b7697f6 |   +2,251,954
 WBTC-USDC-3000       | 0x99ac8ca7087fa4a2a1fb6357269965a2014abc35 |     +403,890.56
 
 
+TODO:
 - Fuzz test DistributionMetrics and quantile estimates for lognormal, pareto, bimodal, etc. distributions; whats the expected relative error? How consistent is it?
-
-- How can we normalize across categories?
+- Use SmartCore K-means for category analysis
+- How can we normalize volume across categories?
+- Time series analysis for testing the effects of markout time
+    - Quantile regression w/ markout as ordinal variable (coded as ortho polynomials)?
+    - Treat markout time as continuous or ordinal?
+    - EDA on daily total LVR time series shows stationarity and no significant autocorrelation for all markout times
+    - ^how does fat tails affect time series assumptions?
+    - Stochastic volatility modeling (often used for returns, which are multiplicative tho)?

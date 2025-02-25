@@ -179,9 +179,6 @@ async fn main() -> Result<()> {
             info!("Computing running totals...");
             writer.write_running_totals().await?;
             
-            info!("Computing LVR ratios...");
-            writer.write_lvr_ratios().await?;
-            
             info!("Computing pool totals...");
             writer.write_pool_totals().await?;
             
@@ -199,6 +196,9 @@ async fn main() -> Result<()> {
             
             info!("Computing quartile plots...");
             writer.write_quartile_plots().await?;
+
+            info!("Computing daily time series...");
+            writer.write_daily_time_series().await?;
             
             info!("Computing cluster proportions...");
             writer.write_cluster_proportions().await?;
