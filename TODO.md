@@ -9,5 +9,3 @@ TODO:
     - ^how does fat tails affect time series assumptions?
     - Stochastic volatility modeling (often used for returns, which are multiplicative tho)?
 
-
-- WRITE README; encourage pull requests!!
