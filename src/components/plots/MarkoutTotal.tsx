@@ -137,7 +137,7 @@ const MarkoutTotals: React.FC = () => {
     yaxis: {
       ...baseLayout.yaxis,
       title: {
-        text: 'Cumulative Total LVR (USD)',
+        text: 'Cumulative Total LVR since Merge (USD)',
         font: { 
           color: plotColors.accent, 
           size: responsiveLayout.fontSize.axis,
@@ -180,32 +180,7 @@ const MarkoutTotals: React.FC = () => {
   // Find the markout time with the maximum LVR
   const maxLVRItem = data.reduce((max, current) => 
     current.total_dollars > max.total_dollars ? current : max, data[0]);
-  
-  // Prepare the annotation for the peak
-  const annotations = [{
-    x: maxLVRItem.markout_time,
-    y: maxLVRItem.total_dollars,
-    text: `Peak: ${parseFloat(maxLVRItem.markout_time) > 0 ? '+' : ''}${maxLVRItem.markout_time}s<br>$${maxLVRItem.total_dollars.toLocaleString()}`,
-    showarrow: true,
-    arrowhead: 2,
-    arrowsize: 1,
-    arrowwidth: 2,
-    arrowcolor: '#FFFFFF',
-    ax: -30,
-    ay: -40,
-    font: {
-      color: '#ffffff',
-      size: responsiveLayout.fontSize.annotation,
-      family: fontConfig.family
-    },
-    bgcolor: '#30283A',
-    bordercolor: plotColors.accent,
-    borderwidth: 2,
-    borderpad: 4
-  }];
 
-  // Apply annotations to the layout
-  layout.annotations = annotations;
 
   return (
     <div className="w-full bg-[#030304] rounded-lg border border-[#8247E5]/20 p-6">
@@ -239,13 +214,6 @@ const MarkoutTotals: React.FC = () => {
         style={{ width: '100%', height: '100%' }}
         useResizeHandler
       />
-      
-      <div className="mt-6 text-center">
-        <p className="text-[#8247E5] text-sm font-['Geist']">
-          This chart shows the cumulative Loss-Versus-Rebalancing (LVR) across all pools for each markout time since the Merge.
-          <br/>The peak at {parseFloat(maxLVRItem.markout_time) > 0 ? '+' : ''}{maxLVRItem.markout_time}s indicates the markout time that captured the highest total LVR.
-        </p>
-      </div>
     </div>
   );
 };

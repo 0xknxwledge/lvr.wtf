@@ -25,8 +25,6 @@ const Aggregate: React.FC = () => {
           Aggregate Analysis
         </h1>
 
-        {controls}
-
         <p className="font-['Geist'] text-white text-lg my-8 text-center">
           View data aggregated across pools. 
           The last two plots are specific to the selected markout time.
@@ -40,6 +38,8 @@ const Aggregate: React.FC = () => {
           <PlotContainer>
             <MarkoutTotals />
           </PlotContainer>
+
+          {controls}
 
           <PlotContainer>
             <PoolTotalsPieChart selectedMarkout={selectedMarkout} />
