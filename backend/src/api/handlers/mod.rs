@@ -4,6 +4,7 @@ pub mod health;  // Health check endpoint
 pub mod clusters;  // Cluster analysis endpoints
 
 // Data analysis endpoints
+pub mod total;
 pub mod running_total;
 pub mod regression;
 pub mod pool_totals;
@@ -19,6 +20,7 @@ pub use health::health_check;
 
 // Data analysis endpoints
 pub use running_total::get_running_total;
+pub use total::get_total_lvr;
 //pub use regression::get_markout_regression;
 pub use pool_totals::get_pool_totals;
 pub use max::get_max_lvr;

@@ -4,6 +4,7 @@ import PoolTotalsPieChart from '../components/plots/PieChart';
 import MaxLVRChart from '../components/plots/MaxLVRChart';
 import { MarkoutSelect } from '../components/LabeledSelect';
 import PlotContainer from '../components/PlotContainer';
+import MarkoutTotals from '../components/plots/MarkoutTotal';
 
 const Aggregate: React.FC = () => {
   const [selectedMarkout, setSelectedMarkout] = useState('0.0');
@@ -34,6 +35,10 @@ const Aggregate: React.FC = () => {
         <div className="flex flex-col">
           <PlotContainer>
             <RunningTotalChart />
+          </PlotContainer>
+
+          <PlotContainer>
+            <MarkoutTotals />
           </PlotContainer>
 
           <PlotContainer>

@@ -278,3 +278,14 @@ pub struct DistributionResponse {
     pub skewness: f64,
     pub kurtosis: f64
 }
+
+#[derive(Debug, Serialize)]
+pub struct TotalLVRResponse {
+    pub markout_totals: Vec<MarkoutTotal>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct MarkoutTotal {
+    pub markout_time: String,
+    pub total_dollars: f64,
+}

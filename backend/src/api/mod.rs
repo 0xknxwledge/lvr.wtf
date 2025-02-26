@@ -46,6 +46,7 @@ pub async fn serve(host: String, port: u16, store: Arc<dyn ObjectStore>) -> Resu
         .route("/running_total", get(get_running_total))
         //.route("/regression", get(get_markout_regression))
         .route("/pool_totals", get(get_pool_totals))
+        .route("/markout_totals", get(get_total_lvr))
         .route("/max_lvr", get(get_max_lvr))
         .route("/histogram", get(get_lvr_histogram))
         .route("/non_zero_proportion", get(get_non_zero_proportion))
