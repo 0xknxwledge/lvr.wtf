@@ -8,7 +8,7 @@ const MobileNavigation = ({ isOpen, setIsOpen }: { isOpen: boolean; setIsOpen: (
 
   const navItems = isOverviewPage ? [
     { name: 'Overview', path: '/' },
-    { name: 'Data', path: '/aggregate' }
+    { name: 'Dashboard', path: '/aggregate' }
   ] : [
     { name: 'Overview', path: '/' },
     { name: 'Aggregate', path: '/aggregate' },

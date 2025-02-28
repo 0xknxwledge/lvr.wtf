@@ -1,5 +1,5 @@
 use crate::{
-    api::precompute::PrecomputedWriter, aurora::{AuroraConnection, LVRDetails}, brontes::{BrontesConnection, LVRAnalysis}, config::{AuroraConfig, BrontesConfig}, error::Error, models::{Checkpoint, CheckpointUpdate, DataSource, IntervalData, MarkoutTime, UnifiedLVRData},
+    api::precompute::PrecomputedWriter, aurora::{AuroraConnection, LVRDetails}, brontes::{BrontesConnection, LVRAnalysis}, config::{AuroraConfig, BrontesConfig}, error::Error, models::{Checkpoint, CheckpointUpdate, ClusterBlockActivity, DataSource, IntervalData, MarkoutTime, UnifiedLVRData},
      writer::ParallelParquetWriter, 
      USDeUSDT_DEPLOYMENT, 
      MARKOUT_TIMES, MARKOUT_TIME_MAPPING, 
@@ -32,6 +32,7 @@ pub struct ParallelLVRProcessor {
     start_block: u64,
     end_block: u64,
     checkpoints: Arc<DashMap<(String, MarkoutTime), Checkpoint>>,
+    cluster_activity: Arc<DashMap<(String, MarkoutTime), ClusterBlockActivity>>,
     aurora_connection: Arc<AuroraConnection>,
     brontes_connection: Arc<BrontesConnection>,
     parquet_writer: Arc<Mutex<ParallelParquetWriter>>,
@@ -56,6 +57,7 @@ impl ParallelLVRProcessor {
             start_block,
             end_block,
             checkpoints: Arc::new(DashMap::new()),
+            cluster_activity: Arc::new(DashMap::new()),
             aurora_connection,
             brontes_connection,
             parquet_writer,
@@ -109,6 +111,15 @@ impl ParallelLVRProcessor {
                     }
                 },
                 Err(e) => return Err(e),
+            }
+        }
+
+        // Persist cluster activity data before finalization
+        match self.persist_cluster_activity().await {
+            Ok(_) => info!("Successfully persisted cluster activity data"),
+            Err(e) => {
+                error!("Failed to persist cluster activity data: {}", e);
+                // Don't fail the whole process for this error, just log it
             }
         }
 
@@ -455,10 +466,14 @@ impl ParallelLVRProcessor {
         if effective_start >= chunk_end {
             return Ok(());
         }
+        
+        // Get cluster name for this pool (if it belongs to a cluster)
+        let cluster_name = crate::get_cluster_name(&pool_address.to_lowercase())
+            .map(|name| name.to_string());
     
         let checkpoint = self.checkpoints
-            .entry((pool_address.to_string(), markout_time))
-            .or_insert_with(|| Checkpoint::new(pool_address.to_string(), markout_time));
+            .entry((pool_address.to_string(), markout_time.clone()))
+            .or_insert_with(|| Checkpoint::new(pool_address.to_string(), markout_time.clone()));
     
         // Create a map of block numbers to data points for efficient lookup
         let block_data: HashMap<u64, &UnifiedLVRData> = data.iter()
@@ -473,9 +488,13 @@ impl ParallelLVRProcessor {
         let mut bucket_counts = [0u64; 7];  // Array for all bucket counts
         let mut non_zero_values = Vec::new();
     
+        // Track processed blocks for this cluster to avoid double counting
+        let mut cluster_block_activity = HashMap::new();
+    
         // Process each block in the range
         for block_number in effective_start..chunk_end {
             updates += 1;
+            let mut has_nonzero_lvr = false;
     
             if let Some(data_point) = block_data.get(&block_number) {
                 let lvr_cents = data_point.lvr_cents;
@@ -489,9 +508,10 @@ impl ParallelLVRProcessor {
                     max_lvr_block = block_number;
                 }
     
-                // Collect non-zero values for TDigest
+                // Collect non-zero values for TDigest and track for cluster activity
                 if lvr_cents > 0 {
                     non_zero_values.push(lvr_cents as f64 / 100.0);  // Convert to dollars for TDigest
+                    has_nonzero_lvr = true;
                 }
     
                 // Update bucket counts
@@ -509,6 +529,33 @@ impl ParallelLVRProcessor {
             } else {
                 // Count zero values
                 bucket_counts[0] += 1;
+            }
+    
+            // Update cluster activity tracking if this pool belongs to a cluster
+            if let Some(ref _cluster) = cluster_name {
+                cluster_block_activity.entry(block_number)
+                    .or_insert_with(|| (false, has_nonzero_lvr))
+                    .1 |= has_nonzero_lvr; // OR the nonzero flag to track if ANY pool has nonzero LVR
+            }
+        }
+    
+        // Update cluster activity metrics
+        if let Some(ref cluster) = cluster_name {
+            for (_block_number, (processed, has_nonzero)) in cluster_block_activity {
+                if !processed {
+                    let key = (cluster.clone(), markout_time.clone());
+                    self.cluster_activity
+                        .entry(key.clone())
+                        .or_insert_with(|| ClusterBlockActivity::new(cluster.clone(), markout_time.clone()))
+                        .increment_total();
+                        
+                    if has_nonzero {
+                        self.cluster_activity
+                            .get_mut(&key)
+                            .expect("Entry should exist as we just created it")
+                            .increment_non_zero();
+                    }
+                }
             }
         }
     
@@ -635,6 +682,23 @@ impl ParallelLVRProcessor {
         Ok(result)
     }
 
+    async fn persist_cluster_activity(&self) -> Result<()> {
+        info!("Persisting cluster activity data");
+        
+        if self.cluster_activity.is_empty() {
+            warn!("No cluster activity data to persist");
+            return Ok(());
+        }
+        
+        let writer = self.parquet_writer.lock().await;
+        writer.write_cluster_activity(&self.cluster_activity).await?;
+        
+        info!("Successfully persisted cluster activity data");
+        Ok(())
+    }
+
+
+
     pub async fn run_precomputation(&self) -> Result<()> {
         info!("Starting precomputation phase...");
         
@@ -673,9 +737,6 @@ impl ParallelLVRProcessor {
         
         precomputed_writer.write_monthly_cluster_totals().await?;
         info!("Completed monthly cluster totals precomputation");
-        
-        precomputed_writer.write_cluster_non_zero().await?;
-        info!("Completed cluster non-zero precomputation");
     
         precomputed_writer.write_distribution_metrics().await?;
         info!("Completed distribution metrics precomputation");
@@ -683,6 +744,7 @@ impl ParallelLVRProcessor {
         info!("Successfully completed all metric precomputations");
         Ok(())
     }
+    
     fn parse_lvr_details(&self, details_str: &str, target_pool_name: &str) -> Option<f64> {
         // Attempt to parse as a vector of vectors of strings
         if let Ok(details) = serde_json::from_str::<Vec<Vec<String>>>(details_str) {

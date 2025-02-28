@@ -209,9 +209,6 @@ async fn main() -> Result<()> {
             info!("Computing monthly cluster totals...");
             writer.write_monthly_cluster_totals().await?;
             
-            info!("Computing cluster non-zero metrics...");
-            writer.write_cluster_non_zero().await?;
-
             info!("Computing distribution metrics...");
             writer.write_distribution_metrics().await?;
     

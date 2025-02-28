@@ -409,8 +409,8 @@ pub async fn get_cluster_non_zero(
 
         let cluster_names = get_string_column(&batch, "cluster_name")?;
         let markout_times = get_string_column(&batch, "markout_time")?;
-        let total_observations = get_uint64_column(&batch, "total_observations")?;
-        let non_zero_observations = get_uint64_column(&batch, "non_zero_observations")?;
+        let total_blocks = get_uint64_column(&batch, "total_blocks")?;
+        let non_zero_blocks = get_uint64_column(&batch, "non_zero_blocks")?;
         let non_zero_proportions = get_float64_column(&batch, "non_zero_proportion")?;
 
         for i in 0..batch.num_rows() {
@@ -421,8 +421,8 @@ pub async fn get_cluster_non_zero(
 
             clusters.push(ClusterNonZero {
                 name: cluster_names.value(i).to_string(),
-                total_observations: total_observations.value(i),
-                non_zero_observations: non_zero_observations.value(i),
+                total_observations: total_blocks.value(i),
+                non_zero_observations: non_zero_blocks.value(i),
                 non_zero_proportion: non_zero_proportions.value(i),
             });
         }

@@ -13,6 +13,41 @@ pub struct UnifiedLVRData {
     pub source: DataSource,
 }
 
+#[derive(Debug, Clone)]
+pub struct ClusterBlockActivity {
+    pub cluster_name: String,
+    pub markout_time: MarkoutTime,
+    pub total_blocks: u64,
+    pub non_zero_blocks: u64,
+}
+
+impl ClusterBlockActivity {
+    pub fn new(cluster_name: String, markout_time: MarkoutTime) -> Self {
+        Self {
+            cluster_name,
+            markout_time,
+            total_blocks: 0,
+            non_zero_blocks: 0,
+        }
+    }
+    
+    pub fn increment_total(&mut self) {
+        self.total_blocks += 1;
+    }
+    
+    pub fn increment_non_zero(&mut self) {
+        self.non_zero_blocks += 1;
+    }
+    
+    pub fn get_proportion(&self) -> f64 {
+        if self.total_blocks > 0 {
+            self.non_zero_blocks as f64 / self.total_blocks as f64
+        } else {
+            0.0
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum DataSource {
     Aurora,
