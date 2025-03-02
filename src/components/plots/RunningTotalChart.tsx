@@ -20,7 +20,7 @@ const EVENT_ANNOTATIONS: EventAnnotation[] = [
   {
     blockStart: 16689392,
     blockEnd: 16696592,
-    text: "SEC charges Terraform Labs, DOJ indicts SBF",
+    text: "SEC charges Terraform Labs; DOJ indicts SBF",
     description: "Late February 2023"
   },
   {
