@@ -131,8 +131,8 @@ const PercentileBandChart: React.FC<PercentileBandChartProps> = ({
       : `${data.pool_name} (Markout ${markoutTime}s)`;
 
   const title = shouldBreakTitle
-    ? `Monthly LVR Percentile Bandplot<br>for ${titleSuffix}*`
-    : `Monthly LVR Percentile Bandplot for ${titleSuffix}*`;
+    ? `Daily LVR Percentile Bandplot<br>for ${titleSuffix}*`
+    : `Daily LVR Percentile Bandplot for ${titleSuffix}*`;
 
   const responsiveLayout = getResponsiveLayout();
 
@@ -259,7 +259,7 @@ const PercentileBandChart: React.FC<PercentileBandChartProps> = ({
       />
       <div className="mt-4 pl-4 text-center">
         <p className="text-[#8247E5] text-sm font-['Geist']">
-          *Note that the y-axis here is in terms of total LVR over an entire day. We excluded days (i.e, 7200-block-long chunks) that had zero LVR. The percentile values here are computed directly from linear interpolation
+        Within the given date range, this visualization displays the percentile distribution of daily LVR (i.e, total LVR across 7200 block-long chunks). Days with zero LVR have been excluded. Percentile values are computed using linear interpolation of the observed distribution.
         </p>
       </div>
     </div>
