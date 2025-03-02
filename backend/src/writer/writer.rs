@@ -122,18 +122,18 @@ impl ParallelParquetWriter {
     ) -> Result<()> {
         debug!("Acquiring semaphore for cluster activity data write...");
         let _permit = self.write_semaphore.acquire().await?;
-
+    
         // Convert DashMap entries to a vector
         let cluster_activities: Vec<_> = cluster_activity
             .iter()
             .map(|entry| entry.value().clone())
             .collect();
-
+    
         if cluster_activities.is_empty() {
             warn!("No cluster activity data to write");
             return Ok(());
         }
-
+    
         // Create schema for cluster activity
         let schema = arrow::datatypes::Schema::new(vec![
             arrow::datatypes::Field::new("cluster_name", arrow::datatypes::DataType::Utf8, false),
@@ -142,28 +142,27 @@ impl ParallelParquetWriter {
             arrow::datatypes::Field::new("non_zero_blocks", arrow::datatypes::DataType::UInt64, false),
             arrow::datatypes::Field::new("non_zero_proportion", arrow::datatypes::DataType::Float64, false),
         ]);
-
+    
         // Create data vectors
         let mut cluster_names = Vec::new();
         let mut markout_times = Vec::new();
         let mut total_blocks_vec = Vec::new();
         let mut non_zero_blocks_vec = Vec::new();
         let mut proportions = Vec::new();
-
+    
         for activity in cluster_activities {
-            let proportion = if activity.total_blocks > 0 {
-                activity.non_zero_blocks as f64 / activity.total_blocks as f64
-            } else {
-                0.0
-            };
-
+            // Use the methods from our bit vector implementation to get accurate counts
+            let total = activity.total_blocks();
+            let non_zero = activity.non_zero_blocks();
+            let proportion = activity.get_proportion();
+    
             cluster_names.push(activity.cluster_name);
             markout_times.push(activity.markout_time.to_string());
-            total_blocks_vec.push(activity.total_blocks);
-            non_zero_blocks_vec.push(activity.non_zero_blocks);
+            total_blocks_vec.push(total);
+            non_zero_blocks_vec.push(non_zero);
             proportions.push(proportion);
         }
-
+    
         // Create record batch
         let batch = RecordBatch::try_new(
             Arc::new(schema),
@@ -175,11 +174,11 @@ impl ParallelParquetWriter {
                 Arc::new(Float64Array::from(proportions)),
             ],
         )?;
-
+    
         // Write to output file
         let path = Path::from("precomputed/clusters/non_zero.parquet");
         write_batch_to_store(self.object_store.clone(), path, batch, self.max_retries).await?;
-
+    
         info!("Successfully wrote cluster activity data");
         Ok(())
     }

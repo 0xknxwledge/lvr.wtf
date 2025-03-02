@@ -5,6 +5,7 @@ use std::sync::atomic::Ordering;
 use std::sync::{Arc, Mutex};
 use num_traits::cast::ToPrimitive;
 use crate::tdigest::*;
+use bitvec::prelude::*;
 
 #[derive(Debug, Clone)]
 pub struct UnifiedLVRData {
@@ -17,34 +18,104 @@ pub struct UnifiedLVRData {
 pub struct ClusterBlockActivity {
     pub cluster_name: String,
     pub markout_time: MarkoutTime,
-    pub total_blocks: u64,
-    pub non_zero_blocks: u64,
+    base_block: u64,               // Starting block number
+    processed_blocks: BitVec,      // Tracks which blocks were processed
+    non_zero_blocks: BitVec,       // Tracks which blocks had non-zero LVR
+    accumulated_total: u64,        // Running total across all chunks
+    accumulated_non_zero: u64,     // Running non-zero total across all chunks
+    max_chunk_size: usize,         // Maximum chunk size before clearing
 }
 
 impl ClusterBlockActivity {
-    pub fn new(cluster_name: String, markout_time: MarkoutTime) -> Self {
+    pub fn new(cluster_name: String, markout_time: MarkoutTime, start_block: u64, max_chunk_size: usize) -> Self {
         Self {
             cluster_name,
             markout_time,
-            total_blocks: 0,
-            non_zero_blocks: 0,
+            base_block: start_block,
+            processed_blocks: bitvec![0; max_chunk_size],
+            non_zero_blocks: bitvec![0; max_chunk_size],
+            accumulated_total: 0,
+            accumulated_non_zero: 0,
+            max_chunk_size,
         }
     }
     
-    pub fn increment_total(&mut self) {
-        self.total_blocks += 1;
+    pub fn process_block(&mut self, block_number: u64, has_nonzero: bool) {
+        if block_number < self.base_block {
+            return;
+        }
+        let idx = (block_number - self.base_block) as usize;
+        
+        // If index is out of current range, flush and reset if needed
+        if idx >= self.processed_blocks.len() {
+            self.flush_and_reset(block_number);
+            // Recalculate index after reset - this is the key fix!
+            let idx = (block_number - self.base_block) as usize;
+            
+            if !self.processed_blocks[idx] {
+                self.processed_blocks.set(idx, true);
+            }
+            if has_nonzero {
+                self.non_zero_blocks.set(idx, true);
+            }
+            return;
+        }
+        
+        // Only set processed bit if it wasn't already set
+        if !self.processed_blocks[idx] {
+            self.processed_blocks.set(idx, true);
+        }
+        
+        // Always update non-zero status if this block has non-zero activity
+        if has_nonzero {
+            self.non_zero_blocks.set(idx, true);
+        }
     }
     
-    pub fn increment_non_zero(&mut self) {
-        self.non_zero_blocks += 1;
+    fn flush_and_reset(&mut self, new_base_block: u64) {
+        // Accumulate counts before clearing
+        self.accumulated_total += self.processed_blocks.count_ones() as u64;
+        self.accumulated_non_zero += self.non_zero_blocks.count_ones() as u64;
+        
+        // Clear and reset bit vectors
+        self.processed_blocks.clear();
+        self.non_zero_blocks.clear();
+        
+        // Resize to max chunk size
+        self.processed_blocks.resize(self.max_chunk_size, false);
+        self.non_zero_blocks.resize(self.max_chunk_size, false);
+        
+        // Set new base block
+        self.base_block = new_base_block;
+    }
+    
+    pub fn total_blocks(&self) -> u64 {
+        self.accumulated_total + self.processed_blocks.count_ones() as u64
+    }
+    
+    pub fn non_zero_blocks(&self) -> u64 {
+        self.accumulated_non_zero + self.non_zero_blocks.count_ones() as u64
     }
     
     pub fn get_proportion(&self) -> f64 {
-        if self.total_blocks > 0 {
-            self.non_zero_blocks as f64 / self.total_blocks as f64
+        let total = self.total_blocks();
+        if total > 0 {
+            self.non_zero_blocks() as f64 / total as f64
         } else {
             0.0
         }
+    }
+    
+    // Explicitly finalize current chunk and accumulate counts
+    pub fn finalize_chunk(&mut self) {
+        self.accumulated_total += self.processed_blocks.count_ones() as u64;
+        self.accumulated_non_zero += self.non_zero_blocks.count_ones() as u64;
+        
+        // Clear bit vectors but keep the accumulators
+        self.processed_blocks.clear();
+        self.non_zero_blocks.clear();
+        self.processed_blocks.resize(self.max_chunk_size, false);
+        self.non_zero_blocks.resize(self.max_chunk_size, false);
     }
 }
 

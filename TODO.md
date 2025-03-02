@@ -13,8 +13,3 @@ TODO:
 
 - WRITE README; encourage pull requests!!
 - ask yuki about the state of cex-dex searching/searching in general; how institutionalized is it atp?
-
-_ SIMULATION FIXES:
-    - Safe assumption to treat USDC, USDT, and DAI as the same asset on the CEX side?
-        - Would then mark against most liquid orderbook @ that snapshot
-        - What is methodology of the latest run; Same as gitbook except USDC == USDT on CEX side if pool is WETH/USDC or WETH/USDT?

@@ -21,6 +21,7 @@ use anyhow::Context;
 const BLOCKS_PER_DAY: u64 = 7200;
 const INTERVALS_PER_FILE: u64 = 30;
 const BLOCKS_PER_CHUNK: u64 = BLOCKS_PER_DAY * INTERVALS_PER_FILE;
+const MAX_CHUNK_SIZE: usize = 100_000;
 
 // Structure to hold processed data before committing
 #[derive(Debug)]
@@ -37,7 +38,8 @@ pub struct ParallelLVRProcessor {
     brontes_connection: Arc<BrontesConnection>,
     parquet_writer: Arc<Mutex<ParallelParquetWriter>>,
     update_barrier: Arc<Barrier>,
-    object_store: Arc<dyn ObjectStore>
+    object_store: Arc<dyn ObjectStore>,
+    max_chunk_size: usize, // For ClusterBlockActivity bit vectors
 }
 
 impl ParallelLVRProcessor {
@@ -62,7 +64,8 @@ impl ParallelLVRProcessor {
             brontes_connection,
             parquet_writer,
             update_barrier: Arc::new(Barrier::new(1)),
-            object_store
+            object_store,
+            max_chunk_size: MAX_CHUNK_SIZE
         })
     }
 
@@ -214,6 +217,8 @@ impl ParallelLVRProcessor {
     
         // Atomically update and write checkpoints
         self.atomic_checkpoint_update(checkpoint_updates).await?;
+
+        self.finalize_cluster_activities().await;
     
         Ok(())
     }
@@ -488,9 +493,6 @@ impl ParallelLVRProcessor {
         let mut bucket_counts = [0u64; 7];  // Array for all bucket counts
         let mut non_zero_values = Vec::new();
     
-        // Track processed blocks for this cluster to avoid double counting
-        let mut cluster_block_activity = HashMap::new();
-    
         // Process each block in the range
         for block_number in effective_start..chunk_end {
             updates += 1;
@@ -532,29 +534,22 @@ impl ParallelLVRProcessor {
             }
     
             // Update cluster activity tracking if this pool belongs to a cluster
-            if let Some(ref _cluster) = cluster_name {
-                cluster_block_activity.entry(block_number)
-                    .or_insert_with(|| (false, has_nonzero_lvr))
-                    .1 |= has_nonzero_lvr; // OR the nonzero flag to track if ANY pool has nonzero LVR
-            }
-        }
-    
-        // Update cluster activity metrics
-        if let Some(ref cluster) = cluster_name {
-            for (_block_number, (processed, has_nonzero)) in cluster_block_activity {
-                if !processed {
-                    let key = (cluster.clone(), markout_time.clone());
-                    self.cluster_activity
-                        .entry(key.clone())
-                        .or_insert_with(|| ClusterBlockActivity::new(cluster.clone(), markout_time.clone()))
-                        .increment_total();
-                        
-                    if has_nonzero {
-                        self.cluster_activity
-                            .get_mut(&key)
-                            .expect("Entry should exist as we just created it")
-                            .increment_non_zero();
-                    }
+            if let Some(ref cluster) = cluster_name {
+                let key = (cluster.clone(), markout_time.clone());
+                // Using the cluster_activity DashMap with get_mut
+                if let Some(mut activity) = self.cluster_activity.get_mut(&key) {
+                    // Use the bit vector-based method to process this block
+                    activity.process_block(block_number, has_nonzero_lvr);
+                } else {
+                    // First time seeing this cluster+markout combination, initialize it
+                    let mut activity = ClusterBlockActivity::new(
+                        cluster.clone(), 
+                        markout_time.clone(), 
+                        chunk_start,
+                        self.max_chunk_size
+                    );
+                    activity.process_block(block_number, has_nonzero_lvr);
+                    self.cluster_activity.insert(key, activity);
                 }
             }
         }
@@ -695,6 +690,12 @@ impl ParallelLVRProcessor {
         
         info!("Successfully persisted cluster activity data");
         Ok(())
+    }
+
+    async fn finalize_cluster_activities(&self) {
+        for mut activity in self.cluster_activity.iter_mut() {
+            activity.value_mut().finalize_chunk();
+        }
     }
 
 

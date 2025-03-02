@@ -484,4 +484,164 @@ pub mod tests {
         assert_eq!(MarkoutTime::Positive2.to_string(), "2.0");
         assert_eq!(MarkoutTime::Brontes.to_string(), "brontes");
     }
+
+    #[test]
+    fn test_process_block_basic() {
+        let mut activity = ClusterBlockActivity::new(
+            "Test Cluster".to_string(),
+            MarkoutTime::Zero,
+            1000,
+            100
+        );
+        
+        // Process a few blocks
+        activity.process_block(1000, false);
+        activity.process_block(1001, true);
+        activity.process_block(1002, false);
+        
+        assert_eq!(activity.total_blocks(), 3, "Should count 3 total blocks");
+        assert_eq!(activity.non_zero_blocks(), 1, "Should count 1 non-zero block");
+        assert_eq!(activity.get_proportion(), 1.0/3.0, "Proportion should be 1/3");
+    }
+    
+    #[test]
+    fn test_process_block_duplicate() {
+        let mut activity = ClusterBlockActivity::new(
+            "Test Cluster".to_string(),
+            MarkoutTime::Zero,
+            1000,
+            100
+        );
+        
+        // Process the same block multiple times
+        activity.process_block(1001, false);
+        activity.process_block(1001, true);  // Same block, now with activity
+        
+        assert_eq!(activity.total_blocks(), 1, "Should count each block only once");
+        assert_eq!(activity.non_zero_blocks(), 1, "Non-zero status should be updated");
+    }
+    
+    #[test]
+    fn test_process_block_out_of_range() {
+        let mut activity = ClusterBlockActivity::new(
+            "Test Cluster".to_string(),
+            MarkoutTime::Zero,
+            1000,
+            10  // Small size to force reset
+        );
+        
+        // Fill up to capacity
+        for i in 0..10 {
+            activity.process_block(1000 + i, i % 2 == 0);
+        }
+        
+        // This should trigger flush_and_reset
+        activity.process_block(1020, true);
+        
+        // Verify counts are accumulated correctly
+        assert_eq!(activity.total_blocks(), 11, "Should have 10 from first chunk + 1 from new chunk");
+        assert_eq!(activity.non_zero_blocks(), 6, "Should have 5 from first chunk + 1 from new chunk");
+        
+        // Process another block in the new range
+        activity.process_block(1021, false);
+        
+        assert_eq!(activity.total_blocks(), 12, "Should now have 12 total blocks");
+        assert_eq!(activity.non_zero_blocks(), 6, "Non-zero count should still be 6");
+    }
+    
+    #[test]
+    fn test_finalize_chunk() {
+        let mut activity = ClusterBlockActivity::new(
+            "Test Cluster".to_string(),
+            MarkoutTime::Zero,
+            1000,
+            100
+        );
+        
+        // Process some blocks
+        for i in 0..5 {
+            activity.process_block(1000 + i, i > 2);
+        }
+        
+        // Finalize the chunk
+        activity.finalize_chunk();
+        
+        // Verify the counts are moved to accumulated totals
+        assert_eq!(activity.total_blocks(), 5, "Total should be preserved after finalization");
+        assert_eq!(activity.non_zero_blocks(), 2, "Non-zero count should be preserved");
+        
+        // Process more blocks after finalization
+        for i in 0..3 {
+            activity.process_block(2000 + i, i == 1);
+        }
+        
+        assert_eq!(activity.total_blocks(), 8, "Should now have 5 + 3 blocks");
+        assert_eq!(activity.non_zero_blocks(), 3, "Should now have 2 + 1 non-zero blocks");
+    }
+    
+    #[test]
+    fn test_complex_sequence() {
+        let mut activity = ClusterBlockActivity::new(
+            "Test Cluster".to_string(), 
+            MarkoutTime::Zero,
+            1000,
+            20
+        );
+        
+        // First chunk - normal blocks
+        for i in 0..10 {
+            activity.process_block(1000 + i, i % 3 == 0);
+        }
+        
+        // Process same blocks again (simulating multiple pools in cluster)
+        for i in 0..10 {
+            activity.process_block(1000 + i, i % 2 == 0);
+        }
+        
+        assert_eq!(activity.total_blocks(), 10, "Should count each block only once");
+        assert_eq!(activity.non_zero_blocks(), 7, "Should have blocks that are non-zero from either pass");
+        
+        // Process blocks in strictly increasing order
+        activity.process_block(1020, false);
+        activity.process_block(1025, true);
+        
+        // Trigger a reset by jumping ahead
+        activity.process_block(1030, true);
+        
+        // Process blocks after the new base block (not before!)
+        activity.process_block(1031, true);
+        activity.process_block(1032, false);
+        
+        // Finalize everything
+        activity.finalize_chunk();
+        
+        // Final verification
+        assert_eq!(activity.total_blocks(), 15, "Should have correct total after complex sequence");
+        assert_eq!(activity.non_zero_blocks(), 10, "Should have correct non-zero count");
+        assert_eq!(activity.get_proportion(), 10.0/15.0, "Should calculate correct proportion");
+    }
+
+    #[test]
+    fn test_out_of_order_blocks() {
+        let mut activity = ClusterBlockActivity::new(
+            "Test Cluster".to_string(),
+            MarkoutTime::Zero,
+            1000,
+            50
+        );
+        
+        // Process a sequence that will reset the base_block
+        activity.process_block(1000, false);
+        activity.process_block(1060, true);  // This causes a reset to base_block = 1060
+        
+        // Try to process a block before the new base_block
+        activity.process_block(1050, true);  // This should be silently ignored
+        
+        // Process more blocks after the reset
+        activity.process_block(1070, true);
+        
+        assert_eq!(activity.total_blocks(), 3, "Should count 1 from first chunk + 2 from second chunk");
+        assert_eq!(activity.non_zero_blocks(), 2, "Should count 0 from first chunk + 2 from second chunk");
+    }
 }
+
