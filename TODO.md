@@ -8,8 +8,3 @@ TODO:
     - EDA on daily total LVR time series shows stationarity and no significant autocorrelation for all markout times
     - ^how does fat tails affect time series assumptions?
     - Stochastic volatility modeling (often used for returns, which are multiplicative tho)?
-
-- How will daily updates work? Talk to Joe about getting CI for the process and precompute scripts
-
-- WRITE README; encourage pull requests!!
-- ask yuki about the state of cex-dex searching/searching in general; how institutionalized is it atp?
