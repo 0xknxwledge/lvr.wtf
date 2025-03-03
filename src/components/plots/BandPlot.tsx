@@ -131,8 +131,8 @@ const PercentileBandChart: React.FC<PercentileBandChartProps> = ({
       : `${data.pool_name} (Markout ${markoutTime}s)`;
 
   const title = shouldBreakTitle
-    ? `Daily LVR Percentile Bandplot<br>for ${titleSuffix}*`
-    : `Daily LVR Percentile Bandplot for ${titleSuffix}*`;
+    ? `Daily LVR per Month Bandplot <br>for ${titleSuffix}*`
+    : `Daily LVR per Month Bandplot for ${titleSuffix}*`;
 
   const responsiveLayout = getResponsiveLayout();
 
@@ -182,7 +182,6 @@ const PercentileBandChart: React.FC<PercentileBandChartProps> = ({
   const layout = {
     paper_bgcolor: '#030304',
     plot_bgcolor: '#030304',
-    // **** ONLY CHANGE HERE: Wrap title in <b>...</b> to make it bold
     title: {
       text: `<b>${title}</b>`,
       font: {

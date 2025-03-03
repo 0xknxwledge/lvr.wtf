@@ -448,7 +448,7 @@ const CategoryHistogram: React.FC<CategoryHistogramProps> = ({ selectedMarkout }
               onClick={() => toggleCategory(cfg.label)}
               style={{
                 backgroundColor: isVisible ? cfg.color : '#30283A',
-                color: isVisible ? '#000000' : '#FFFFFF',
+                color: isVisible ? '#FFFFFF' : '#000000',
               }}
               className={`
                 px-4 py-2 rounded-lg transition-all duration-200 text-sm md:text-base hover:scale-105 cursor-pointer

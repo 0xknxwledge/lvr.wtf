@@ -195,8 +195,8 @@ const HistogramChart: React.FC<HistogramChartProps> = ({ poolAddress, markoutTim
 
   const isMobile = windowWidth <= 768;
   const title = isMobile ?
-    `Single Block LVR Histogram for<br>${poolName}<br>${titleSuffix}` :
-    `Single Block LVR Histogram for ${poolName} ${titleSuffix}`;
+    `Single-Block LVR Histogram for<br>${poolName}<br>${titleSuffix}` :
+    `Single-Block LVR Histogram for ${poolName} ${titleSuffix}`;
 
   const baseLayout = createBaseLayout(title);
   const responsiveLayout = getResponsiveLayout();

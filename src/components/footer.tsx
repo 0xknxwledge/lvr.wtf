@@ -10,7 +10,7 @@ const Footer: React.FC = () => {
               Built with <span className="text-[#F651AE]">❤️</span> by
             </p>
             <p className="text-white text-sm text-center">
-              Fenbushi's Research team and Sorella Labs
+              Fenbushi Research team and Sorella Labs
             </p>
           </div>
 

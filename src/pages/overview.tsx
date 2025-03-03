@@ -32,11 +32,11 @@ function Overview() {
             <h2 className="text-4xl font-semibold mb-8 text-[#F651AE] text-center">Methodology</h2>
             <hr className="border-[#8247E5]/20 mb-8" />
             <p className="text-white/90 text-base">
-            LVR.wtf measures potential CEX–DEX arbitrage by empirically simulating trades across the top 22 token pairs. For each block, we compare the V2/V3 pool price to the best bid or ask from Binance, OKX, Bybit, and Coinbase. If a price gap exceeds the pool’s fee range, the simulation calculates how much volume must trade on both the CEX and the DEX to eliminate it. This process accounts for slippage and a 0.01725% taker fee, emulating realistic market liquidity.
+            LVR.wtf measures potential CEX–DEX arbitrage by empirically simulating trades across the top 22 token pairs. For each block, we compare the V2/V3 pool price to the best bid or ask from Binance, OKX, Bybit, and Coinbase. If a price gap exceeds the pool’s fee range, the simulation calculates how much volume must trade on both the CEX and the DEX to eliminate it. This process accounts for slippage and a <a href="https://www.binance.com/en/support/announcement/detail/024a848244a84511a70e6e6f60ba4c85" target="_blank" rel="noopener noreferrer" className="text-[#F651AE] hover:text-[#FF7BC5] transition-colors duration-200">0.01725% taker fee</a>, emulating realistic market liquidity.
 
             <br/><br/>We repeat this process for nine different orderbook snapshots around the block time (T + 0, ± 0.5s, ±1s, ±1.5s, ±2s), then aggregate results for every block up to block 20,000,000. The outcome reveals the observable profit potential for CEX–DEX arbitrage across each pool at its corresponding markout. 
 
-            <br/><br/> Brontes data is also available in the dashboard for comparison. We plan to extend historical coverage on a rolling basis. For more in-depth details on our simulation methodology and architecture, refer to our <a href="https://lvr-wtf.gitbook.io/lvr.wtf-doc" target="_blank" rel="noopener noreferrer" className="text-[#F651AE] hover:text-[#FF7BC5] transition-colors duration-200">GitBook</a>
+            <br/><br/> Brontes data is also available in the dashboard for comparison. We plan to extend historical coverage on a rolling basis. For more in-depth details on our simulation methodology and architecture, refer to our <a href="https://lvr-wtf.gitbook.io/lvr.wtf-doc" target="_blank" rel="noopener noreferrer" className="text-[#F651AE] hover:text-[#FF7BC5] transition-colors duration-200">GitBook</a>.
             </p>
           </div>
         </div>
