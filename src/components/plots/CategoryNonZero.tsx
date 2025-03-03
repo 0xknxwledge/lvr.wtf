@@ -122,7 +122,7 @@ const CategoryNonZero: React.FC<CategoryNonZeroProps> = ({ selectedMarkout }) =>
     return (
       <div className="w-full">
         <div className="flex items-center justify-center h-48">
-          <p className="text-white font-['Geist']">Loading...</p>
+          <p className="text-white font-['Geist']">Loading (may take up to 30 seconds)...</p>
         </div>
       </div>
     );

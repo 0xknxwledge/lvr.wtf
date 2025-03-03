@@ -79,7 +79,7 @@ const PoolTotalsPieChart: React.FC<PoolTotalsPieChartProps> = ({ selectedMarkout
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-[400px] md:h-[600px]">
-        <div className="text-white text-base md:text-lg animate-pulse">Loading...</div>
+        <div className="text-white text-base md:text-lg animate-pulse">Loading (may take up to 30 seconds)...</div>
       </div>
     );
   }

@@ -85,7 +85,7 @@ const SoleRunningTotal: React.FC<SoleRunningTotalProps> = ({ poolAddress, markou
     return (
       <div className="w-full bg-black rounded-lg md:rounded-2xl border border-[#212121] p-4 md:p-6">
         <div className="h-[400px] md:h-[600px] flex items-center justify-center">
-          <div className="text-white text-base md:text-lg font-['Geist']">Loading...</div>
+          <div className="text-white text-base md:text-lg font-['Geist']">Loading (may take up to 30 seconds)...</div>
         </div>
       </div>
     );

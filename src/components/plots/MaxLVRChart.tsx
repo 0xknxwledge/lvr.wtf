@@ -78,7 +78,7 @@ const MaxLVRChart: React.FC<MaxLVRChartProps> = ({ selectedMarkout }) => {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-[500px] md:h-[600px]">
-        <p className="text-white text-base md:text-lg font-['Geist']">Loading...</p>
+        <p className="text-white text-base md:text-lg font-['Geist']">Loading (may take up to 30 seconds)...</p>
       </div>
     );
   }

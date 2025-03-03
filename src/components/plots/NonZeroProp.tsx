@@ -55,7 +55,7 @@ const NonZeroProportion: React.FC<NonZeroProportionProps> = ({ poolAddress, sele
     return (
       <div className="w-full">
         <div className="flex items-center justify-center h-48">
-          <p className="text-white text-base md:text-lg font-['Geist']">Loading...</p>
+          <p className="text-white text-base md:text-lg font-['Geist']">Loading (may take up to 30 seconds)...</p>
         </div>
       </div>
     );

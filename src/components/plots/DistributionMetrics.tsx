@@ -92,7 +92,7 @@ const DistributionMetrics: React.FC<DistributionMetricsProps> = ({
     return (
       <div className="w-full p-8 bg-[#030304] rounded-lg border border-[#8247E5]/20 min-h-[280px]">
         <div className="h-32 flex items-center justify-center">
-          <p className="text-white text-base font-['Geist']">Loading...</p>
+          <p className="text-white text-base font-['Geist']">Loading (may take up to 30 seconds)...</p>
         </div>
       </div>
     );

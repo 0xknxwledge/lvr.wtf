@@ -105,7 +105,7 @@ const PercentileBandChart: React.FC<PercentileBandChartProps> = ({
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-96">
-        <p className="text-white font-['Geist']">Loading...</p>
+        <p className="text-white font-['Geist']">Loading (may take up to 30 seconds)...</p>
       </div>
     );
   }

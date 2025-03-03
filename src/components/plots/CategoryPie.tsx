@@ -82,7 +82,7 @@ const CategoryPieChart: React.FC<CategoryPieChartProps> = ({ selectedMarkout }) 
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-96">
-        <p className="text-white">Loading...</p>
+        <p className="text-white">Loading (may take up to 30 seconds)....</p>
       </div>
     );
   }

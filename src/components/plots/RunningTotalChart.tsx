@@ -112,7 +112,7 @@ const AnnotatedRunningTotal: React.FC = () => {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-[500px] md:h-[700px] bg-black rounded-lg border border-[#212121]">
-        <div className="text-white text-base md:text-lg font-['Geist']">Loading...</div>
+        <div className="text-white text-base md:text-lg font-['Geist']">Loading (may take up to 30 seconds)...</div>
       </div>
     );
   }
