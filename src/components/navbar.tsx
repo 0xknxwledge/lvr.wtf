@@ -91,26 +91,26 @@ const NavBar = () => {
         <div className="flex items-center space-x-4">
           <span className="hidden lg:block text-white text-lg">Built By</span>
           <a
-            href="https://fenbushi.vc"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="h-12 opacity-90 hover:opacity-100 transition-opacity duration-200"
-          >
-            <img 
-              src="/fenbushi_white.png" 
-              alt="Fenbushi Capital" 
-              className="h-full"
-            />
-          </a>
-          <a
             href="https://sorellalabs.xyz"
             target="_blank"
             rel="noopener noreferrer"
-            className="h-12 opacity-90 hover:opacity-100 transition-opacity duration-200"
+            className="h-14 opacity-90 hover:opacity-100 transition-opacity duration-200"
           >
             <img 
               src="/sorella.png" 
               alt="Sorella Labs" 
+              className="h-full"
+            />
+          </a>
+          <a
+            href="https://fenbushi.vc"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="h-14 opacity-90 hover:opacity-100 transition-opacity duration-200"
+          >
+            <img 
+              src="/fenbushi_white.png" 
+              alt="Fenbushi Capital" 
               className="h-full"
             />
           </a>

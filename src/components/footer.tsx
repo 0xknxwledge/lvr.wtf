@@ -10,11 +10,19 @@ const Footer: React.FC = () => {
               Built with <span className="text-[#F651AE]">❤️</span> by
             </p>
             <p className="text-white text-sm text-center">
-              Fenbushi Research team and Sorella Labs
+              Sorella Labs and Fenbushi Research team
             </p>
           </div>
 
           <div className="flex gap-8">
+                        <a 
+              href="https://sorellalabs.xyz/" 
+              className="text-white text-sm underline hover:text-[#F651AE] transition-colors duration-200"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Visit Sorella Labs
+            </a>
             <a 
               href="https://fenbushi.vc/" 
               className="text-white text-sm underline hover:text-[#F651AE] transition-colors duration-200"
@@ -22,14 +30,6 @@ const Footer: React.FC = () => {
               rel="noopener noreferrer"
             >
               Visit Fenbushi Capital
-            </a>
-            <a 
-              href="https://sorellalabs.xyz/" 
-              className="text-white text-sm underline hover:text-[#F651AE] transition-colors duration-200"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Visit Sorella Labs
             </a>
           </div>
         </div>
