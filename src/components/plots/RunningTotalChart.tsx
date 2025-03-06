@@ -285,24 +285,27 @@ const AnnotatedRunningTotal: React.FC = () => {
         </p>
       </div>
       <Plot
-        data={plotData}
-        layout={layout}
-        config={{
-          ...commonConfig,
-          displayModeBar: true,
-          displaylogo: false,
-          modeBarButtonsToAdd: ['zoomIn2d', 'zoomOut2d', 'autoScale2d'],
-          modeBarButtonsToRemove: ['lasso2d', 'select2d'],
-          toImageButtonOptions: {
-            format: 'png',
-            filename: 'annotated_running_total_lvr',
-            height: responsiveLayout.height,
-            width: windowWidth,
-            scale: 2
-          }
-        }}
-        style={{ width: '100%', height: '100%' }}
-      />
+      data={plotData}
+      layout={{
+        ...layout,
+        dragmode: 'zoom'
+      }}
+      config={{
+        ...commonConfig,
+        displayModeBar: true,
+        displaylogo: false,
+        modeBarButtonsToAdd: ['zoomIn2d', 'zoomOut2d', 'autoScale2d'],
+        modeBarButtonsToRemove: ['lasso2d', 'select2d', 'pan2d'],
+        toImageButtonOptions: {
+          format: 'png',
+          filename: 'annotated_running_total_lvr',
+          height: responsiveLayout.height,
+          width: windowWidth,
+          scale: 2
+        }
+      }}
+      style={{ width: '100%', height: '100%' }}
+    />
     </div>
   );
 };
