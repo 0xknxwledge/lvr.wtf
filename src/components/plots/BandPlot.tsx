@@ -258,7 +258,7 @@ const PercentileBandChart: React.FC<PercentileBandChartProps> = ({
       />
       <div className="mt-4 pl-4 text-center">
         <p className="text-[#8247E5] text-sm font-['Geist']">
-        Within the given date range, this visualization displays the percentile distribution of daily LVR (i.e, total LVR across 7200 block-long chunks). Days with zero LVR have been excluded. Percentile values are computed using linear interpolation of the observed distribution.
+        *Within the given date range, this visualization displays the 75th, 50th, and 25th percentile values for daily LVR. Percentile values are computed through linear interpolation on the list of daily values within the given date range. We define days as 7200 block-long chunks. Days with zero LVR were excluded from the interpolated distribution.
         </p>
       </div>
     </div>

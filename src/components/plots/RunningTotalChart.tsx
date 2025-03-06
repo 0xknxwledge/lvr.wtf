@@ -278,25 +278,32 @@ const AnnotatedRunningTotal: React.FC = () => {
   };
 
   return (
-    <Plot
-      data={plotData}
-      layout={layout}
-      config={{
-        ...commonConfig,
-        displayModeBar: true,
-        displaylogo: false,
-        modeBarButtonsToAdd: ['zoomIn2d', 'zoomOut2d', 'autoScale2d'],
-        modeBarButtonsToRemove: ['lasso2d', 'select2d'],
-        toImageButtonOptions: {
-          format: 'png',
-          filename: 'annotated_running_total_lvr',
-          height: responsiveLayout.height,
-          width: windowWidth,
-          scale: 2
-        }
-      }}
-      style={{ width: '100%', height: '100%' }}
-    />
+    <div className="w-full">
+      <div className="mb-6 text-center">
+        <p className="text-white/80 text-sm md:text-base font-['Geist'] bg-[#30283A]/50 inline-block px-4 py-2 rounded-lg">
+          Click on markout times in the legend to toggle their visibility in the chart
+        </p>
+      </div>
+      <Plot
+        data={plotData}
+        layout={layout}
+        config={{
+          ...commonConfig,
+          displayModeBar: true,
+          displaylogo: false,
+          modeBarButtonsToAdd: ['zoomIn2d', 'zoomOut2d', 'autoScale2d'],
+          modeBarButtonsToRemove: ['lasso2d', 'select2d'],
+          toImageButtonOptions: {
+            format: 'png',
+            filename: 'annotated_running_total_lvr',
+            height: responsiveLayout.height,
+            width: windowWidth,
+            scale: 2
+          }
+        }}
+        style={{ width: '100%', height: '100%' }}
+      />
+    </div>
   );
 };
 
