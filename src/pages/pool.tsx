@@ -76,13 +76,6 @@ const Pool: React.FC = () => {
               markoutTime={selectedMarkout}
             />
           </PlotContainer>
-
-          <PlotContainer>
-            <NonZeroProportion 
-              poolAddress={selectedPool}
-              selectedMarkout={selectedMarkout}
-            />
-          </PlotContainer>
         </div>
       </div>
     </div>

@@ -134,10 +134,6 @@ const Category: React.FC = () => {
           <PlotContainer>
             <CategoryHistogram selectedMarkout={selectedMarkout} />
           </PlotContainer>
-
-          <PlotContainer>
-            <CategoryNonZero selectedMarkout={selectedMarkout} />
-          </PlotContainer>
         </div>
       </div>
     </div>
