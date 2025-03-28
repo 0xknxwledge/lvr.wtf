@@ -16,7 +16,7 @@ pub async fn get_running_total(
     State(state): State<Arc<AppState>>,
     Query(params): Query<TimeRangeQuery>,
 ) -> Result<Json<Vec<RunningTotal>>, StatusCode> {
-    let start_block = params.start_block.unwrap_or(*MERGE_BLOCK);
+    let start_block = params.start_block.unwrap_or(*MERGE_BLOCK - 1);
     let end_block = params.end_block.unwrap_or(20_000_000);
     let is_aggregate = params.aggregate.unwrap_or(false);
     

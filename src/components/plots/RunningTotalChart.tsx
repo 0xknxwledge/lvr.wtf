@@ -198,7 +198,6 @@ const AnnotatedRunningTotal: React.FC = () => {
     };
   });
 
-  // ***** ONLY CHANGE HERE: Wrap the text in <b>...</b> for a bold title *****
   const layout: Partial<Layout> = {
     paper_bgcolor: '#000000',
     plot_bgcolor: '#000000',
