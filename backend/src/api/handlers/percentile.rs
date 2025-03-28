@@ -16,7 +16,7 @@ pub async fn get_percentile_band(
     State(state): State<Arc<AppState>>,
     Query(params): Query<PercentileBandQuery>,
 ) -> Result<Json<PercentileBandResponse>, StatusCode> {
-    let start_block = params.start_block.unwrap_or(*MERGE_BLOCK);
+    let start_block = params.start_block.unwrap_or(*MERGE_BLOCK - 1);
     let end_block = params.end_block.unwrap_or(20_000_000);
     let markout_time = params.markout_time.unwrap_or_else(|| String::from("brontes"));
 

@@ -225,7 +225,7 @@ const AnnotatedRunningTotal: React.FC = () => {
       gridcolor: '#30283A',
       gridwidth: 1,
       zeroline: false,
-      range: [15537393, 20000000]
+      range: [15537392, 20000000]
     },
     yaxis: {
       title: {

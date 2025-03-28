@@ -17,8 +17,8 @@ use tracing::{info, warn, debug, error};
 use futures::StreamExt;
 use crate::{
     api::handlers::*,
-    MERGE_BLOCK, POOL_NAMES, INTERVAL_RANGES,
-    common::{BLOCKS_PER_INTERVAL, FINAL_INTERVAL_FILE, FINAL_PARTIAL_BLOCKS, 
+    POOL_NAMES, INTERVAL_RANGES,
+    common::{BLOCKS_PER_INTERVAL, FINAL_INTERVAL_FILE,
         get_string_column, get_uint64_column, get_valid_pools, get_column_value, get_pool_name, get_float64_column}
 };
 use arrow::array::Array;
@@ -90,13 +90,8 @@ impl PrecomputedWriter {
             let meta = meta_result.context("Failed to get file metadata")?;
             let file_path = meta.location.to_string();
             
-            // Get file start block from path
-            let file_start = file_path
-                .split("intervals/")
-                .nth(1)
-                .and_then(|name| name.trim_end_matches(".parquet").split('_').next())
-                .and_then(|num| num.parse::<u64>().ok())
-                .unwrap_or(*MERGE_BLOCK);
+            // Extract start and end blocks from the file name
+            let (file_start, file_end) = Self::extract_block_range_from_path(&file_path)?;
     
             let bytes = self.object_store.get(&meta.location)
                 .await?
@@ -109,7 +104,7 @@ impl PrecomputedWriter {
                 let batch = batch_result?;
                 
                 let interval_ids = get_uint64_column(&batch, "interval_id")
-                .map_err(|e| anyhow::anyhow!("Failed to get interval_id column: {}", e))?;
+                    .map_err(|e| anyhow::anyhow!("Failed to get interval_id column: {}", e))?;
                 let markout_times_col = get_string_column(&batch, "markout_time")
                     .map_err(|e| anyhow::anyhow!("Failed to get markout_time column: {}", e))?;
                 let pool_addresses_col = get_string_column(&batch, "pair_address")
@@ -133,11 +128,19 @@ impl PrecomputedWriter {
                     let markout_time = markout_times_col.value(i).to_string();
                     let lvr_cents = total_lvr_cents.value(i);
     
-                    let block_number = if file_path.ends_with(FINAL_INTERVAL_FILE) && interval_id == 19 {
-                        file_start + (interval_id * BLOCKS_PER_INTERVAL) + FINAL_PARTIAL_BLOCKS
+                    // Calculate the actual end block for this interval's data
+                    // This is where the LVR activity belongs when displaying running totals
+                    let end_block = if file_path.ends_with(FINAL_INTERVAL_FILE) && interval_id == 19 {
+                        // Special case for the final interval in the last file
+                        file_end  // Use the exact end boundary from the filename
                     } else {
-                        file_start + (interval_id * BLOCKS_PER_INTERVAL)
+                        // Regular intervals end at the end of their range
+                        file_start + ((interval_id + 1) * BLOCKS_PER_INTERVAL)
                     };
+    
+                    // FIX: Use the end block for the running total as that's where
+                    // the cumulative value appears after all activity in the interval
+                    let block_number = end_block;
     
                     // Update individual pool data
                     interval_data
@@ -162,6 +165,27 @@ impl PrecomputedWriter {
     
         info!("Successfully wrote precomputed running totals (individual and aggregate)");
         Ok(())
+    }
+    
+    // Helper function to extract start and end blocks from file path
+    fn extract_block_range_from_path(file_path: &str) -> Result<(u64, u64), anyhow::Error> {
+        let file_name = file_path
+            .split('/')
+            .last()
+            .context("Failed to extract filename from path")?;
+        
+        let parts: Vec<&str> = file_name.trim_end_matches(".parquet").split('_').collect();
+        if parts.len() != 2 {
+            return Err(anyhow::anyhow!("Invalid file name format: {}", file_name));
+        }
+        
+        let start_block = parts[0].parse::<u64>()
+            .context(format!("Failed to parse start block from filename: {}", file_name))?;
+        
+        let end_block = parts[1].parse::<u64>()
+            .context(format!("Failed to parse end block from filename: {}", file_name))?;
+        
+        Ok((start_block, end_block))
     }
     
     async fn write_individual_running_totals(
