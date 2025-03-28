@@ -18,20 +18,20 @@ interface EventAnnotation {
 
 const EVENT_ANNOTATIONS: EventAnnotation[] = [
   {
-    blockStart: 16689392,
-    blockEnd: 16696592,
+    blockStart: 16696592,
+    blockEnd: 16703792,
     text: "SEC charges Terraform Labs; DOJ indicts SBF",
     description: "Late February 2023"
   },
   {
-    blockStart: 16790192,
-    blockEnd: 16797392,
+    blockStart: 16797392,
+    blockEnd: 16804592,
     text: "USDC Depeg",
     description: "March 9-10, 2023"
   },
   {
-    blockStart: 18669392,
-    blockEnd: 18669392,
+    blockStart: 18676592,
+    blockEnd: 18683792,
     text: "Microstrategy buys $600M of BTC",
     description: "Late November 2023"
   }
